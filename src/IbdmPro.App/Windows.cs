@@ -501,7 +501,7 @@ public sealed class SettingsWindow : Window
         }
 
         _s.Save();
-        Startup.Apply(_s.StartWithWindows);
+        AutoStart.Apply(_s.StartWithWindows);
         _manager.Limiter.BytesPerSecond = _s.SpeedLimitKBps * 1024L;
         _manager.Save();
         Close();

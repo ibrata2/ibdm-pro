@@ -50,6 +50,13 @@ function extOf(name) {
   return i > 0 ? base.slice(i + 1).toLowerCase() : '';
 }
 
+const MIME_EXT = {
+  'application/zip': 'zip', 'application/x-zip-compressed': 'zip', 'application/x-rar-compressed': 'rar', 'application/vnd.rar': 'rar',
+  'application/x-7z-compressed': '7z', 'application/pdf': 'pdf', 'application/x-msdownload': 'exe', 'application/x-msi': 'msi',
+  'application/vnd.android.package-archive': 'apk', 'application/x-iso9660-image': 'iso', 'video/mp4': 'mp4', 'video/x-matroska': 'mkv',
+  'video/webm': 'webm', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'application/x-bittorrent': 'torrent',
+};
+
 function baseName(path) {
   return (path || '').split(/[\\/]/).pop() || '';
 }
@@ -88,7 +95,7 @@ async function shouldCapture(item) {
   const cfg = await ping();
   if (!cfg || !cfg.capture) return null;
   const name = baseName(item.filename) || nameFromUrl(url);
-  const ext = extOf(name) || extOf(url);
+  const ext = extOf(name) || extOf(url) || MIME_EXT[(item.mime || '').toLowerCase()] || '';
   if (!ext || !(cfg.extensions || []).includes(ext)) return null;
   const size = item.fileSize > 0 ? item.fileSize : item.totalBytes;
   if (cfg.minSizeKB > 0 && size > 0 && size < cfg.minSizeKB * 1024) return null;
@@ -104,7 +111,7 @@ async function capture(item, found) {
     url: found.url,
     pageUrl: item.referrer || '',
     referrer: item.referrer || '',
-    fileName: found.name,
+    fileName: extOf(found.name) ? found.name : '',
     mime: item.mime || '',
     size: found.size > 0 ? found.size : -1,
     cookies: await cookiesFor(found.url),

@@ -74,7 +74,7 @@ public sealed class IbdmApp : Application
             Shutdown();
             return;
         }
-        Startup.Apply(settings.StartWithWindows);
+        AutoStart.Apply(settings.StartWithWindows);
 
         Manager = new DownloadManager();
         Manager.Limiter.BytesPerSecond = settings.SpeedLimitKBps * 1024L;
@@ -125,7 +125,7 @@ public sealed class IbdmApp : Application
 }
 
 /// <summary>"Start with Windows": a Run entry for the signed-in user, started hidden in the tray.</summary>
-public static class Startup
+public static class AutoStart
 {
     private const string Key = @"Software\Microsoft\Windows\CurrentVersion\Run";
 

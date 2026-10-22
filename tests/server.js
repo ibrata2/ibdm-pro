@@ -39,15 +39,21 @@ http.createServer((req, res) => {
   if (url.pathname === '/dl') return sendFile(req, res, path.join(dir, 'small.bin'), {
     headers: { 'Content-Disposition': "attachment; filename=\"x.zip\"; filename*=UTF-8''" + encodeURIComponent('ملف تجربة.zip') },
   });
+  if (url.pathname === '/files/archive.zip') return sendFile(req, res, path.join(dir, 'small.bin'), { throttle: false, headers: { 'Content-Type': 'application/zip' } });
   if (url.pathname === '/redirect') { res.writeHead(302, { Location: '/file.bin' }); return res.end(); }
   if (url.pathname === '/needcookie.bin') {
     if (req.headers.cookie !== 'session=abc') { res.writeHead(403); return res.end('no'); }
     return sendFile(req, res, path.join(dir, 'small.bin'), { throttle: false });
   }
   if (url.pathname === '/clip.mp4') return sendFile(req, res, path.join(dir, 'clip.mp4'), { throttle: false, headers: { 'Content-Type': 'video/mp4' } });
+  if (url.pathname === '/links.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': 'session=abc; Path=/' });
+    return res.end('<html><body><a id="zip" href="/files/archive.zip">zip</a> <a id="txt" href="/note.txt" download>txt</a></body></html>');
+  }
+  if (url.pathname === '/note.txt') { res.writeHead(200, { 'Content-Type': 'text/plain', 'Content-Disposition': 'attachment; filename="note.txt"' }); return res.end('hello'); }
   if (url.pathname === '/page.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end('<html><head><title>فيديو تجربة</title></head><body><video controls src="/clip.mp4"></video></body></html>');
+    return res.end('<html><head><title>فيديو تجربة</title></head><body><video controls width="640" height="360" src="/clip.mp4"></video></body></html>');
   }
   res.writeHead(404); res.end();
 }).listen(port, '127.0.0.1', () => console.log('ready'));
