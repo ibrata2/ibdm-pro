@@ -53,6 +53,52 @@ public static class Theme
     public static readonly Style Row = MakeRow();
     public static readonly Style Header = MakeHeader();
     public static readonly Style Input = MakeInput();
+    public static readonly Style CheckBox = MakeCheck();
+
+    /// <summary>A gold tick in a dark box (the default box draws a mirrored tick in right-to-left windows).</summary>
+    private static Style MakeCheck()
+    {
+        var root = new FrameworkElementFactory(typeof(DockPanel));
+        root.SetValue(System.Windows.Controls.Panel.BackgroundProperty, Brushes.Transparent);
+        var box = new FrameworkElementFactory(typeof(Border), "Box");
+        box.SetValue(FrameworkElement.WidthProperty, 18.0);
+        box.SetValue(FrameworkElement.HeightProperty, 18.0);
+        box.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        box.SetValue(Border.BorderThicknessProperty, new Thickness(1.5));
+        box.SetValue(Border.BorderBrushProperty, Br("#55555F"));
+        box.SetValue(Border.BackgroundProperty, Card);
+        box.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top);
+        box.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 1, 0, 0));
+        box.SetValue(DockPanel.DockProperty, Dock.Left);
+        var mark = new FrameworkElementFactory(typeof(TextBlock), "Mark");
+        mark.SetValue(TextBlock.TextProperty, "\uE73E");
+        mark.SetValue(TextBlock.FontFamilyProperty, Icons);
+        mark.SetValue(TextBlock.FontSizeProperty, 12.0);
+        mark.SetValue(TextBlock.ForegroundProperty, OnGold);
+        mark.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        mark.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        mark.SetValue(FrameworkElement.FlowDirectionProperty, FlowDirection.LeftToRight);
+        mark.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+        box.AppendChild(mark);
+        root.AppendChild(box);
+        var cp = new FrameworkElementFactory(typeof(ContentPresenter));
+        cp.SetValue(FrameworkElement.MarginProperty, new Thickness(10, 0, 0, 0));
+        cp.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        root.AppendChild(cp);
+        var t = new ControlTemplate(typeof(CheckBox)) { VisualTree = root };
+        t.Triggers.Add(new Trigger { Property = UIElement.IsMouseOverProperty, Value = true, Setters = { new Setter(Border.BorderBrushProperty, Gold, "Box") } });
+        t.Triggers.Add(new Trigger
+        {
+            Property = ToggleButton.IsCheckedProperty, Value = true,
+            Setters = { new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Mark"), new Setter(Border.BackgroundProperty, Gold, "Box"), new Setter(Border.BorderBrushProperty, Gold, "Box") },
+        });
+        t.Triggers.Add(new Trigger { Property = UIElement.IsEnabledProperty, Value = false, Setters = { new Setter(UIElement.OpacityProperty, 0.45) } });
+        var s = new Style(typeof(CheckBox));
+        s.Setters.Add(new Setter(Control.TemplateProperty, t));
+        s.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
+        s.Setters.Add(new Setter(FrameworkElement.CursorProperty, Cursors.Hand));
+        return s;
+    }
 
     private static Style MakeButton(Brush bg, Brush hover, Brush pressed, Brush fg, Brush border)
     {
@@ -282,6 +328,7 @@ public static class Ui
 
     public static CheckBox Check(string text, bool value) => new()
     {
+        Style = Theme.CheckBox,
         Content = Text(text, 13, Theme.Ink, wrap: TextWrapping.Wrap),
         IsChecked = value,
         Foreground = Theme.Ink,

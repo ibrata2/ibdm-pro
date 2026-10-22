@@ -111,24 +111,25 @@ public static class Fmt
         double v = bytes;
         var i = 0;
         while (v >= 1024 && i < units.Length - 1) { v /= 1024; i++; }
-        return i == 0 ? $"{bytes} B" : $"{v:0.##} {units[i]}";
+        // U+200E keeps "461.01 MB" in this order inside Arabic (right-to-left) text.
+        return "\u200E" + (i == 0 ? $"{bytes} B" : $"{v:0.##} {units[i]}");
     }
 
-    public static string Speed(double bps) => bps <= 0 ? "" : Size((long)bps) + "/ث";
+    public static string Speed(double bps) => bps <= 0 ? "" : Size((long)bps) + "/s";
 
     public static string Eta(long remaining, double bps)
     {
         if (bps <= 1 || remaining <= 0) return "";
         var t = TimeSpan.FromSeconds(remaining / bps);
         if (t.TotalDays >= 1) return "+يوم";
-        return t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes:00}:{t.Seconds:00}";
+        return "\u200E" + (t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes:00}:{t.Seconds:00}");
     }
 
     public static string Duration(double seconds)
     {
         if (seconds <= 0) return "";
         var t = TimeSpan.FromSeconds(seconds);
-        return t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes}:{t.Seconds:00}";
+        return "\u200E" + (t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes}:{t.Seconds:00}");
     }
 }
 

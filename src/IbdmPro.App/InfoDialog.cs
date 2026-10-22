@@ -243,7 +243,9 @@ public sealed class InfoDialog : Window
 
         AddWhere();
         _body.Children.Add(Ui.Label("الرابط"));
-        var url = Ui.Input(p.FinalUrl);
+        string shown;
+        try { shown = Uri.UnescapeDataString(p.FinalUrl); } catch (Exception) { shown = p.FinalUrl; }
+        var url = Ui.Input(shown);
         url.IsReadOnly = true;
         url.Foreground = Theme.Muted;
         url.FlowDirection = FlowDirection.LeftToRight;

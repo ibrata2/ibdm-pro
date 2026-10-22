@@ -18,7 +18,7 @@ public sealed class MediaOption
     public string? AudioFormat { get; set; }
     /// <summary>For a single plain file, its address — used to ask the server for the exact size when yt-dlp does not know it.</summary>
     public string? DirectUrl { get; set; }
-    public string SizeText => Size > 0 ? (SizeIsEstimate ? "~" : "") + Fmt.Size(Size) : "الحجم غير معروف";
+    public string SizeText => Size > 0 ? (SizeIsEstimate ? "\u200E~" : "") + Fmt.Size(Size) : "الحجم غير معروف";
 }
 
 public sealed class MediaInfo
@@ -166,7 +166,7 @@ public static class YtDlp
                 SizeIsEstimate = est,
                 FormatSpec = needsAudio ? $"{id}+{Str(audio, "format_id")}/{id}+bestaudio/{id}/best[height<={h}]/best" : $"{id}/best[height<={h}]/best",
                 DirectUrl = !needsAudio && Str(f, "protocol") is "http" or "https" ? Str(f, "url") : null,
-                Label = $"{QualityName(h)}{(fps > 30 ? $" {fps}fps" : "")} — {ext.ToUpperInvariant()}",
+                Label = "\u200E" + $"{QualityName(h)}{(fps > 30 ? $" {fps}fps" : "")} — {ext.ToUpperInvariant()}",
             });
         }
 
@@ -195,11 +195,11 @@ public static class YtDlp
 
     public static string QualityName(int h) => h switch
     {
-        >= 4320 => "8K (4320p)",
-        >= 2160 => "4K (2160p)",
-        >= 1440 => "2K (1440p)",
-        >= 1080 => $"Full HD ({h}p)",
-        >= 720 => $"HD ({h}p)",
+        >= 4320 => $"{h}p 8K",
+        >= 2160 => $"{h}p 4K",
+        >= 1440 => $"{h}p 2K",
+        >= 1080 => $"{h}p Full HD",
+        >= 720 => $"{h}p HD",
         _ => $"{h}p",
     };
 

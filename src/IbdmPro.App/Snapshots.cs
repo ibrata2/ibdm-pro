@@ -40,6 +40,7 @@ public static class Snapshots
         Item("setup-x64.exe", 92_000_000, 0.05, DownloadStatus.Error, error: "الخادم رفض الطلب (403 Forbidden)", minutesAgo: 120);
         Item("صورة الغلاف.png", 2_100_000, 1, DownloadStatus.Completed, minutesAgo: 200);
 
+        app.Main.Sync();
         Save(app.Main, Path.Combine(dir, "1-main.png"));
 
         var probe = new ProbeResult { FinalUrl = "https://download.example.com/files/برنامج%20التصميم.zip", FileName = "برنامج التصميم.zip", Size = 1_250_000_000, Resumable = true, ContentType = "application/zip" };

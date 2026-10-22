@@ -332,7 +332,7 @@ public sealed class MainWindow : Window
 
     // ---------- keeping the list current ----------
 
-    private void Sync()
+    public void Sync()
     {
         var items = _manager.Items;
         var ids = items.Select(i => i.Id).ToHashSet();
