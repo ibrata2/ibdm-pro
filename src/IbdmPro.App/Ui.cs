@@ -269,6 +269,27 @@ public static class Ui
         VerticalAlignment = VerticalAlignment.Center,
     };
 
+    /// <summary>English/number text (sizes, speeds, qualities) shown left-to-right inside the Arabic layout,
+    /// so "94.8 MB" never turns into "MB 94.8".</summary>
+    public static TextBlock Ltr(string s, double size = 13, Brush? fg = null, bool bold = false)
+    {
+        var t = Text(s, size, fg, bold);
+        t.FlowDirection = FlowDirection.LeftToRight;
+        t.HorizontalAlignment = HorizontalAlignment.Left; // = the right edge inside a right-to-left parent
+        return t;
+    }
+
+    /// <summary>Left-to-right for text that starts with a Latin letter or digit (an English file name), else right-to-left.</summary>
+    public static FlowDirection DirectionOf(string? s)
+    {
+        foreach (var c in s ?? "")
+        {
+            if (c is >= '\u0590' and <= '\u08FF' or >= '\uFB1D' and <= '\uFEFC') return FlowDirection.RightToLeft;
+            if (char.IsLetter(c)) return FlowDirection.LeftToRight;
+        }
+        return FlowDirection.RightToLeft;
+    }
+
     public static TextBlock Glyph(string g, double size = 16, Brush? fg = null) => new()
     {
         Text = g,

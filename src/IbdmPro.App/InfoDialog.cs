@@ -54,7 +54,9 @@ public sealed class InfoDialog : Window
     private readonly TextBox _folder = Ui.Input();
     private readonly CheckBox _remember = Ui.Check("تذكر هذا المجلد لهذا النوع من الملفات", false);
     private readonly TextBlock _space = Ui.Text("", 12, Theme.Muted, wrap: TextWrapping.Wrap);
-    private readonly TextBlock _sizeValue = Ui.Text("", 13, Theme.Ink, bold: true);
+    private readonly TextBlock _sizeValue = Ui.Ltr("", 13, Theme.Ink, bold: true);
+    private readonly TextBlock _freeValue = Ui.Ltr("", 12, Theme.Muted);
+    private readonly TextBlock _freeLabel = Ui.Text("", 12, Theme.Muted);
     private readonly TextBlock _typeValue = Ui.Text("", 13, Theme.Ink);
     private readonly WrapPanel _categories = new();
     private Category _category;
@@ -107,7 +109,7 @@ public sealed class InfoDialog : Window
 
         _folder.TextChanged += (_, _) => { UpdateSpace(); };
         _folder.PreviewKeyDown += (_, _) => _folderEdited = true;
-        _name.TextChanged += (_, _) => UpdateSpace();
+        _name.TextChanged += (_, _) => { _name.FlowDirection = Ui.DirectionOf(_name.Text); UpdateSpace(); };
         Closed += (_, _) => _cts.Cancel();
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
         Loaded += async (_, _) => { if (!_preview) await LoadAsync(); };
@@ -297,14 +299,14 @@ public sealed class InfoDialog : Window
                 list.Children.Add(Ui.Label("صوت فقط"));
             }
             var row = new DockPanel();
-            var size = Ui.Text(o.SizeText, 13, o.Size > 0 ? Theme.Gold : Theme.Muted, bold: o.Size > 0);
+            var size = o.Size > 0 ? Ui.Ltr(o.SizeText, 13, Theme.Gold, bold: true) : Ui.Text(o.SizeText, 12.5, Theme.Muted);
             DockPanel.SetDock(size, Dock.Right);
             row.Children.Add(size);
             var g = Ui.Glyph(o.AudioOnly ? "" : "", 15, o.AudioOnly ? Theme.Br("#A86BF0") : Theme.Br("#E5533D"));
             g.Margin = new Thickness(0, 0, 10, 0);
             DockPanel.SetDock(g, Dock.Left);
             row.Children.Add(g);
-            row.Children.Add(Ui.Text(o.Label, 13, Theme.Ink));
+            row.Children.Add(o.AudioOnly ? Ui.Text(o.Label, 13, Theme.Ink) : Ui.Ltr(o.Label, 13, Theme.Ink));
             var rb = new RadioButton { Style = Theme.Choice, Content = row, GroupName = "q" + GetHashCode(), Tag = o, HorizontalContentAlignment = HorizontalAlignment.Stretch };
             rb.Checked += (_, _) => SelectOption((MediaOption)rb.Tag);
             rb.MouseDoubleClick += (_, _) => { if (_start.IsEnabled) Finish(true); };
@@ -362,7 +364,11 @@ public sealed class InfoDialog : Window
         row.Children.Add(_folder);
         _body.Children.Add(row);
         _body.Children.Add(_remember);
-        _space.Margin = new Thickness(0, 2, 0, 0);
+        var free = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+        _freeValue.Margin = new Thickness(6, 0, 0, 0);
+        free.Children.Add(_freeLabel);
+        free.Children.Add(_freeValue);
+        _body.Children.Add(free);
         _body.Children.Add(_space);
         SelectCategory(_category);
     }
@@ -401,18 +407,15 @@ public sealed class InfoDialog : Window
             var need = _option?.Size ?? (_probe?.Size > 0 ? _probe.Size : _req.Size);
             var path = Path.Combine(_folder.Text, FileNames.Clean(_name.Text));
             var exists = File.Exists(path) ? $"\nيوجد ملف بنفس الاسم — سيتم الحفظ باسم «{Path.GetFileName(FileNames.Unique(path))}»" : "";
-            if (free >= 0 && need > 0 && free < need)
-            {
-                _space.Text = $"⚠ المساحة غير كافية: المتوفر {Fmt.Size(free)} والملف يحتاج {Fmt.Size(need)}" + exists;
-                _space.Foreground = Theme.Red;
-            }
-            else
-            {
-                _space.Text = (free >= 0 ? $"المساحة المتوفرة على القرص: {Fmt.Size(free)}" : "") + exists;
-                _space.Foreground = exists.Length > 0 ? Theme.Gold : Theme.Muted;
-            }
+            var low = free >= 0 && need > 0 && free < need;
+            _freeLabel.Text = free < 0 ? "" : low ? "⚠ المساحة غير كافية — المتوفر:" : "المساحة المتوفرة على القرص:";
+            _freeValue.Text = free < 0 ? "" : Fmt.Size(free) + (low ? "  /  " + Fmt.Size(need).TrimStart('\u200E') : "");
+            _freeLabel.Foreground = _freeValue.Foreground = low ? Theme.Red : Theme.Muted;
+            _space.Text = exists.Trim();
+            _space.Foreground = Theme.Gold;
+            _space.Visibility = exists.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
-        catch (Exception) { _space.Text = ""; }
+        catch (Exception) { _space.Text = ""; _freeLabel.Text = _freeValue.Text = ""; }
     }
 
     // ---------- start ----------

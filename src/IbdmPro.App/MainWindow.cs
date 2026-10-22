@@ -19,6 +19,7 @@ public sealed class Row : INotifyPropertyChanged
 
     private Category Cat => Settings.Current.CategoryNamed(Item.Category) ?? Settings.Current.CategoryFor(Item.FileName);
     public string Name => Item.FileName;
+    public FlowDirection NameFlow => Ui.DirectionOf(Item.FileName);
     public string Glyph => Cat.Icon;
     public Brush GlyphBrush => Theme.Br(Cat.Color);
     public string Size => Item.TotalBytes > 0 ? Fmt.Size(Item.TotalBytes) : (Item.Downloaded > 0 ? Fmt.Size(Item.Downloaded) : "—");
@@ -60,6 +61,7 @@ public sealed class MainWindow : Window
     private readonly TextBlock _extStatus = Ui.Text("", 12, Theme.Muted);
     private readonly TextBlock _extDot = Ui.Glyph("", 10, Theme.Muted);
     private readonly TextBlock _speed = Ui.Text("", 12, Theme.Gold);
+    private readonly TextBlock _speedValue = Ui.Ltr("", 12, Theme.Gold, bold: true);
     private readonly TextBlock _detail = Ui.Text("", 12, Theme.Muted);
     private string _filter = "all";
     private string _sortBy = "date";
@@ -185,9 +187,12 @@ public sealed class MainWindow : Window
         ext.MouseLeftButtonUp += (_, _) => ExtensionGuide.Show(this);
         DockPanel.SetDock(ext, Dock.Right);
         bar.Children.Add(ext);
-        _speed.Margin = new Thickness(14, 5, 14, 5);
-        DockPanel.SetDock(_speed, Dock.Right);
-        bar.Children.Add(_speed);
+        var speed = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 5, 14, 5) };
+        _speedValue.Margin = new Thickness(8, 0, 0, 0);
+        speed.Children.Add(_speed);
+        speed.Children.Add(_speedValue);
+        DockPanel.SetDock(speed, Dock.Right);
+        bar.Children.Add(speed);
         return new Border { Child = bar, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0) };
     }
 
@@ -249,10 +254,13 @@ public sealed class MainWindow : Window
         icon.SetBinding(TextBlock.TextProperty, new Binding(nameof(Row.Glyph)));
         icon.SetBinding(TextBlock.ForegroundProperty, new Binding(nameof(Row.GlyphBrush)));
         name.AppendChild(icon);
-        name.AppendChild(TextCell(nameof(Row.Name), null, 13.5));
+        var nameText = TextCell(nameof(Row.Name), null, 13.5);
+        nameText.SetBinding(FrameworkElement.FlowDirectionProperty, new Binding(nameof(Row.NameFlow)));
+        nameText.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+        name.AppendChild(nameText);
         grid.Columns.Add(Column("الاسم", 360, name, "name"));
 
-        grid.Columns.Add(Column("الحجم", 95, TextCell(nameof(Row.Size)), "size"));
+        grid.Columns.Add(Column("الحجم", 95, TextCell(nameof(Row.Size), ltr: true), "size"));
 
         // progress bar with the percentage under it
         var prog = new FrameworkElementFactory(typeof(StackPanel));
@@ -264,13 +272,13 @@ public sealed class MainWindow : Window
         bar.SetBinding(Control.ForegroundProperty, new Binding(nameof(Row.BarBrush)));
         bar.SetBinding(ProgressBar.IsIndeterminateProperty, new Binding(nameof(Row.Indeterminate)) { Mode = BindingMode.OneWay });
         prog.AppendChild(bar);
-        prog.AppendChild(TextCell(nameof(Row.PercentText), null, 11.5));
+        prog.AppendChild(TextCell(nameof(Row.PercentText), null, 11.5, ltr: true));
         grid.Columns.Add(Column("التقدم", 150, prog, "progress"));
 
-        grid.Columns.Add(Column("السرعة", 95, TextCell(nameof(Row.Speed), Theme.Gold), "speed"));
-        grid.Columns.Add(Column("المتبقي", 75, TextCell(nameof(Row.Eta)), "eta"));
+        grid.Columns.Add(Column("السرعة", 95, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
+        grid.Columns.Add(Column("المتبقي", 75, TextCell(nameof(Row.Eta), ltr: true), "eta"));
         grid.Columns.Add(Column("الحالة", 150, TextCell(nameof(Row.Status), null, 12.5, nameof(Row.StatusBrush)), "status"));
-        grid.Columns.Add(Column("التاريخ", 125, TextCell(nameof(Row.Date), Theme.Muted, 12), "date"));
+        grid.Columns.Add(Column("التاريخ", 125, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
         _list.View = grid;
 
         _list.MouseDoubleClick += (_, e) =>
@@ -300,9 +308,14 @@ public sealed class MainWindow : Window
         return new GridViewColumn { Header = h, Width = width, CellTemplate = new DataTemplate { VisualTree = cell } };
     }
 
-    private static FrameworkElementFactory TextCell(string path, Brush? fg = null, double size = 13, string? brushPath = null)
+    private static FrameworkElementFactory TextCell(string path, Brush? fg = null, double size = 13, string? brushPath = null, bool ltr = false)
     {
         var t = new FrameworkElementFactory(typeof(TextBlock));
+        if (ltr)
+        {
+            t.SetValue(FrameworkElement.FlowDirectionProperty, FlowDirection.LeftToRight);
+            t.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+        }
         t.SetBinding(TextBlock.TextProperty, new Binding(path) { Mode = BindingMode.OneWay });
         t.SetValue(TextBlock.FontSizeProperty, size);
         t.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
@@ -351,7 +364,8 @@ public sealed class MainWindow : Window
 
         var speed = _manager.TotalSpeed;
         var active = items.Count(i => i.IsActive);
-        _speed.Text = active > 0 ? $"⬇ {active} قيد التحميل — {Fmt.Speed(speed)}" : "";
+        _speed.Text = active > 0 ? $"⬇ {active} قيد التحميل" : "";
+        _speedValue.Text = active > 0 ? Fmt.Speed(speed) : "";
         IbdmApp.Instance.Tray?.SetTooltip(active > 0 ? $"IBDM Pro — {active} قيد التحميل {Fmt.Speed(speed)}" : "IBDM Pro");
         Title = active > 0 && items.FirstOrDefault(i => i.Status == DownloadStatus.Downloading) is { TotalBytes: > 0 } a
             ? $"{a.Percent:0}% — IBDM Pro {Program.Version}" : $"IBDM Pro {Program.Version}";
