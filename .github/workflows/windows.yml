@@ -100,10 +100,17 @@ jobs:
           Get-ChildItem build/snapshots | Format-Table Name, Length
           Get-ChildItem build/snapshots -Filter *.txt | ForEach-Object { Get-Content $_ }
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: snapshots
-          path: build/snapshots
+      - name: Keep the snapshots on the ci-snapshots branch (to review the look of each build)
+        continue-on-error: true
+        run: |
+          $dir = "build/snapshots"
+          Set-Location $dir
+          git init -q -b ci-snapshots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Snapshots of ${{ steps.v.outputs.version }}"
+          git push -f -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-snapshots
 
       - name: Make sure Inno Setup has Arabic
         run: |
