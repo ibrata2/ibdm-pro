@@ -20,6 +20,7 @@ public sealed class Tray : IDisposable
         menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add("فتح مجلد التحميلات", null, (_, _) => { Directory.CreateDirectory(Settings.Current.DownloadRoot); Ui.Open(Settings.Current.DownloadRoot); });
         menu.Items.Add("الإعدادات", null, (_, _) => { app.ShowMain(); app.Main.OpenSettings(); });
+        menu.Items.Add("البحث عن تحديث…", null, (_, _) => { app.ShowMain(); Updater.ShowWindow(app.Main); });
         menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add("خروج", null, (_, _) => app.Quit());
 

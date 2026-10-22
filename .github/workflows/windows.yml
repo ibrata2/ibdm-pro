@@ -92,13 +92,21 @@ jobs:
           if (-not $ok) { Get-Content "$env:APPDATA/IBDM Pro/log.txt" -ErrorAction SilentlyContinue; throw "the app did not answer on 127.0.0.1:39401 (alive: $alive)" }
           Write-Host "App started and answered the extension ping."
 
+      - name: Check the "search for update" reads GitHub
+        run: |
+          Start-Process build/publish/IBDMPro.exe -ArgumentList "--check-update", "update.txt" -Wait
+          $t = Get-Content update.txt
+          Write-Host $t
+          if ($t -notmatch "^current=") { throw "update check failed: $t" }
+
       - name: Snapshots of every window
         continue-on-error: true
         run: |
-          New-Item -ItemType Directory -Force build/snapshots | Out-Null
-          $p = Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots" -PassThru -Wait
-          Get-ChildItem build/snapshots | Format-Table Name, Length
-          Get-ChildItem build/snapshots -Filter *.txt | ForEach-Object { Get-Content $_ }
+          New-Item -ItemType Directory -Force build/snapshots/dark, build/snapshots/light | Out-Null
+          Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/dark", "--theme", "dark" -Wait
+          Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/light", "--theme", "light" -Wait
+          Get-ChildItem build/snapshots -Recurse | Format-Table FullName, Length
+          Get-ChildItem build/snapshots -Recurse -Filter *.txt | ForEach-Object { Get-Content $_ }
 
       - name: Keep the snapshots on the ci-snapshots branch (to review the look of each build)
         continue-on-error: true

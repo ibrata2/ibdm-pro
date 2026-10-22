@@ -11,25 +11,51 @@ using System.Windows.Media.Imaging;
 
 namespace IbdmPro.App;
 
-/// <summary>The IBDM Pro look: black and gold, Arabic, right to left.</summary>
+/// <summary>The IBDM Pro look: gold accents, Arabic, right to left — dark (black) or light (white) following
+/// the Windows "app mode" (Settings › Personalization › Colors), unless chosen in IBDM Pro's settings.</summary>
 public static class Theme
 {
-    public static readonly Brush Bg = Br("#0F0F11");
-    public static readonly Brush Panel = Br("#16161A");
-    public static readonly Brush Card = Br("#1E1E23");
-    public static readonly Brush Hover = Br("#2A2A31");
-    public static readonly Brush Pressed = Br("#33333B");
-    public static readonly Brush Line = Br("#2C2C33");
-    public static readonly Brush Gold = Br("#D4AF37");
-    public static readonly Brush GoldHover = Br("#E2C25A");
-    public static readonly Brush GoldSoft = Br("#33D4AF37");
-    public static readonly Brush OnGold = Br("#111111");
-    public static readonly Brush Ink = Br("#F2F2F4");
-    public static readonly Brush Muted = Br("#9C9CA6");
-    public static readonly Brush Red = Br("#E5533D");
-    public static readonly Brush Green = Br("#4CC26B");
-    public static readonly Brush Blue = Br("#3B9BF0");
-    public static readonly Brush Track = Br("#2A2A30");
+    public static readonly bool IsDark = ReadDark();
+    private static string P(string dark, string light) => IsDark ? dark : light;
+
+    public static readonly Brush Bg = Br(P("#0F0F11", "#F3F3F5"));
+    public static readonly Brush Panel = Br(P("#16161A", "#FAFAFB"));
+    public static readonly Brush Card = Br(P("#1E1E23", "#FFFFFF"));
+    public static readonly Brush Hover = Br(P("#2A2A31", "#ECECF0"));
+    public static readonly Brush Pressed = Br(P("#33333B", "#E1E1E7"));
+    public static readonly Brush Line = Br(P("#2C2C33", "#DCDCE2"));
+    public static readonly Brush Gold = Br(P("#D4AF37", "#A87F0A"));
+    public static readonly Brush GoldHover = Br(P("#E2C25A", "#B98E17"));
+    public static readonly Brush GoldPressed = Br(P("#B8962A", "#8F6C08"));
+    public static readonly Brush GoldSoft = Br(P("#33D4AF37", "#26C49A1C"));
+    public static readonly Brush OnGold = Br(P("#111111", "#FFFFFF"));
+    public static readonly Brush Ink = Br(P("#F2F2F4", "#1B1B1F"));
+    public static readonly Brush Muted = Br(P("#9C9CA6", "#6B6B75"));
+    public static readonly Brush Red = Br(P("#E5533D", "#C93B26"));
+    public static readonly Brush RedSoft = Br(P("#33E5533D", "#22C93B26"));
+    public static readonly Brush Green = Br(P("#4CC26B", "#23914A"));
+    public static readonly Brush Blue = Br(P("#3B9BF0", "#1F7BD0"));
+    public static readonly Brush Track = Br(P("#2A2A30", "#E3E3E9"));
+    public static readonly Brush BoxLine = Br(P("#55555F", "#9A9AA5"));
+
+    /// <summary>"auto" follows Windows; "dark" or "light" if chosen in the settings.</summary>
+    private static bool ReadDark()
+    {
+        var mode = IbdmPro.Core.Settings.Current.Theme;
+        if (mode == "dark") return true;
+        if (mode == "light") return false;
+        return WindowsIsDark();
+    }
+
+    public static bool WindowsIsDark()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is not int light || light == 0;
+        }
+        catch (Exception) { return true; }
+    }
 
     public static readonly FontFamily Font = new("Segoe UI, Tahoma");
     public static readonly FontFamily Icons = new("Segoe Fluent Icons, Segoe MDL2 Assets");
@@ -44,8 +70,8 @@ public static class Theme
     // ---------- styles built in code (no XAML) ----------
 
     public static readonly Style Button = MakeButton(Card, Hover, Pressed, Ink, Line);
-    public static readonly Style PrimaryButton = MakeButton(Gold, GoldHover, Br("#B8962A"), OnGold, Gold);
-    public static readonly Style DangerButton = MakeButton(Br("#3A1E1A"), Br("#4A2620"), Br("#552B24"), Br("#FF8A75"), Br("#5A2A22"));
+    public static readonly Style PrimaryButton = MakeButton(Gold, GoldHover, GoldPressed, OnGold, Gold);
+    public static readonly Style DangerButton = MakeButton(RedSoft, Hover, Pressed, Red, RedSoft);
     public static readonly Style ToolButton = MakeButton(Brushes.Transparent, Hover, Pressed, Ink, Brushes.Transparent);
     public static readonly Style Choice = MakeChoice();
     public static readonly Style Nav = MakeNav();
@@ -65,7 +91,7 @@ public static class Theme
         box.SetValue(FrameworkElement.HeightProperty, 18.0);
         box.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
         box.SetValue(Border.BorderThicknessProperty, new Thickness(1.5));
-        box.SetValue(Border.BorderBrushProperty, Br("#55555F"));
+        box.SetValue(Border.BorderBrushProperty, BoxLine);
         box.SetValue(Border.BackgroundProperty, Card);
         box.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top);
         box.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 1, 0, 0));
@@ -407,9 +433,10 @@ public static class Ui
         try
         {
             var hwnd = new WindowInteropHelper(w).Handle;
-            int on = 1;
+            int on = Theme.IsDark ? 1 : 0;
             if (DwmSetWindowAttribute(hwnd, 20, ref on, 4) != 0) DwmSetWindowAttribute(hwnd, 19, ref on, 4);
-            int caption = 0x00110F0F; // COLORREF 0x00BBGGRR of #0F0F11
+            var bg = ((SolidColorBrush)Theme.Bg).Color;
+            int caption = bg.R | bg.G << 8 | bg.B << 16; // COLORREF 0x00BBGGRR
             DwmSetWindowAttribute(hwnd, 35, ref caption, 4);
         }
         catch (Exception) { }

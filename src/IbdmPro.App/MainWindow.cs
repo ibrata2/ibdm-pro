@@ -63,6 +63,16 @@ public sealed class MainWindow : Window
     private readonly TextBlock _speed = Ui.Text("", 12, Theme.Gold);
     private readonly TextBlock _speedValue = Ui.Ltr("", 12, Theme.Gold, bold: true);
     private readonly TextBlock _detail = Ui.Text("", 12, Theme.Muted);
+    private Button? _updateTool;
+
+    /// <summary>Marks the toolbar's update button when a newer version was found in the background.</summary>
+    public void ShowUpdateBadge(string version)
+    {
+        if (_updateTool?.Content is not StackPanel sp) return;
+        if (sp.Children[0] is TextBlock g) g.Foreground = Theme.Gold;
+        if (sp.Children[1] is TextBlock t) { t.Text = "تحديث جديد!"; t.Foreground = Theme.Gold; t.FontWeight = FontWeights.SemiBold; }
+        _updateTool.ToolTip = $"يتوفر الإصدار {version} — اضغط للتثبيت";
+    }
     private string _filter = "all";
     private string _sortBy = "date";
     private bool _sortDesc = true;
@@ -147,6 +157,8 @@ public sealed class MainWindow : Window
         tools.Children.Add(Separator());
         tools.Children.Add(Ui.Tool("الإعدادات", "", OpenSettings, Theme.Ink));
         tools.Children.Add(Ui.Tool("الإضافة", "", () => ExtensionGuide.Show(this), Theme.Ink));
+        _updateTool = Ui.Tool("التحديثات", "\uE895", () => Updater.ShowWindow(this), Theme.Ink);
+        tools.Children.Add(_updateTool);
         tools.Children.Add(Ui.Tool("حول", "", () => new AboutWindow { Owner = this }.ShowDialog(), Theme.Ink));
         DockPanel.SetDock(tools, Dock.Left);
         bar.Children.Add(tools);

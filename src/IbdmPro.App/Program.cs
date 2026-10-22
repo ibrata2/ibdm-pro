@@ -18,10 +18,28 @@ public static class Program
         {
             // Render the windows to pictures with sample data, without touching the real settings or list.
             Paths.AppDataOverride = Path.Combine(Path.GetTempPath(), "IBDM Pro snapshot " + Guid.NewGuid().ToString("N")[..6]);
+            if (args.Length > 3 && args[2] == "--theme") Settings.Current.Theme = args[3];
             var snap = new IbdmApp(background: true) { SnapshotDir = Path.GetFullPath(args[1]) };
             return snap.Run();
         }
+        if (args.Length > 1 && args[0] == "--check-update")
+        {
+            // Used by the build to prove the update check reads GitHub correctly.
+            try
+            {
+                var r = Updater.LatestAsync().GetAwaiter().GetResult();
+                File.WriteAllText(args[1], r is null ? "no setup asset" : $"current={Program.Version} latest={r.Version} newer={r.Version > Updater.Current} size={r.Size} url={r.SetupUrl}");
+            }
+            catch (Exception e) { File.WriteAllText(args[1], "error: " + e.Message); }
+            return 0;
+        }
         using var single = new Mutex(true, "Local\\IBDMPro.SingleInstance", out var first);
+        if (!first && args.Contains("--restart"))
+        {
+            // Restarting (new colours): wait for the old instance to finish closing.
+            try { first = single.WaitOne(TimeSpan.FromSeconds(10)); }
+            catch (AbandonedMutexException) { first = true; }
+        }
         if (!first)
         {
             // Already running (maybe hidden in the tray): ask it to show its window and leave.
@@ -102,6 +120,8 @@ public sealed class IbdmApp : Application
 
         Manager.Begin();
         if (!_background) ShowMain();
+        WatchWindowsTheme();
+        if (settings.CheckUpdatesOnStart) _ = Updater.CheckInBackground();
 
         if (!settings.HasSeenWelcome)
         {
@@ -113,6 +133,33 @@ public sealed class IbdmApp : Application
     }
 
     public void ShowMain() => Ui.ForceFront(Main);
+
+    /// <summary>Closes and starts again (used after changing between light and dark).</summary>
+    public void Restart()
+    {
+        try { if (Environment.ProcessPath is { } exe) System.Diagnostics.Process.Start(exe, "--restart"); }
+        catch (Exception e) { Log.Write($"restart: {e.Message}"); return; }
+        Quit();
+    }
+
+    /// <summary>Windows switched between light and dark: offer to restart in the new colours.</summary>
+    private void WatchWindowsTheme()
+    {
+        var asked = false;
+        SystemEvents.UserPreferenceChanged += (_, e) =>
+        {
+            if (e.Category != UserPreferenceCategory.General || asked || Settings.Current.Theme != "auto") return;
+            if (Theme.WindowsIsDark() == Theme.IsDark) return;
+            asked = true;
+            Dispatcher.BeginInvoke(() =>
+            {
+                var choice = Ui.Ask(Main.IsVisible ? Main : null, "تغيّر مظهر Windows",
+                    $"تم تغيير Windows إلى الوضع {(Theme.WindowsIsDark() ? "الليلي" : "النهاري")}. إعادة تشغيل IBDM Pro لتطبيق الألوان الجديدة؟ (التحميلات تكمل بعد التشغيل)",
+                    "إعادة التشغيل الآن", "لاحقاً");
+                if (choice == 0) Restart();
+            });
+        };
+    }
 
     public void Quit()
     {

@@ -76,6 +76,8 @@ Root: HKCU; Subkey: "Software\Classes\ibdmpro\shell\open\command"; ValueType: st
 
 [Run]
 Filename: "{app}\IBDMPro.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
+; After an update from inside the app (silent install), start it again.
+Filename: "{app}\IBDMPro.exe"; Flags: nowait; Check: WizardSilent
 
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/im IBDMPro.exe /f"; Flags: runhidden; RunOnceId: "StopIbdmPro"

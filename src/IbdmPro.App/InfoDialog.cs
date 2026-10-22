@@ -194,7 +194,7 @@ public sealed class InfoDialog : Window
         _headTitle.Text = "تعذر تحميل هذا الرابط";
         _headIcon.Text = "";
         _headIcon.Foreground = Theme.Red;
-        _headTile.Background = Theme.Br("#33E5533D");
+        _headTile.Background = Theme.RedSoft;
         _body.Children.Clear();
         _body.Children.Add(Ui.Card(Ui.Text(message, 13, Theme.Ink, wrap: TextWrapping.Wrap)));
         var url = Ui.Input(_req.Url);

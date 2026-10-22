@@ -40,6 +40,9 @@ public sealed class Settings
     public bool ResumeOnStart { get; set; } = true;
 
     // App
+    /// <summary>"auto" = light or dark like Windows, "dark", or "light".</summary>
+    public string Theme { get; set; } = "auto";
+    public bool CheckUpdatesOnStart { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;
     public bool MinimizeToTray { get; set; } = true;
     public bool NotifyOnComplete { get; set; } = true;
