@@ -258,7 +258,7 @@ public sealed class MainWindow : Window
         nameText.SetBinding(FrameworkElement.FlowDirectionProperty, new Binding(nameof(Row.NameFlow)));
         nameText.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
         name.AppendChild(nameText);
-        grid.Columns.Add(Column("الاسم", 360, name, "name"));
+        grid.Columns.Add(Column("الاسم", 340, name, "name"));
 
         grid.Columns.Add(Column("الحجم", 95, TextCell(nameof(Row.Size), ltr: true), "size"));
 
@@ -278,7 +278,7 @@ public sealed class MainWindow : Window
         grid.Columns.Add(Column("السرعة", 95, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
         grid.Columns.Add(Column("المتبقي", 75, TextCell(nameof(Row.Eta), ltr: true), "eta"));
         grid.Columns.Add(Column("الحالة", 150, TextCell(nameof(Row.Status), null, 12.5, nameof(Row.StatusBrush)), "status"));
-        grid.Columns.Add(Column("التاريخ", 125, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
+        grid.Columns.Add(Column("التاريخ", 150, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
         _list.View = grid;
 
         _list.MouseDoubleClick += (_, e) =>
