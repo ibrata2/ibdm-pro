@@ -22,7 +22,30 @@ async function ping(force = false) {
     appConfig = null;
   }
   appCheckedAt = Date.now();
+  if (appConfig && appConfig.version) selfUpdate(appConfig.version);
   return appConfig;
+}
+
+// The app ships the extension's files in its own folder; after the app updates, those files are newer than what the
+// browser is running. chrome.runtime.reload() makes the browser read them again — so the extension updates itself.
+function newer(a, b) {
+  const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  }
+  return false;
+}
+async function selfUpdate(appVersion) {
+  const mine = chrome.runtime.getManifest().version;
+  if (!newer(appVersion, mine)) return;
+  // At most 3 tries per app version (right away, after 1 minute, after 10 minutes) — never a reload loop,
+  // e.g. when the extension was loaded from a folder the app does not update.
+  const { selfUpdate: st } = await chrome.storage.local.get({ selfUpdate: null });
+  const rec = st && st.for === appVersion ? st : { for: appVersion, tries: 0, at: 0 };
+  const waits = [0, 60e3, 600e3];
+  if (rec.tries >= waits.length || Date.now() - rec.at < waits[rec.tries]) return;
+  await chrome.storage.local.set({ selfUpdate: { for: appVersion, tries: rec.tries + 1, at: Date.now() } });
+  chrome.runtime.reload();
 }
 
 async function sendToApp(payload) {

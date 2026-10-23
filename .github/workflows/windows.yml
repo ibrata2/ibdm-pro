@@ -146,6 +146,20 @@ jobs:
             Get-Process $b -ErrorAction SilentlyContinue | Stop-Process -Force
             Start-Sleep 2
           }
+          # Self-update: install an "old" copy (version 1.0.0), then replace its files like an app update does,
+          # and check Chrome picks up the new version by itself.
+          $old = "$env:TEMP\ibdm-ext-old"
+          Remove-Item -Recurse -Force $old -ErrorAction SilentlyContinue
+          Copy-Item $ext $old -Recurse
+          $m = Get-Content "$old/manifest.json" -Raw -Encoding utf8
+          [IO.File]::WriteAllText("$old/manifest.json", ($m -replace '"version":\s*"[^"]*"', '"version": "1.0.0"'), (New-Object Text.UTF8Encoding $false))
+          Start-Process (Resolve-Path build/publish/IBDMPro.exe).Path -ArgumentList "--install-extension", "chrome", "$PWD/install-old.txt", $old -Wait
+          Get-Content install-old.txt
+          Shot "build/snapshots/extension-install/selfupdate-1-old.png"
+          Copy-Item "$ext/*" $old -Recurse -Force
+          Start-Sleep 100
+          Shot "build/snapshots/extension-install/selfupdate-2-after.png"
+          Get-Process chrome -ErrorAction SilentlyContinue | Stop-Process -Force
           Invoke-RestMethod http://127.0.0.1:39401/status | ConvertTo-Json -Compress
           Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
 
