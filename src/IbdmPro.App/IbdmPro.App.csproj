@@ -19,6 +19,7 @@
     <Using Remove="System.Drawing" />
     <Using Include="System.IO" />
     <Using Include="System.Net.Http" />
+    <Using Include="IbdmPro.Core" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\IbdmPro.Core\IbdmPro.Core.csproj" />
