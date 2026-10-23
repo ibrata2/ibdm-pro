@@ -62,11 +62,47 @@ public static class YtDlp
         return psi;
     }
 
-    private static IEnumerable<string> HeaderArgs(RequestInfo info)
+    private static IEnumerable<string> HeaderArgs(RequestInfo info, CookieFile? cookies)
     {
         if (!string.IsNullOrEmpty(info.UserAgent)) { yield return "--user-agent"; yield return info.UserAgent; }
         if (!string.IsNullOrEmpty(info.Referrer)) { yield return "--referer"; yield return info.Referrer; }
-        if (!string.IsNullOrEmpty(info.Cookies)) { yield return "--add-headers"; yield return "Cookie:" + info.Cookies; }
+        if (cookies is not null) { yield return "--cookies"; yield return cookies.Path; }
+    }
+
+    /// <summary>The browser's cookies for the site, as the cookies.txt file yt-dlp expects. Sites like Instagram need
+    /// them (signed-in), and yt-dlp no longer accepts them as a plain header. Deleted when the run ends.</summary>
+    public sealed class CookieFile : IDisposable
+    {
+        public string Path { get; }
+
+        private CookieFile(string path) { Path = path; }
+
+        public static CookieFile? For(RequestInfo info, string url)
+        {
+            if (string.IsNullOrWhiteSpace(info.Cookies)) return null;
+            string host;
+            try { host = new Uri(url).Host; } catch (Exception) { return null; }
+            if (host.StartsWith("www.")) host = host[4..];
+            var expires = DateTimeOffset.UtcNow.AddDays(1).ToUnixTimeSeconds();
+            var sb = new StringBuilder("# Netscape HTTP Cookie File\n");
+            foreach (var part in info.Cookies.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var eq = part.IndexOf('=');
+                if (eq <= 0) continue;
+                var name = part[..eq].Trim();
+                var value = part[(eq + 1)..].Trim();
+                if (name.Contains('\t') || value.Contains('\t') || value.Contains('\n')) continue;
+                sb.Append($".{host}\tTRUE\t/\tTRUE\t{expires}\t{name}\t{value}\n");
+            }
+            var file = System.IO.Path.Combine(Paths.AppData, $"cookies-{Guid.NewGuid():N}.txt");
+            File.WriteAllText(file, sb.ToString());
+            return new CookieFile(file);
+        }
+
+        public void Dispose()
+        {
+            try { File.Delete(Path); } catch (Exception) { }
+        }
     }
 
     /// <summary>Other YouTube clients to try when the default one gives no usable formats.</summary>
@@ -127,7 +163,8 @@ public static class YtDlp
         // instead of failing with "Requested format is not available".
         var args = new List<string> { "-J", "--no-playlist", "--no-warnings", "--ignore-config", "--ignore-no-formats-error" };
         if (extractorArgs is not null) { args.Add("--extractor-args"); args.Add(extractorArgs); }
-        args.AddRange(HeaderArgs(info));
+        using var cookies = CookieFile.For(info, url);
+        args.AddRange(HeaderArgs(info, cookies));
         args.Add("--");
         args.Add(url);
         using var p = Process.Start(Start(args)) ?? throw new InvalidOperationException(L.T("تعذر تشغيل yt-dlp"));
@@ -312,7 +349,8 @@ public static class YtDlp
         {
             args.AddRange(["--merge-output-format", "mp4"]);
         }
-        args.AddRange(HeaderArgs(item.Request));
+        using var cookies = CookieFile.For(item.Request, item.Url);
+        args.AddRange(HeaderArgs(item.Request, cookies));
         if (useFallbackClients && IsYoutube(item.Url)) { args.Add("--extractor-args"); args.Add(YoutubeFallbackClients); }
         args.Add("--");
         args.Add(CleanUrl(item.Url));

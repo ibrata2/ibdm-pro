@@ -45,6 +45,7 @@ http.createServer((req, res) => {
     if (req.headers.cookie !== 'session=abc') { res.writeHead(403); return res.end('no'); }
     return sendFile(req, res, path.join(dir, 'small.bin'), { throttle: false });
   }
+  if (url.pathname === '/big.mp4') return sendFile(req, res, path.join(dir, 'file.bin'), { headers: { 'Content-Type': 'video/mp4' } });
   if (url.pathname === '/clip.mp4') return sendFile(req, res, path.join(dir, 'clip.mp4'), { throttle: false, headers: { 'Content-Type': 'video/mp4' } });
   if (url.pathname === '/links.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': 'session=abc; Path=/' });

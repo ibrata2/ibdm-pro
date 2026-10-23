@@ -129,6 +129,33 @@ Check(withCookie.Status == DownloadStatus.Completed, "browser cookies are sent w
 var noCookie = await Http.ProbeAsync($"{baseUrl}/needcookie.bin", new RequestInfo());
 Check(noCookie.Error is not null, "without the cookie the server refuses (as expected)");
 
+// cancelling a running download removes it from the list (and it does not come back)
+var toCancel = MakeFile(p1);
+manager.Add(toCancel, start: true);
+await WaitFor(() => toCancel.Downloaded > 0, 20);
+await manager.RemoveAsync(toCancel, deleteFile: false);
+await Task.Delay(1500);
+Check(!manager.Items.Contains(toCancel) && !File.Exists(toCancel.PartPath), "cancel: running download removed from the list, part file deleted");
+Check(!new Store(Path.Combine(work, "downloads.json")).Items.Any(i => i.Id == toCancel.Id), "cancel: not in the saved list either");
+
+// cancel is immediate: gone from the list at once, and "resume" can't bring it back
+var quick = MakeFile(p1);
+manager.Add(quick, start: true);
+await WaitFor(() => quick.Downloaded > 0, 20);
+var removing = manager.RemoveAsync(quick, deleteFile: false);
+var goneAtOnce = !manager.Items.Contains(quick);
+manager.Resume(quick);
+await removing;
+await Task.Delay(500);
+Check(goneAtOnce && !manager.IsRunning(quick) && !manager.Items.Contains(quick) && !File.Exists(quick.PartPath), "cancel: removed at once, cannot be resumed");
+
+// cookies go to yt-dlp as a cookies.txt file for the site
+using (var cf = YtDlp.CookieFile.For(new RequestInfo { Cookies = "sessionid=abc; csrftoken=x=y" }, "https://www.instagram.com/reel/1/"))
+{
+    var text = File.ReadAllText(cf!.Path);
+    Check(text.StartsWith("# Netscape HTTP Cookie File") && text.Contains(".instagram.com\tTRUE\t/\tTRUE\t") && text.Contains("\tsessionid\tabc\n") && text.Contains("\tcsrftoken\tx=y\n"), "cookies.txt for yt-dlp");
+}
+
 // list survives a restart, with progress
 manager.Save();
 var reloaded = new Store(Path.Combine(work, "downloads.json"));
@@ -157,6 +184,19 @@ try
     Check(aud.Status == DownloadStatus.Completed && aud.FullPath.EndsWith(".mp3") && File.Exists(aud.FullPath), $"audio only (mp3): {aud.FullPath} ({aud.Error})");
 }
 catch (Exception e) { Check(false, "yt-dlp: " + e.Message); }
+
+// cancelling a running video download (yt-dlp) removes it too
+{
+    var vcat = settings.CategoryNamed("فيديو")!;
+    var slow = new DownloadItem { Kind = DownloadKind.Media, Url = $"{baseUrl}/big.mp4", FileName = "big.mp4", FormatSpec = "best", Folder = settings.FolderFor(vcat), Category = vcat.Name };
+    manager.Add(slow, start: true);
+    await WaitFor(() => slow.Downloaded > 0, 30);
+    var gotData = slow.Downloaded > 0;
+    await manager.RemoveAsync(slow, deleteFile: false);
+    await Task.Delay(2000);
+    var leftovers = Directory.GetFiles(slow.Folder, "big.*");
+    Check(gotData && !manager.Items.Contains(slow) && leftovers.Length == 0, $"cancel video: removed from the list, leftovers: {string.Join(",", leftovers.Select(Path.GetFileName))}");
+}
 
 // parse a real-looking YouTube answer
 var yt = YtDlp.Parse(File.ReadAllText(Path.Combine(data, "yt.json")), "https://youtube.com/watch?v=x");

@@ -58,6 +58,8 @@ public sealed class DownloadItem
     public DownloadStatus Status { get; set; } = DownloadStatus.Queued;
     public string? Error { get; set; }
     public string? Phase { get; set; }
+    /// <summary>Cancelled by the person: gone from the list and can never be started again.</summary>
+    [JsonIgnore] public bool Removed { get; set; }
     public DateTime Added { get; set; } = DateTime.Now;
     public DateTime? Finished { get; set; }
 

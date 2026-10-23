@@ -51,7 +51,7 @@ public sealed class DownloadManager : IDisposable
     {
         lock (_running)
         {
-            if (_running.ContainsKey(item.Id) || item.Status == DownloadStatus.Completed) return;
+            if (item.Removed || _running.ContainsKey(item.Id) || item.Status == DownloadStatus.Completed) return;
             var cts = new CancellationTokenSource();
             _running[item.Id] = cts;
             item.Status = DownloadStatus.Downloading;
@@ -89,9 +89,13 @@ public sealed class DownloadManager : IDisposable
 
     public async Task RemoveAsync(DownloadItem item, bool deleteFile)
     {
-        Pause(item);
-        for (var i = 0; i < 50 && IsRunning(item); i++) await Task.Delay(100);
+        // Out of the list straight away (never shown as "paused" in between), then stop it and clean up.
+        item.Removed = true;
         lock (Store.Items) Store.Items.Remove(item);
+        Save();
+        ListChanged?.Invoke();
+        Pause(item);
+        for (var i = 0; i < 100 && IsRunning(item); i++) await Task.Delay(100);
         try
         {
             if (File.Exists(item.PartPath)) File.Delete(item.PartPath);
@@ -163,6 +167,10 @@ public sealed class DownloadManager : IDisposable
             item.Speed = 0;
             lock (item.Gate) item.Segments.Clear();
             ItemCompleted?.Invoke(item);
+        }
+        catch (OperationCanceledException) when (item.Removed)
+        {
+            item.Speed = 0;
         }
         catch (OperationCanceledException)
         {
