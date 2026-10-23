@@ -22,6 +22,36 @@ public static class Program
             var snap = new IbdmApp(background: true) { SnapshotDir = Path.GetFullPath(args[1]) };
             return snap.Run();
         }
+        if (args.Length > 2 && args[0] == "--install-extension")
+        {
+            // Used by the build: installs the extension into one browser (the app must already be running) and reports.
+            var browser = ExtensionInstaller.Installed().FirstOrDefault(b => b.ProcessName.Equals(args[1], StringComparison.OrdinalIgnoreCase));
+            var report = new System.Text.StringBuilder();
+            if (browser is null) report.Append("browser not found: " + args[1]);
+            else
+            {
+                using var hc = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+                DateTime Last()
+                {
+                    try
+                    {
+                        var j = hc.GetStringAsync($"http://127.0.0.1:{Settings.Port}/status").GetAwaiter().GetResult();
+                        var ago = System.Text.Json.JsonDocument.Parse(j).RootElement.GetProperty("extensionSecondsAgo").GetInt32();
+                        return ago < 0 ? DateTime.MinValue : DateTime.Now.AddSeconds(-ago);
+                    }
+                    catch (Exception) { return DateTime.MinValue; }
+                }
+                ExtensionInstaller.Result r = null!;
+                var t = new Thread(() => r = ExtensionInstaller.Install(browser, Path.GetFullPath(args.Length > 3 ? args[3] : Paths.ExtensionDir),
+                    s => report.AppendLine("step: " + s), Last, CancellationToken.None));
+                t.SetApartmentState(ApartmentState.MTA);
+                t.Start();
+                t.Join();
+                report.AppendLine($"ok={r.Ok} confirmed={r.Confirmed} message={r.Message}");
+            }
+            File.WriteAllText(args[2], report.ToString());
+            return 0;
+        }
         if (args.Length > 1 && args[0] == "--check-update")
         {
             // Used by the build to prove the update check reads GitHub correctly.

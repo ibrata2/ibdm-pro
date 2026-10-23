@@ -70,6 +70,36 @@ public static class ExtensionGuide
         head.Children.Add(titles);
         root.Children.Add(head);
 
+        // ---- automatic ----
+        var auto = new StackPanel();
+        auto.Children.Add(Ui.Text("⚡ تنصيب تلقائي", 15, Theme.Gold, bold: true));
+        auto.Children.Add(Ui.Text("البرنامج يفتح المتصفح، يفعّل وضع المطوّر، ويركّب الإضافة بنفسه. لا تضغط شي أثناء التنصيب.", 12.5, Theme.Muted, wrap: TextWrapping.Wrap));
+        var found = ExtensionInstaller.Installed();
+        var autoButtons = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+        if (found.Count > 1)
+        {
+            var all = Ui.Button("تنصيب على كل المتصفحات (" + found.Count + ")", "\uE896", Theme.PrimaryButton, async () => { w.Hide(); await ExtensionInstaller.RunWithUi(owner, found); w.Close(); });
+            all.Margin = new Thickness(0, 0, 8, 8);
+            autoButtons.Children.Add(all);
+        }
+        foreach (var b in found)
+        {
+            var browser = b;
+            var btn = Ui.Button(b.Name, "\uE774", found.Count == 1 ? Theme.PrimaryButton : Theme.Button,
+                async () => { w.Hide(); await ExtensionInstaller.RunWithUi(owner, [browser]); w.Close(); });
+            btn.Margin = new Thickness(0, 0, 8, 8);
+            autoButtons.Children.Add(btn);
+        }
+        if (found.Count == 0) autoButtons.Children.Add(Ui.Text("لم أجد Chrome أو Edge أو Brave أو Vivaldi أو Opera على الجهاز.", 12.5, Theme.Red));
+        auto.Children.Add(autoButtons);
+        var autoCard = Ui.Card(auto);
+        autoCard.Margin = new Thickness(0, 18, 0, 0);
+        root.Children.Add(autoCard);
+
+        var manualTitle = Ui.Text("أو يدوياً:", 13, Theme.Muted, bold: true);
+        manualTitle.Margin = new Thickness(0, 16, 0, 0);
+        root.Children.Add(manualTitle);
+
         string[] steps =
         [
             "اضغط «فتح مجلد الإضافة» بالأسفل وخلي النافذة مفتوحة.",
@@ -78,7 +108,7 @@ public static class ExtensionGuide
             "اضغط «تحميل إضافة غير مُجمَّعة / Load unpacked» واختر مجلد extension.",
             "ثبّت أيقونة IBDM Pro بشريط المتصفح — وخلص! جرّب تحمّل أي ملف.",
         ];
-        var list = new StackPanel { Margin = new Thickness(0, 18, 0, 8) };
+        var list = new StackPanel { Margin = new Thickness(0, 10, 0, 8) };
         for (var i = 0; i < steps.Length; i++)
         {
             var r = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
@@ -105,7 +135,7 @@ public static class ExtensionGuide
         Add("فتح صفحة الإضافات — Edge", "", Theme.Button, () => Browser("msedge", "edge://extensions"));
         root.Children.Add(buttons);
 
-        var note = Ui.Text("بعد كل تحديث للبرنامج: اضغط زر التحديث ⟳ على بطاقة الإضافة بصفحة الإضافات.\nإذا كان البرنامج مسكّر، المتصفح يحمّل بشكل عادي — لذلك خليه يشتغل مع بدء Windows.", 12, Theme.Muted, wrap: TextWrapping.Wrap);
+        var note = Ui.Text("بعد كل تحديث للبرنامج: أعد «التنصيب التلقائي» أو اضغط زر التحديث ⟳ على بطاقة الإضافة بصفحة الإضافات.\nإذا كان البرنامج مسكّر، المتصفح يحمّل بشكل عادي — لذلك خليه يشتغل مع بدء Windows.", 12, Theme.Muted, wrap: TextWrapping.Wrap);
         note.Margin = new Thickness(0, 8, 0, 14);
         root.Children.Add(note);
         var close = Ui.Button("تم", style: Theme.Button, click: w.Close);

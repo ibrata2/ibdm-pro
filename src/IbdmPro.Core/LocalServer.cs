@@ -35,6 +35,8 @@ public sealed class LocalServer : IDisposable
     public event Action<CaptureRequest>? Captured;
     public event Action? ShowRequested;
     public DateTime LastExtensionContact { get; private set; } = DateTime.MinValue;
+    /// <summary>Each browser install of the extension has its own chrome-extension://id origin.</summary>
+    public System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> ExtensionOrigins { get; } = new();
 
     public LocalServer(int port = Settings.Port)
     {
@@ -79,7 +81,12 @@ public sealed class LocalServer : IDisposable
             switch (method, path)
             {
                 case ("GET", "/ping"):
-                    LastExtensionContact = DateTime.Now;
+                    if (origin is not null || marked)
+                    {
+                        // only the extension sends these
+                        LastExtensionContact = DateTime.Now;
+                        ExtensionOrigins[origin ?? "extension"] = DateTime.Now;
+                    }
                     await Respond(stream, 200, PingJson(), origin);
                     break;
                 case ("POST", "/add") when marked:
@@ -92,6 +99,11 @@ public sealed class LocalServer : IDisposable
                     }
                     Captured?.Invoke(req);
                     await Respond(stream, 200, "{\"ok\":true}", origin);
+                    break;
+                case ("GET", "/status"):
+                    // When the extension last called (used by the automatic extension installer to confirm it worked).
+                    var ago = LastExtensionContact == DateTime.MinValue ? -1 : (int)(DateTime.Now - LastExtensionContact).TotalSeconds;
+                    await Respond(stream, 200, $"{{\"extensionSecondsAgo\":{ago}}}", origin);
                     break;
                 case ("POST", "/show") when marked:
                     ShowRequested?.Invoke();

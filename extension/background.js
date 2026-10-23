@@ -15,7 +15,7 @@ async function ping(force = false) {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 1500);
-    const r = await fetch(APP + '/ping', { signal: ctrl.signal, cache: 'no-store' });
+    const r = await fetch(APP + '/ping', { signal: ctrl.signal, cache: 'no-store', headers: { 'X-IBDM-Pro': '1' } });
     clearTimeout(timer);
     appConfig = r.ok ? await r.json() : null;
   } catch (e) {
@@ -141,7 +141,7 @@ function buildMenus() {
     chrome.contextMenus.create({ id: 'ibdm-page', title: 'تحميل فيديو هذه الصفحة بواسطة IBDM Pro', contexts: ['page', 'frame'] });
   });
 }
-chrome.runtime.onInstalled.addListener(buildMenus);
+chrome.runtime.onInstalled.addListener(() => { buildMenus(); ping(true); });
 chrome.runtime.onStartup.addListener(buildMenus);
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
