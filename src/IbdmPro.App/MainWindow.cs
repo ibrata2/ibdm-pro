@@ -106,7 +106,7 @@ public sealed class MainWindow : Window
     public MainWindow(DownloadManager manager)
     {
         _manager = manager;
-        Ui.Setup(this, $"IBDM Pro {Program.Version}", 1180, 700);
+        Ui.Setup(this, $"IBDM Pro {Program.Version}", 1280, 720);
         MinWidth = 820;
         MinHeight = 480;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -280,7 +280,7 @@ public sealed class MainWindow : Window
         _list.ItemContainerStyle = Theme.Row;
         _list.ItemsSource = _view;
         _list.SelectionMode = SelectionMode.Extended;
-        ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
+        ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Auto);
         var grid = new GridView { ColumnHeaderContainerStyle = Theme.Header, AllowsColumnReorder = false };
 
         // name with its type icon
@@ -298,9 +298,9 @@ public sealed class MainWindow : Window
         nameText.SetBinding(FrameworkElement.FlowDirectionProperty, new Binding(nameof(Row.NameFlow)));
         nameText.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
         name.AppendChild(nameText);
-        grid.Columns.Add(Column(L.T("الاسم"), 300, name, "name"));
+        grid.Columns.Add(Column(L.T("الاسم"), 270, name, "name"));
 
-        grid.Columns.Add(Column(L.T("الحجم"), 95, TextCell(nameof(Row.Size), ltr: true), "size"));
+        grid.Columns.Add(Column(L.T("الحجم"), 85, TextCell(nameof(Row.Size), ltr: true), "size"));
 
         // progress bar with the percentage under it
         var prog = new FrameworkElementFactory(typeof(StackPanel));
@@ -313,12 +313,11 @@ public sealed class MainWindow : Window
         bar.SetBinding(ProgressBar.IsIndeterminateProperty, new Binding(nameof(Row.Indeterminate)) { Mode = BindingMode.OneWay });
         prog.AppendChild(bar);
         prog.AppendChild(TextCell(nameof(Row.PercentText), null, 11.5, ltr: true));
-        grid.Columns.Add(Column(L.T("التقدم"), 150, prog, "progress"));
+        grid.Columns.Add(Column(L.T("التقدم"), 140, prog, "progress"));
 
-        grid.Columns.Add(Column(L.T("السرعة"), 95, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
-        grid.Columns.Add(Column(L.T("المتبقي"), 75, TextCell(nameof(Row.Eta), ltr: true), "eta"));
-        grid.Columns.Add(Column(L.T("الحالة"), 150, TextCell(nameof(Row.Status), null, 12.5, nameof(Row.StatusBrush)), "status"));
-        grid.Columns.Add(Column(L.T("التاريخ"), 135, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
+        grid.Columns.Add(Column(L.T("السرعة"), 90, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
+        grid.Columns.Add(Column(L.T("المتبقي"), 70, TextCell(nameof(Row.Eta), ltr: true), "eta"));
+        grid.Columns.Add(Column(L.T("الحالة"), 130, TextCell(nameof(Row.Status), null, 12.5, nameof(Row.StatusBrush)), "status"));
 
         // buttons on each row: pause / resume, open folder (finished), delete
         var actions = new FrameworkElementFactory(typeof(StackPanel));
@@ -327,7 +326,8 @@ public sealed class MainWindow : Window
         actions.AppendChild(RowButton("\uE768", L.T("استئناف"), nameof(Row.ResumeVisible), Theme.Green, r => _manager.Resume(r.Item)));
         actions.AppendChild(RowButton("\uE838", L.T("فتح المجلد"), nameof(Row.FolderVisible), Theme.Ink, r => Ui.ShowInFolder(r.Item.FullPath)));
         actions.AppendChild(RowButton("\uE711", L.T("حذف"), null, Theme.Red, r => { _list.SelectedItem = r; Delete(); }));
-        grid.Columns.Add(new GridViewColumn { Header = new GridViewColumnHeader { Content = "", IsHitTestVisible = false }, Width = 120, CellTemplate = new DataTemplate { VisualTree = actions } });
+        grid.Columns.Add(new GridViewColumn { Header = new GridViewColumnHeader { Content = "", IsHitTestVisible = false }, Width = 110, CellTemplate = new DataTemplate { VisualTree = actions } });
+        grid.Columns.Add(Column(L.T("التاريخ"), 125, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
         _list.View = grid;
 
         _list.MouseDoubleClick += (_, e) =>
