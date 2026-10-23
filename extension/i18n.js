@@ -1,5 +1,8 @@
 // IBDM Pro — the extension's English texts. The extension follows the app's language (Arabic by default).
 // Used by the background worker (importScripts), the popup (<script>) and the page button (content script).
+// Firefox has promise-based browser.*; Chromium browsers have chrome.* (also promise-based in Manifest V3).
+var api = (typeof browser !== 'undefined' && browser.runtime) ? browser : chrome;
+
 var IBDM_EN = {
   'تحميل بواسطة IBDM Pro': 'Download with IBDM Pro',
   'تحميل هذا الفيديو بواسطة IBDM Pro': 'Download this video with IBDM Pro',

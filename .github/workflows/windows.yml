@@ -24,8 +24,14 @@ jobs:
       - name: Tools
         timeout-minutes: 6
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+          # A static FFmpeg build (apt mirrors are sometimes very slow on the runners)
+          curl -sSL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz | tar -xJ -C /tmp
+          echo "$(ls -d /tmp/ffmpeg-master-latest-linux64-gpl)/bin" >> $GITHUB_PATH
           pip install -q yt-dlp
+      - name: Every text has its English translation
+        run: |
+          missing=$(python3 -I tools/i18n_missing.py "$PWD")
+          if [ -n "$missing" ]; then echo "Missing English for:"; echo "$missing"; exit 1; fi
       - name: Run tests
         run: tests/run.sh
 
@@ -69,6 +75,14 @@ jobs:
           [IO.File]::WriteAllText((Resolve-Path "$ext/manifest.json"), $m, (New-Object Text.UTF8Encoding $false))
           New-Item -ItemType Directory -Force build/installer | Out-Null
           Compress-Archive -Path "$ext/*" -DestinationPath build/installer/IBDM-Pro-Extension.zip -Force
+          # Firefox copy: background scripts instead of a service worker, and a Firefox add-on id.
+          $ff = "build/publish/extension-firefox"
+          Copy-Item $ext $ff -Recurse -Force
+          $j = Get-Content "$ff/manifest.json" -Raw -Encoding utf8 | ConvertFrom-Json
+          $j.background = [pscustomobject]@{ scripts = @("i18n.js", "background.js") }
+          $j | Add-Member -NotePropertyName browser_specific_settings -NotePropertyValue ([pscustomobject]@{ gecko = [pscustomobject]@{ id = "ibdm-pro@ibraprogram"; strict_min_version = "128.0" } })
+          [IO.File]::WriteAllText((Resolve-Path "$ff/manifest.json"), ($j | ConvertTo-Json -Depth 10), (New-Object Text.UTF8Encoding $false))
+          Get-Content "$ff/manifest.json"
 
       - name: Bundle yt-dlp and FFmpeg
         run: |

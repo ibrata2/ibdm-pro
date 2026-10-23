@@ -32,6 +32,19 @@ public static class ExtensionInstaller
         ("Yandex", "browser.exe", "browser://extensions"),
     ];
 
+    /// <summary>Firefox, when installed (its extension is loaded differently, see the guide).</summary>
+    public static string? Firefox()
+    {
+        var p = FindExe("firefox.exe", "Firefox");
+        if (p is not null) return p;
+        foreach (var g in new[] { @"%ProgramFiles%\Mozilla Firefox\firefox.exe", @"%ProgramFiles(x86)%\Mozilla Firefox\firefox.exe" })
+        {
+            var e = Environment.ExpandEnvironmentVariables(g);
+            if (File.Exists(e)) return e;
+        }
+        return null;
+    }
+
     public static List<BrowserInfo> Installed()
     {
         var list = new List<BrowserInfo>();

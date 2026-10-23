@@ -78,7 +78,7 @@ public static class Program
             if (!args.Contains("--background")) LocalServer.TryShowRunning();
             return 0;
         }
-        var app = new IbdmApp(args.Contains("--background"));
+        var app = new IbdmApp(args.Contains("--background")) { SetupExtensions = args.Contains("--setup-extensions") };
         return app.Run();
     }
 }
@@ -94,6 +94,7 @@ public sealed class IbdmApp : Application
     private readonly bool _background;
     public bool Quitting { get; private set; }
     public string? SnapshotDir { get; init; }
+    public bool SetupExtensions { get; init; }
 
     public IbdmApp(bool background)
     {
@@ -159,7 +160,14 @@ public sealed class IbdmApp : Application
         WatchWindowsTheme();
         if (settings.CheckUpdatesOnStart) _ = Updater.CheckInBackground();
 
-        if (!settings.HasSeenWelcome)
+        if (SetupExtensions)
+        {
+            // The installer's "install the browser extension" option.
+            settings.HasSeenWelcome = true;
+            settings.Save();
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, async () => await ExtensionInstaller.RunWithUi(Main, ExtensionInstaller.Installed()));
+        }
+        else if (!settings.HasSeenWelcome)
         {
             settings.HasSeenWelcome = true;
             settings.Save();

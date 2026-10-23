@@ -18,17 +18,17 @@ function shortName(url) {
 }
 
 async function load() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const st = await chrome.runtime.sendMessage({ cmd: 'status', tabId: tab ? tab.id : -1 });
+  const [tab] = await api.tabs.query({ active: true, currentWindow: true });
+  const st = await api.runtime.sendMessage({ cmd: 'status', tabId: tab ? tab.id : -1 });
   $('ver').textContent = 'v' + st.version;
   // Same style as the app (remembered for when the app is not running).
-  let theme = (await chrome.storage.local.get({ theme: 'glass' })).theme;
-  if (st.app && st.app.theme) { theme = st.app.theme; chrome.storage.local.set({ theme }); }
+  let theme = (await api.storage.local.get({ theme: 'glass' })).theme;
+  if (st.app && st.app.theme) { theme = st.app.theme; api.storage.local.set({ theme }); }
   document.body.classList.toggle('dark', theme === 'dark');
   document.body.classList.toggle('light', theme === 'light');
   // …and the same language.
-  IBDM_LANG = (st.app && st.app.lang) || (await chrome.storage.local.get({ lang: 'ar' })).lang;
-  if (st.app && st.app.lang) chrome.storage.local.set({ lang: IBDM_LANG });
+  IBDM_LANG = (st.app && st.app.lang) || (await api.storage.local.get({ lang: 'ar' })).lang;
+  if (st.app && st.app.lang) api.storage.local.set({ lang: IBDM_LANG });
   document.documentElement.lang = IBDM_LANG;
   document.documentElement.dir = IBDM_LANG === 'en' ? 'ltr' : 'rtl';
   for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
@@ -72,14 +72,14 @@ async function load() {
 }
 
 function send(opts, tab, btn) {
-  chrome.runtime.sendMessage({ cmd: 'media', src: opts.src, kind: opts.kind, pageUrl: tab.url, tabUrl: tab.url, title: tab.title }, res => {
+  api.runtime.sendMessage({ cmd: 'media', src: opts.src, kind: opts.kind, pageUrl: tab.url, tabUrl: tab.url, title: tab.title }).catch(() => null).then(res => {
     btn.textContent = res && res.ok ? t('✓ تم') : t('البرنامج غير مشغّل');
     if (res && res.ok) setTimeout(() => window.close(), 700);
   });
 }
 
 $('capture').addEventListener('change', async e => {
-  await chrome.runtime.sendMessage({ cmd: 'pause', paused: !e.target.checked });
+  await api.runtime.sendMessage({ cmd: 'pause', paused: !e.target.checked });
 });
 
 load();

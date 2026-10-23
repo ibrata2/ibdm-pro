@@ -15,9 +15,9 @@ AppName=IBDM Pro
 AppVersion={#AppVersion}
 AppVerName=IBDM Pro {#AppVersion}
 AppPublisher=ابراهيم الخزرجي — IBRAPROGRAM
-AppPublisherURL=https://github.com/ibrata2/ibdm-pro
+AppPublisherURL=https://t.me/ibraprogram
 AppSupportURL=https://t.me/ibraprogram
-AppUpdatesURL=https://github.com/ibrata2/ibdm-pro/releases/latest
+AppUpdatesURL=https://t.me/ibraprogram
 AppCopyright=من تصميم و تطوير و تعريب ابراهيم الخزرجي
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription=IBDM Pro — مدير التحميل
@@ -49,10 +49,12 @@ Name: "ar"; MessagesFile: "compiler:Languages\Arabic.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
+en.SetupExtension=Install the browser extension automatically after setup (Chrome, Edge, Brave, Opera, Vivaldi)
 en.StartWithWindows=Start IBDM Pro with Windows (so it always catches downloads from the browser)
 en.DesktopIcon=Create a desktop shortcut
 en.Extras=Options:
 en.Launch=Start IBDM Pro
+ar.SetupExtension=تنصيب إضافة المتصفح تلقائياً بعد التثبيت (Chrome، Edge، Brave، Opera، Vivaldi)
 ar.StartWithWindows=تشغيل IBDM Pro مع بدء Windows (حتى يلتقط التحميلات من المتصفح دائماً)
 ar.DesktopIcon=إنشاء اختصار على سطح المكتب
 ar.Extras=خيارات:
@@ -60,6 +62,7 @@ ar.Launch=تشغيل IBDM Pro
 
 [Tasks]
 Name: "startup"; Description: "{cm:StartWithWindows}"; GroupDescription: "{cm:Extras}"
+Name: "extension"; Description: "{cm:SetupExtension}"; GroupDescription: "{cm:Extras}"
 Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Extras}"
 
 [Files]
@@ -80,7 +83,8 @@ Root: HKCU; Subkey: "Software\Classes\ibdmpro\DefaultIcon"; ValueType: string; V
 Root: HKCU; Subkey: "Software\Classes\ibdmpro\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\IBDMPro.exe"" ""%1"""
 
 [Run]
-Filename: "{app}\IBDMPro.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\IBDMPro.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent; Tasks: not extension
+Filename: "{app}\IBDMPro.exe"; Parameters: "--setup-extensions"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent; Tasks: extension
 ; After an update from inside the app (silent install), start it again.
 Filename: "{app}\IBDMPro.exe"; Flags: nowait; Check: WizardSilent
 

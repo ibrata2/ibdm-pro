@@ -33,7 +33,7 @@
         .x:hover{color:var(--ac)}
       </style>
       <div class="b" title="${t('IBDM Pro — اختر الجودة وحمّل')}">
-        <img class="i" alt="" src="${chrome.runtime.getURL('icons/icon48.png')}">
+        <img class="i" alt="" src="${api.runtime.getURL('icons/icon48.png')}">
         <span class="t">${t('تحميل هذا الفيديو')}</span><span class="s">IBDM Pro</span><span class="x" title="${t('إخفاء')}">✕</span>
       </div>`;
     button = root.querySelector('.b');
@@ -66,12 +66,12 @@
   }
   function loadTheme() {
     try {
-      chrome.storage.local.get({ theme: 'glass', lang: 'ar' }, v => { theme = v.theme || 'glass'; IBDM_LANG = v.lang; applyTheme(); });
-      chrome.runtime.sendMessage({ cmd: 'ping' }, res => {
-        if (chrome.runtime.lastError || !res || !res.app || !res.app.theme) return;
+      api.storage.local.get({ theme: 'glass', lang: 'ar' }).then(v => { theme = v.theme || 'glass'; IBDM_LANG = v.lang; applyTheme(); });
+      api.runtime.sendMessage({ cmd: 'ping' }).catch(() => null).then(res => {
+        if (!res || !res.app || !res.app.theme) return;
         theme = res.app.theme;
         if (res.app.lang) IBDM_LANG = res.app.lang;
-        chrome.storage.local.set({ theme, lang: IBDM_LANG });
+        api.storage.local.set({ theme, lang: IBDM_LANG });
         applyTheme();
       });
     } catch (e) { }
@@ -131,11 +131,10 @@
     if (!/^https?:/i.test(src)) src = '';
     sending = true;
     label.textContent = t('جاري الإرسال…');
-    chrome.runtime.sendMessage({ cmd: 'media', src, pageUrl: location.href, title: document.title }, res => {
-      if (chrome.runtime.lastError) { label.textContent = t('أعد تحميل الصفحة'); return; }
+    api.runtime.sendMessage({ cmd: 'media', src, pageUrl: location.href, title: document.title }).then(res => {
       label.textContent = res && res.ok ? t('✓ تم — اختر الجودة بالبرنامج') : t('شغّل برنامج IBDM Pro أولاً');
       setTimeout(() => { sending = false; if (label) label.textContent = t('تحميل هذا الفيديو'); }, 3500);
-    });
+    }).catch(() => { label.textContent = t('أعد تحميل الصفحة'); });
   }
 
   let lastMove = 0;

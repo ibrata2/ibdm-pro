@@ -318,3 +318,15 @@ YouTube asked to verify you're not a robot (too many requests from the same conn
 The site refused the download (403) — try again or update the video engine in Settings
 This video needs a sign-in
 This video is private
+Telegram channel
+Click "Open extensions page" for your browser (Chrome, Edge, Brave, Opera, Vivaldi).
+Turn on "Developer mode": at the top of the page in Chrome, Brave, Opera and Vivaldi, and in the ☰ side menu in Edge.
+Open extensions page — {0}
+Extensions page addresses: chrome://extensions — edge://extensions — brave://extensions — opera://extensions — vivaldi://extensions
+Click "Open Firefox" — it opens about:debugging (the address is copied; if it doesn't open, paste it in the address bar).
+Click "Load Temporary Add-on…".
+Choose the manifest.json file in the extension-firefox folder (the "Open Firefox extension folder" button).
+Note: Firefox removes a temporary add-on when it closes. To keep it installed, the extension must be signed on Mozilla's site addons.mozilla.org (free), or use Firefox Developer Edition.
+Open Firefox
+Open Firefox extension folder
+Firefox is not installed on this computer.

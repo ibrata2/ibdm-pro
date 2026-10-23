@@ -56,11 +56,15 @@ public static class AddUrlDialog
 /// <summary>How to add the browser extension (browsers do not allow programs to install extensions themselves).</summary>
 public static class ExtensionGuide
 {
-    public static void Show(Window owner)
+    public static void Show(Window owner) => Build(owner).ShowDialog();
+
+    /// <summary>The guide window (also used by the build's snapshots).</summary>
+    public static Window Build(Window? owner)
     {
         var w = new Window { ResizeMode = ResizeMode.NoResize, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        Ui.Setup(w, L.T("تثبيت إضافة المتصفح"), 600, 560);
-        if (owner.IsVisible) w.Owner = owner;
+        Ui.Setup(w, L.T("تثبيت إضافة المتصفح"), 640, 560);
+        w.MaxHeight = SystemParameters.WorkArea.Height - 40;
+        if (owner is { IsVisible: true }) w.Owner = owner;
         var root = new StackPanel { Margin = new Thickness(24) };
         var head = new StackPanel { Orientation = Orientation.Horizontal };
         head.Children.Add(Ui.Logo(44));
@@ -103,8 +107,8 @@ public static class ExtensionGuide
         string[] steps =
         [
             L.T("اضغط «فتح مجلد الإضافة» بالأسفل وخلي النافذة مفتوحة."),
-            L.T("اضغط «فتح صفحة الإضافات» (Chrome أو Edge)."),
-            L.T("شغّل «وضع المطوّر / Developer mode» من أعلى الصفحة."),
+            L.T("اضغط «فتح صفحة الإضافات» لمتصفحك (Chrome، Edge، Brave، Opera، Vivaldi)."),
+            L.T("شغّل «وضع المطوّر / Developer mode»: بأعلى الصفحة في Chrome و Brave و Opera و Vivaldi، وبالقائمة الجانبية ☰ في Edge."),
             L.T("اضغط «تحميل إضافة غير مُجمَّعة / Load unpacked» واختر مجلد extension."),
             L.T("ثبّت أيقونة IBDM Pro بشريط المتصفح — وخلص! جرّب تحمّل أي ملف."),
         ];
@@ -131,9 +135,55 @@ public static class ExtensionGuide
             buttons.Children.Add(b);
         }
         Add(L.T("فتح مجلد الإضافة"), "", Theme.PrimaryButton, OpenExtensionFolder);
-        Add(L.T("فتح صفحة الإضافات — Chrome"), "", Theme.Button, () => Browser("chrome", "chrome://extensions"));
-        Add(L.T("فتح صفحة الإضافات — Edge"), "", Theme.Button, () => Browser("msedge", "edge://extensions"));
+        foreach (var b in found)
+        {
+            var browser = b;
+            Add(L.F("فتح صفحة الإضافات — {0}", b.Name), "\uE774", Theme.Button, () => Browser(browser.Exe, browser.ExtensionsPage));
+        }
+        if (found.Count == 0)
+        {
+            Add(L.F("فتح صفحة الإضافات — {0}", "Chrome"), "\uE774", Theme.Button, () => Browser("chrome", "chrome://extensions"));
+            Add(L.F("فتح صفحة الإضافات — {0}", "Edge"), "\uE774", Theme.Button, () => Browser("msedge", "edge://extensions"));
+        }
         root.Children.Add(buttons);
+        var pages = Ui.Text(L.T("عناوين صفحات الإضافات: chrome://extensions — edge://extensions — brave://extensions — opera://extensions — vivaldi://extensions"), 11.5, Theme.Muted, wrap: TextWrapping.Wrap);
+        pages.Margin = new Thickness(0, 2, 0, 6);
+        root.Children.Add(pages);
+
+        // Firefox: loaded from about:debugging; Firefox removes it when it closes unless the extension is signed by Mozilla.
+        var ff = new StackPanel();
+        ff.Children.Add(Ui.Text("Firefox", 14, Theme.Gold, bold: true));
+        string[] ffSteps =
+        [
+            L.T("اضغط «فتح فايرفوكس» — يفتح صفحة about:debugging (العنوان منسوخ، إذا ما انفتحت الصق العنوان بشريط العنوان)."),
+            L.T("اضغط «تحميل إضافة مؤقتة / Load Temporary Add-on…»."),
+            L.T("اختر ملف manifest.json من مجلد extension-firefox (زر «فتح مجلد إضافة فايرفوكس»)."),
+        ];
+        for (var i = 0; i < ffSteps.Length; i++)
+        {
+            var tline = Ui.Text($"{i + 1}. {ffSteps[i]}", 12.5, Theme.Ink, wrap: TextWrapping.Wrap);
+            tline.Margin = new Thickness(0, 4, 0, 0);
+            ff.Children.Add(tline);
+        }
+        var ffNote = Ui.Text(L.T("ملاحظة: فايرفوكس يشيل الإضافة المؤقتة عند إغلاقه. للتنصيب الدائم لازم توقيع الإضافة من موقع موزيلا addons.mozilla.org (مجاني)، أو استخدام Firefox Developer Edition."), 11.5, Theme.Muted, wrap: TextWrapping.Wrap);
+        ffNote.Margin = new Thickness(0, 6, 0, 8);
+        ff.Children.Add(ffNote);
+        var ffButtons = new WrapPanel();
+        var ffExe = ExtensionInstaller.Firefox();
+        var openFf = Ui.Button(L.T("فتح فايرفوكس"), "\uE774", Theme.Button, () => Browser(ffExe ?? "firefox", "about:debugging#/runtime/this-firefox"));
+        openFf.Margin = new Thickness(0, 0, 8, 0);
+        openFf.IsEnabled = ffExe is not null;
+        ffButtons.Children.Add(openFf);
+        ffButtons.Children.Add(Ui.Button(L.T("فتح مجلد إضافة فايرفوكس"), "\uE838", Theme.Button, () =>
+        {
+            var dir = Path.Combine(AppContext.BaseDirectory, "extension-firefox");
+            if (Directory.Exists(dir)) Ui.Open(dir); else Ui.Message(null, L.T("مجلد الإضافة غير موجود"), dir);
+        }));
+        if (ffExe is null) ff.Children.Add(Ui.Text(L.T("فايرفوكس غير مثبت على هذا الجهاز."), 12, Theme.Muted));
+        ff.Children.Add(ffButtons);
+        var ffCard = Ui.Card(ff);
+        ffCard.Margin = new Thickness(0, 6, 0, 0);
+        root.Children.Add(ffCard);
 
         var note = Ui.Text(L.T("بعد كل تحديث للبرنامج: أعد «التنصيب التلقائي» أو اضغط زر التحديث ⟳ على بطاقة الإضافة بصفحة الإضافات.\nإذا كان البرنامج مسكّر، المتصفح يحمّل بشكل عادي — لذلك خليه يشتغل مع بدء Windows."), 12, Theme.Muted, wrap: TextWrapping.Wrap);
         note.Margin = new Thickness(0, 8, 0, 14);
@@ -142,8 +192,8 @@ public static class ExtensionGuide
         close.IsCancel = true;
         close.HorizontalAlignment = HorizontalAlignment.Left;
         root.Children.Add(close);
-        w.Content = root;
-        w.ShowDialog();
+        w.Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        return w;
     }
 
     public static void OpenExtensionFolder()
@@ -155,6 +205,7 @@ public static class ExtensionGuide
 
     private static void Browser(string exe, string page)
     {
+        try { Clipboard.SetText(page); } catch (Exception) { }
         try { Process.Start(new ProcessStartInfo(exe, page) { UseShellExecute = true }); }
         catch (Exception)
         {
@@ -196,7 +247,6 @@ public sealed class AboutWindow : Window
 
         root.Children.Add(Center(Link(L.T("قناة البرامج على تيليكرام: t.me/ibraprogram"), "https://t.me/ibraprogram")));
         root.Children.Add(Center(Ui.Text(L.T("للطلبات البرمجية: 07818814000"), 13, Theme.Ink)));
-        root.Children.Add(Center(Link(L.T("صفحة البرنامج والتحديثات على GitHub"), "https://github.com/ibrata2/ibdm-pro/releases/latest")));
         root.Children.Add(Center(Ui.Text(L.T("يستخدم yt-dlp و FFmpeg (برامج مفتوحة المصدر)"), 11, Theme.Muted), 14));
         var upd = Ui.Button(L.T("البحث عن أحدث إصدار"), "\uE895", Theme.PrimaryButton, () => Updater.ShowWindow(this));
         upd.HorizontalAlignment = HorizontalAlignment.Center;

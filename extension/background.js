@@ -2,7 +2,8 @@
 // Hands browser downloads to the IBDM Pro app (running on this computer) instead of letting the browser download them,
 // and finds videos on pages so they can be downloaded at a chosen quality.
 
-importScripts('i18n.js');
+// Chromium loads i18n.js here; Firefox lists it before this file in the manifest.
+if (typeof IBDM_EN === 'undefined') importScripts('i18n.js');
 const APP = 'http://127.0.0.1:39401';
 const HEADERS = { 'Content-Type': 'application/json', 'X-IBDM-Pro': '1' };
 
@@ -27,14 +28,14 @@ async function ping(force = false) {
   if (appConfig && appConfig.lang && appConfig.lang !== IBDM_LANG) {
     // The app's language changed: menus and titles follow it.
     IBDM_LANG = appConfig.lang;
-    chrome.storage.local.set({ lang: IBDM_LANG });
+    api.storage.local.set({ lang: IBDM_LANG });
     buildMenus();
   }
   return appConfig;
 }
 
 // The app ships the extension's files in its own folder; after the app updates, those files are newer than what the
-// browser is running. chrome.runtime.reload() makes the browser read them again — so the extension updates itself.
+// browser is running. api.runtime.reload() makes the browser read them again — so the extension updates itself.
 function newer(a, b) {
   const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
   for (let i = 0; i < Math.max(x.length, y.length); i++) {
@@ -43,16 +44,16 @@ function newer(a, b) {
   return false;
 }
 async function selfUpdate(appVersion) {
-  const mine = chrome.runtime.getManifest().version;
+  const mine = api.runtime.getManifest().version;
   if (!newer(appVersion, mine)) return;
   // At most 3 tries per app version (right away, after 1 minute, after 10 minutes) — never a reload loop,
   // e.g. when the extension was loaded from a folder the app does not update.
-  const { selfUpdate: st } = await chrome.storage.local.get({ selfUpdate: null });
+  const { selfUpdate: st } = await api.storage.local.get({ selfUpdate: null });
   const rec = st && st.for === appVersion ? st : { for: appVersion, tries: 0, at: 0 };
   const waits = [0, 60e3, 600e3];
   if (rec.tries >= waits.length || Date.now() - rec.at < waits[rec.tries]) return;
-  await chrome.storage.local.set({ selfUpdate: { for: appVersion, tries: rec.tries + 1, at: Date.now() } });
-  chrome.runtime.reload();
+  await api.storage.local.set({ selfUpdate: { for: appVersion, tries: rec.tries + 1, at: Date.now() } });
+  api.runtime.reload();
 }
 
 async function sendToApp(payload) {
@@ -66,7 +67,7 @@ async function sendToApp(payload) {
 
 async function cookiesFor(url) {
   try {
-    const list = await chrome.cookies.getAll({ url });
+    const list = await api.cookies.getAll({ url });
     return list.map(c => `${c.name}=${c.value}`).join('; ');
   } catch (e) {
     return '';
@@ -106,9 +107,9 @@ function isExcluded(url, list) {
 
 function notify(title, message) {
   // No notifications permission needed: the badge and the app's own window carry the news.
-  chrome.action.setBadgeBackgroundColor({ color: '#E5533D' });
-  chrome.action.setBadgeText({ text: '!' });
-  chrome.action.setTitle({ title: `${title}\n${message}` });
+  api.action.setBadgeBackgroundColor({ color: '#E5533D' });
+  api.action.setBadgeText({ text: '!' });
+  api.action.setTitle({ title: `${title}\n${message}` });
   setTimeout(() => refreshBadge(), 6000);
 }
 
@@ -120,7 +121,7 @@ async function shouldCapture(item) {
   const url = item.finalUrl || item.url;
   if (!/^https?:/i.test(url)) return null; // blob:, data:, file: stay in the browser
   if (letThrough.has(url)) { letThrough.delete(url); return null; }
-  const { paused } = await chrome.storage.local.get({ paused: false });
+  const { paused } = await api.storage.local.get({ paused: false });
   if (paused) return null;
   const cfg = await ping();
   if (!cfg || !cfg.capture) return null;
@@ -134,8 +135,8 @@ async function shouldCapture(item) {
 }
 
 async function capture(item, found) {
-  try { await chrome.downloads.cancel(item.id); } catch (e) { }
-  try { await chrome.downloads.erase({ id: item.id }); } catch (e) { }
+  try { await api.downloads.cancel(item.id); } catch (e) { }
+  try { await api.downloads.erase({ id: item.id }); } catch (e) { }
   const ok = await sendToApp({
     kind: 'file',
     url: found.url,
@@ -150,31 +151,39 @@ async function capture(item, found) {
   if (!ok) {
     // The app went away between the check and now: give the download back to the browser.
     letThrough.add(found.url);
-    chrome.downloads.download({ url: found.url });
+    api.downloads.download({ url: found.url });
   }
 }
 
-chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  shouldCapture(item).then(found => {
-    if (found) capture(item, found);
-    else suggest();
-  }).catch(() => suggest());
-  return true; // we answer asynchronously
-});
+if (api.downloads.onDeterminingFilename) {
+  // Chrome, Edge, Brave, Opera: decide before the browser saves anything.
+  api.downloads.onDeterminingFilename.addListener((item, suggest) => {
+    shouldCapture(item).then(found => {
+      if (found) capture(item, found);
+      else suggest();
+    }).catch(() => suggest());
+    return true; // we answer asynchronously
+  });
+} else {
+  // Firefox has no such event: take the download over the moment it starts.
+  api.downloads.onCreated.addListener(item => {
+    shouldCapture(item).then(found => { if (found) capture(item, found); }).catch(() => {});
+  });
+}
 
 // ---------- right-click menu ----------
 
 function buildMenus() {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: 'ibdm-link', title: t('تحميل بواسطة IBDM Pro'), contexts: ['link', 'image', 'audio'] });
-    chrome.contextMenus.create({ id: 'ibdm-video', title: t('تحميل هذا الفيديو بواسطة IBDM Pro'), contexts: ['video'] });
-    chrome.contextMenus.create({ id: 'ibdm-page', title: t('تحميل فيديو هذه الصفحة بواسطة IBDM Pro'), contexts: ['page', 'frame'] });
+  api.contextMenus.removeAll().then(() => {
+    api.contextMenus.create({ id: 'ibdm-link', title: t('تحميل بواسطة IBDM Pro'), contexts: ['link', 'image', 'audio'] });
+    api.contextMenus.create({ id: 'ibdm-video', title: t('تحميل هذا الفيديو بواسطة IBDM Pro'), contexts: ['video'] });
+    api.contextMenus.create({ id: 'ibdm-page', title: t('تحميل فيديو هذه الصفحة بواسطة IBDM Pro'), contexts: ['page', 'frame'] });
   });
 }
-chrome.runtime.onInstalled.addListener(() => { buildMenus(); ping(true); });
-chrome.runtime.onStartup.addListener(buildMenus);
+api.runtime.onInstalled.addListener(() => { buildMenus(); ping(true); });
+api.runtime.onStartup.addListener(buildMenus);
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+api.contextMenus.onClicked.addListener(async (info, tab) => {
   const page = info.frameUrl || info.pageUrl || (tab && tab.url) || '';
   let payload;
   if (info.menuItemId === 'ibdm-link') {
@@ -199,7 +208,7 @@ const tabMedia = new Map(); // tabId -> Map(url -> {url, size, type})
 const MEDIA_EXT = /\.(mp4|webm|mkv|mov|m4v|flv|3gp|mp3|m4a|aac|ogg|opus|wav|flac|m3u8|mpd)(\?|$)/i;
 const SEGMENT = /\.(ts|m4s|aac\.part)(\?|$)|[?&](range|bytestart)=|\/seg-?\d+|segment\d|frag\d|chunk-?\d/i;
 
-chrome.webRequest.onHeadersReceived.addListener(details => {
+api.webRequest.onHeadersReceived.addListener(details => {
   if (details.tabId < 0 || details.statusCode >= 400) return;
   const url = details.url;
   if (!/^https?:/i.test(url) || SEGMENT.test(url)) return;
@@ -221,45 +230,45 @@ chrome.webRequest.onHeadersReceived.addListener(details => {
   }
 }, { urls: ['<all_urls>'], types: ['media', 'xmlhttprequest', 'other', 'object'] }, ['responseHeaders']);
 
-chrome.tabs.onUpdated.addListener((tabId, change) => {
+api.tabs.onUpdated.addListener((tabId, change) => {
   if (change.url) { tabMedia.delete(tabId); refreshBadge(tabId); }
 });
-chrome.tabs.onRemoved.addListener(tabId => tabMedia.delete(tabId));
-chrome.tabs.onActivated.addListener(({ tabId }) => refreshBadge(tabId));
+api.tabs.onRemoved.addListener(tabId => tabMedia.delete(tabId));
+api.tabs.onActivated.addListener(({ tabId }) => refreshBadge(tabId));
 
 async function refreshBadge(tabId) {
   const cfg = await ping();
-  const { paused } = await chrome.storage.local.get({ paused: false });
+  const { paused } = await api.storage.local.get({ paused: false });
   if (tabId === undefined) {
-    const [t] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const [t] = await api.tabs.query({ active: true, currentWindow: true });
     tabId = t ? t.id : -1;
   }
   const count = tabMedia.has(tabId) ? tabMedia.get(tabId).size : 0;
-  chrome.action.setTitle({ title: cfg ? (paused ? t('IBDM Pro — الالتقاط متوقف مؤقتاً') : t('IBDM Pro — متصل')) : t('IBDM Pro — البرنامج غير مشغّل') });
+  api.action.setTitle({ title: cfg ? (paused ? t('IBDM Pro — الالتقاط متوقف مؤقتاً') : t('IBDM Pro — متصل')) : t('IBDM Pro — البرنامج غير مشغّل') });
   if (!cfg) {
-    chrome.action.setBadgeBackgroundColor({ color: '#6B6B73' });
-    chrome.action.setBadgeText({ text: 'off' });
+    api.action.setBadgeBackgroundColor({ color: '#6B6B73' });
+    api.action.setBadgeText({ text: 'off' });
   } else if (count > 0) {
-    chrome.action.setBadgeBackgroundColor({ color: cfg.theme === 'dark' ? '#D4AF37' : cfg.theme === 'light' ? '#A87F0A' : '#D7141F' });
-    if (tabId >= 0) chrome.action.setBadgeText({ tabId, text: String(count) });
-    chrome.action.setBadgeText({ text: '' });
+    api.action.setBadgeBackgroundColor({ color: cfg.theme === 'dark' ? '#D4AF37' : cfg.theme === 'light' ? '#A87F0A' : '#D7141F' });
+    if (tabId >= 0) api.action.setBadgeText({ tabId, text: String(count) });
+    api.action.setBadgeText({ text: '' });
   } else {
-    chrome.action.setBadgeText({ text: paused ? '❚❚' : '' });
-    if (tabId >= 0) chrome.action.setBadgeText({ tabId, text: paused ? '❚❚' : '' });
+    api.action.setBadgeText({ text: paused ? '❚❚' : '' });
+    if (tabId >= 0) api.action.setBadgeText({ tabId, text: paused ? '❚❚' : '' });
   }
 }
 
 // ---------- messages from the page button and the popup ----------
 
-chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+api.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
     if (msg.cmd === 'status') {
       const cfg = await ping(true);
-      const { paused } = await chrome.storage.local.get({ paused: false });
+      const { paused } = await api.storage.local.get({ paused: false });
       const list = tabMedia.has(msg.tabId) ? [...tabMedia.get(msg.tabId).values()] : [];
-      reply({ app: cfg, paused, media: list, version: chrome.runtime.getManifest().version });
+      reply({ app: cfg, paused, media: list, version: api.runtime.getManifest().version });
     } else if (msg.cmd === 'pause') {
-      await chrome.storage.local.set({ paused: !!msg.paused });
+      await api.storage.local.set({ paused: !!msg.paused });
       refreshBadge();
       reply({ ok: true });
     } else if (msg.cmd === 'media') {
@@ -289,4 +298,4 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 setInterval(() => refreshBadge(), 15000);
 refreshBadge();
-chrome.storage.local.get({ lang: 'ar' }, v => { IBDM_LANG = v.lang; buildMenus(); refreshBadge(); });
+api.storage.local.get({ lang: 'ar' }).then(v => { IBDM_LANG = v.lang; buildMenus(); refreshBadge(); });

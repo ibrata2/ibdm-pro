@@ -70,6 +70,7 @@ public static class Snapshots
             running.Downloaded = running.Segments.Sum(x => Math.Min(x.Done, x.End - x.Start + 1));
         }
         Save(ProgressWindow.Preview(running, m), Path.Combine(dir, "6-progress.png"));
+        Save(ExtensionGuide.Build(null), Path.Combine(dir, "7-extension-guide.png"));
         Save(new AboutWindow(), Path.Combine(dir, "5-about.png"));
     }
 
