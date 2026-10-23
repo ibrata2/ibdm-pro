@@ -132,7 +132,7 @@ jobs:
           Write-Host $t
           if ($t -notmatch "^current=") { throw "update check failed: $t" }
 
-      - name: Automatic extension install (real Chrome and Edge)
+      - name: Automatic extension install (real Chrome, Edge and Brave)
         continue-on-error: true
         timeout-minutes: 12
         run: |
@@ -149,10 +149,11 @@ jobs:
           Set-ItemProperty "HKLM:\SOFTWARE\Policies\Google\Chrome" BrowserSignin 0 -Type DWord
           Set-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Edge" HideFirstRunExperience 1 -Type DWord
           Set-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Edge" BrowserSignin 0 -Type DWord
+          choco install brave -y --no-progress | Out-Null
           $ext = (Resolve-Path build/publish/extension).Path
           $app = Start-Process build/publish/IBDMPro.exe -ArgumentList "--background" -PassThru
           Start-Sleep 6
-          foreach ($b in "chrome", "msedge") {
+          foreach ($b in "chrome", "msedge", "brave") {
             $job = Start-Job { param($exe, $b, $ext, $out) Start-Process $exe -ArgumentList "--install-extension", $b, $out, $ext -Wait } -ArgumentList (Resolve-Path build/publish/IBDMPro.exe).Path, $b, $ext, "$PWD/install-$b.txt"
             Start-Sleep 12; Shot "build/snapshots/extension-install/$b-during.png"
             Wait-Job $job -Timeout 120 | Out-Null
