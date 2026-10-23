@@ -1,0 +1,70 @@
+window 197116 Chrome_WidgetWin_1
+  ControlType.Pane id='' name='Extensions - Brave' toggle=False invoke=False rect=0,0,1024,720
+  ControlType.Button id='view_1' name='Minimize' toggle=False invoke=True rect=887,0,45,40
+  ControlType.Button id='view_3' name='Restore' toggle=False invoke=True rect=932,0,46,40
+  ControlType.Button id='view_4' name='Close' toggle=False invoke=True rect=978,0,46,40
+  ControlType.ToolBar id='view_1000' name='' toggle=False invoke=False rect=0,40,1024,40
+  ControlType.Button id='view_1001' name='Back' toggle=False invoke=True rect=0,46,34,28
+  ControlType.Button id='view_1002' name='Forward' toggle=False invoke=True rect=36,46,28,28
+  ControlType.Button id='view_1003' name='Reload' toggle=False invoke=True rect=66,46,28,28
+  ControlType.Button id='view_1005' name='Bookmark this tab' toggle=False invoke=True rect=184,46,28,28
+  ControlType.Button id='view_1011' name='Brave' toggle=False invoke=True rect=223,46,71,28
+  ControlType.Edit id='view_1012' name='Address and search bar' toggle=False invoke=False rect=302,46,397,28
+  ControlType.Separator id='' name='Separator' toggle=False invoke=False rect=707,52,4,16
+  ControlType.Button id='' name='Brave Shields' toggle=False invoke=False rect=714,46,30,28
+  ControlType.Button id='' name='Brave Rewards' toggle=False invoke=False rect=747,46,30,28
+  ControlType.Button id='view_1006' name='Extensions' toggle=False invoke=False rect=840,46,28,28
+  ControlType.Button id='' name='Show sidebar' toggle=False invoke=False rect=870,46,28,28
+  ControlType.Button id='' name='Brave Wallet' toggle=False invoke=False rect=900,46,28,28
+  ControlType.Button id='' name='Leo AI' toggle=False invoke=False rect=930,46,28,28
+  ControlType.Button id='' name='VPN' toggle=False invoke=False rect=960,46,28,28
+  ControlType.Button id='view_1007' name='Brave' toggle=False invoke=False rect=990,46,34,28
+  ControlType.Document id='RootWebArea' name='Extensions' toggle=False invoke=False rect=0,137,1024,583
+  ControlType.Group id='toolbar' name='' toggle=False invoke=False rect=0,137,1024,114
+  ControlType.Text id='' name='Extensions' toggle=False invoke=False rect=67,150,121,30
+  ControlType.Group id='search' name='' toggle=False invoke=True rect=187,143,674,44
+  ControlType.Edit id='searchInput' name='Search extensions' toggle=False invoke=False rect=221,153,634,24
+  ControlType.Text id='' name='Developer mode' toggle=False invoke=False rect=860,155,96,18
+  ControlType.Group id='devMode' name='Developer mode' toggle=False invoke=True rect=972,151,40,28
+  ControlType.Group id='loadUnpacked' name='' toggle=False invoke=True rect=24,203,117,36
+  ControlType.Button id='' name='Load unpacked' toggle=False invoke=True rect=24,203,117,36
+  ControlType.Group id='packExtensions' name='' toggle=False invoke=True rect=159,203,116,36
+  ControlType.Button id='' name='Pack extension' toggle=False invoke=True rect=159,203,116,36
+  ControlType.Group id='updateNow' name='Update extensions now' toggle=False invoke=True rect=294,203,75,36
+  ControlType.Button id='' name='Update' toggle=False invoke=True rect=294,203,75,36
+  ControlType.Menu id='sectionMenu' name='' toggle=False invoke=True rect=0,251,256,88
+  ControlType.MenuItem id='sectionsExtensions' name='My extensions' toggle=False invoke=True rect=1,259,253,40
+  ControlType.MenuItem id='sectionsShortcuts' name='Keyboard shortcuts' toggle=False invoke=True rect=1,299,253,40
+  ControlType.Group id='discover-more-text' name='' toggle=False invoke=True rect=24,349,204,38
+  ControlType.Text id='' name='Discover more extensions and themes on the ' toggle=False invoke=False rect=24,349,186,38
+  ControlType.Hyperlink id='' name='Web Store' toggle=False invoke=True rect=116,368,65,19
+  ControlType.Group id='viewManager' name='' toggle=False invoke=False rect=256,251,753,469
+  ControlType.Text id='' name='Find extensions and themes in the ' toggle=False invoke=False rect=468,354,253,21
+  ControlType.Hyperlink id='' name='Web Store' toggle=False invoke=True rect=720,354,77,21
+  ControlType.Text id='' name='All Extensions' toggle=False invoke=False rect=316,396,633,33
+  ControlType.Group id='source-indicator' name='' toggle=False invoke=True rect=482,486,23,23
+  ControlType.Image id='' name='Unpacked extension' toggle=False invoke=False rect=482,486,23,23
+  ControlType.Text id='name' name='IBDM Pro' toggle=False invoke=False rect=524,456,56,21
+  ControlType.Text id='' name='1.0.0' toggle=False invoke=False rect=587,457,27,18
+  ControlType.Text id='' name='يلتقط التحميلات والفيديوهات من أي موقع ويرسلها لبرنامج IBDM Pro — برمجة و تطوير ابراهيم الخزرجي' toggle=False invoke=False rect=524,481,278,38
+  ControlType.Text id='' name='ID: hfdioaphdambhkknncmjkfegpjmgkkek' toggle=False invoke=False rect=524,577,241,17
+  ControlType.Text id='' name='Inspect views' toggle=False invoke=False rect=524,597,77,18
+  ControlType.Hyperlink id='' name='service worker' toggle=False invoke=True rect=604,596,83,21
+  ControlType.Group id='detailsButton' name='' toggle=False invoke=True rect=440,638,72,37
+  ControlType.Button id='' name='Details' toggle=False invoke=True rect=440,638,72,37
+  ControlType.Group id='removeButton' name='' toggle=False invoke=True rect=519,638,79,37
+  ControlType.Button id='' name='Remove' toggle=False invoke=True rect=519,638,79,37
+  ControlType.Button id='dev-reload-button' name='Reload' toggle=False invoke=True rect=728,640,33,33
+  ControlType.Group id='enableToggle' name='On, extension enabled' toggle=False invoke=True rect=772,642,41,28
+  ControlType.Group id='view_1039' name='Infobar Container' toggle=False invoke=False rect=0,81,1024,56
+  ControlType.Window id='' name='Infobar' toggle=False invoke=False rect=0,81,1024,56
+  ControlType.Text id='' name='Brave uses privacy-preserving product analytics to estimate the overall usage of certain features' toggle=False invoke=False rect=178,99,548,20
+  ControlType.Button id='' name='Got it' toggle=False invoke=True rect=742,92,64,34
+  ControlType.Button id='' name='Disable' toggle=False invoke=True rect=814,92,68,34
+  ControlType.Hyperlink id='' name='Learn more' toggle=False invoke=True rect=898,103,66,20
+  ControlType.Button id='' name='Close' toggle=False invoke=True rect=980,95,28,28
+  ControlType.Button id='' name='Tab search' toggle=False invoke=False rect=859,6,28,28
+  ControlType.Pane id='view_21' name='' toggle=False invoke=False rect=0,0,248,40
+  ControlType.TabItem id='view_20' name='Extensions - Memory usage - 42.0 MB' toggle=False invoke=False rect=0,0,248,40
+  ControlType.Button id='' name='Close' toggle=False invoke=True rect=215,6,28,28
+  ControlType.Button id='' name='New Tab' toggle=False invoke=True rect=252,0,28,40
