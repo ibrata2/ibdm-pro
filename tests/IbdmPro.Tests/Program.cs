@@ -44,6 +44,13 @@ Check(YtDlp.CleanUrl("https://www.youtube.com/watch?v=u8AjfvHBCSI&list=RDu8AjfvH
       && YtDlp.CleanUrl("https://youtu.be/abc?si=x") == "https://youtu.be/abc" && YtDlp.CleanUrl("https://site.com/a?b=1") == "https://site.com/a?b=1",
       "YouTube mix/playlist links reduced to the single video");
 
+// ---------- English ----------
+L.Lang = "en";
+Check(L.T("حفظ") == "Save" && L.F("{0} تحميلات", 3) == "3 downloads" && L.T("نص بدون ترجمة") == "نص بدون ترجمة" && L.T("فيديو") == "Video",
+      $"English texts ({L.Count} translations)");
+L.Lang = "ar";
+Check(L.T("حفظ") == "حفظ" && L.F("{0} تحميلات", 3) == "3 تحميلات", "Arabic stays Arabic");
+
 // ---------- probing ----------
 var info = new RequestInfo();
 var p1 = await Http.ProbeAsync($"{baseUrl}/file.bin", info);

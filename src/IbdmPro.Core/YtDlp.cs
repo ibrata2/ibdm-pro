@@ -18,7 +18,7 @@ public sealed class MediaOption
     public string? AudioFormat { get; set; }
     /// <summary>For a single plain file, its address — used to ask the server for the exact size when yt-dlp does not know it.</summary>
     public string? DirectUrl { get; set; }
-    public string SizeText => Size > 0 ? (SizeIsEstimate ? "\u200E~" : "") + Fmt.Size(Size) : "الحجم غير معروف";
+    public string SizeText => Size > 0 ? (SizeIsEstimate ? "\u200E~" : "") + Fmt.Size(Size) : L.T("الحجم غير معروف");
 }
 
 public sealed class MediaInfo
@@ -117,7 +117,7 @@ public static class YtDlp
             catch (InvalidOperationException e) { error ??= e.Message; }
         }
         if (media is null || media.Options.Count == 0)
-            throw new InvalidOperationException(error ?? "لم يتم العثور على جودات متوفرة لهذا الفيديو");
+            throw new InvalidOperationException(error ?? L.T("لم يتم العثور على جودات متوفرة لهذا الفيديو"));
         return media;
     }
 
@@ -130,7 +130,7 @@ public static class YtDlp
         args.AddRange(HeaderArgs(info));
         args.Add("--");
         args.Add(url);
-        using var p = Process.Start(Start(args)) ?? throw new InvalidOperationException("تعذر تشغيل yt-dlp");
+        using var p = Process.Start(Start(args)) ?? throw new InvalidOperationException(L.T("تعذر تشغيل yt-dlp"));
         using var reg = ct.Register(() => Kill(p));
         var outTask = p.StandardOutput.ReadToEndAsync(ct);
         var errTask = p.StandardError.ReadToEndAsync(ct);
@@ -140,7 +140,7 @@ public static class YtDlp
         if (p.ExitCode != 0 || stdout.Length == 0)
         {
             Log.Write($"yt-dlp -J {url}: {stderr.Trim()}");
-            throw new InvalidOperationException(CleanError(stderr) ?? "لم يتم العثور على فيديو في هذه الصفحة");
+            throw new InvalidOperationException(CleanError(stderr) ?? L.T("لم يتم العثور على فيديو في هذه الصفحة"));
         }
         var media = Parse(stdout, url);
         // Ask the server for the real size of plain files whose size yt-dlp did not report.
@@ -244,7 +244,7 @@ public static class YtDlp
             info.Options.Add(new MediaOption
             {
                 FormatSpec = "best", Ext = Str(f, "ext") ?? "mp4", Size = size, SizeIsEstimate = est,
-                Label = "أفضل جودة متوفرة — " + (Str(f, "ext") ?? "mp4").ToUpperInvariant(),
+                Label = L.T("أفضل جودة متوفرة — ") + (Str(f, "ext") ?? "mp4").ToUpperInvariant(),
                 DirectUrl = Str(f, "protocol") is "http" or "https" ? Str(f, "url") : null,
             });
         }
@@ -253,8 +253,8 @@ public static class YtDlp
         {
             var src = audioSize > 0 ? audioSize : -1;
             var mp3 = info.Duration > 0 ? (long)(info.Duration * 192_000 / 8) : src;
-            info.Options.Add(new MediaOption { AudioOnly = true, AudioFormat = "mp3", Ext = "mp3", FormatSpec = "bestaudio/best", Size = mp3, SizeIsEstimate = true, Label = "صوت فقط — MP3" });
-            info.Options.Add(new MediaOption { AudioOnly = true, AudioFormat = "m4a", Ext = "m4a", FormatSpec = "bestaudio[ext=m4a]/bestaudio/best", Size = src, SizeIsEstimate = audioEst, Label = "صوت فقط — M4A (الجودة الأصلية)" });
+            info.Options.Add(new MediaOption { AudioOnly = true, AudioFormat = "mp3", Ext = "mp3", FormatSpec = "bestaudio/best", Size = mp3, SizeIsEstimate = true, Label = L.T("صوت فقط — MP3") });
+            info.Options.Add(new MediaOption { AudioOnly = true, AudioFormat = "m4a", Ext = "m4a", FormatSpec = "bestaudio[ext=m4a]/bestaudio/best", Size = src, SizeIsEstimate = audioEst, Label = L.T("صوت فقط — M4A (الجودة الأصلية)") });
         }
         return info;
     }
@@ -321,7 +321,7 @@ public static class YtDlp
         long phaseBase = 0, lastDone = 0, lastTotal = 0;
         using var p = new Process { StartInfo = Start(args) };
         p.ErrorDataReceived += (_, e) => { if (e.Data is { Length: > 0 } d) lock (errors) { errors.Add(d); if (errors.Count > 40) errors.RemoveAt(0); } };
-        if (!p.Start()) throw new InvalidOperationException("تعذر تشغيل yt-dlp");
+        if (!p.Start()) throw new InvalidOperationException(L.T("تعذر تشغيل yt-dlp"));
         p.BeginErrorReadLine();
         using var reg = ct.Register(() => Kill(p));
 
@@ -331,8 +331,8 @@ public static class YtDlp
             if (line.StartsWith("[IBDM]", StringComparison.Ordinal))
             {
                 var parts = line[6..].Split('|');
-                var done = L(parts, 0);
-                var total = Math.Max(L(parts, 1), L(parts, 2));
+                var done = Num64(parts, 0);
+                var total = Math.Max(Num64(parts, 1), Num64(parts, 2));
                 var speed = parts.Length > 3 && double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var sp) ? sp : 0;
                 // A new file started (video, then audio): keep counting from where the last one ended.
                 if (done < lastDone && lastTotal > 0) phaseBase += lastTotal;
@@ -340,9 +340,9 @@ public static class YtDlp
                 if (total > 0) lastTotal = total;
                 progress(new Progress(phaseBase + done, total > 0 ? phaseBase + total : -1, speed, null));
             }
-            else if (line.StartsWith("[Merger]", StringComparison.Ordinal)) progress(new Progress(-1, -1, 0, "جاري دمج الصوت مع الفيديو"));
-            else if (line.StartsWith("[ExtractAudio]", StringComparison.Ordinal)) progress(new Progress(-1, -1, 0, "جاري تحويل الصوت"));
-            else if (line.StartsWith("[FixupM3u8]", StringComparison.Ordinal) || line.StartsWith("[VideoConvertor]", StringComparison.Ordinal)) progress(new Progress(-1, -1, 0, "جاري المعالجة"));
+            else if (line.StartsWith("[Merger]", StringComparison.Ordinal)) progress(new Progress(-1, -1, 0, L.T("جاري دمج الصوت مع الفيديو")));
+            else if (line.StartsWith("[ExtractAudio]", StringComparison.Ordinal)) progress(new Progress(-1, -1, 0, L.T("جاري تحويل الصوت")));
+            else if (line.StartsWith("[FixupM3u8]", StringComparison.Ordinal) || line.StartsWith("[VideoConvertor]", StringComparison.Ordinal)) progress(new Progress(-1, -1, 0, L.T("جاري المعالجة")));
         }
         await p.WaitForExitAsync(CancellationToken.None);
         ct.ThrowIfCancellationRequested();
@@ -350,7 +350,7 @@ public static class YtDlp
         {
             string text;
             lock (errors) text = string.Join("\n", errors);
-            throw new InvalidOperationException(CleanError(text) ?? $"yt-dlp توقف (رمز {p.ExitCode})");
+            throw new InvalidOperationException(CleanError(text) ?? L.F("yt-dlp توقف (رمز {0})", p.ExitCode));
         }
 
         string? final = null;
@@ -364,7 +364,7 @@ public static class YtDlp
                 .Where(f => !f.Name.EndsWith(".part") && !f.Name.EndsWith(".ytdl"))
                 .OrderByDescending(f => f.LastWriteTimeUtc).FirstOrDefault()?.FullName;
         }
-        return final ?? throw new InvalidOperationException("اكتمل التحميل لكن لم يتم العثور على الملف");
+        return final ?? throw new InvalidOperationException(L.T("اكتمل التحميل لكن لم يتم العثور على الملف"));
     }
 
     public static async Task<string> UpdateAsync()
@@ -377,21 +377,21 @@ public static class YtDlp
         return (o + "\n" + e).Trim();
     }
 
-    private static long L(string[] parts, int i) =>
+    private static long Num64(string[] parts, int i) =>
         i < parts.Length && double.TryParse(parts[i], NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? (long)v : 0;
 
     private static string? CleanError(string stderr)
     {
         var line = stderr.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("ERROR:")) ?? stderr.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.Length > 0);
         if (string.IsNullOrEmpty(line)) return null;
-        if (line.Contains("Unsupported URL")) return "هذا الرابط لا يحتوي على فيديو يمكن تحميله";
+        if (line.Contains("Unsupported URL")) return L.T("هذا الرابط لا يحتوي على فيديو يمكن تحميله");
         if (line.Contains("Requested format is not available") || line.Contains("No video formats found"))
-            return "يوتيوب لم يعطِ جودات لهذا الفيديو. اضغط «إعادة المحاولة»، وإذا تكرر حدّث محرك الفيديو من الإعدادات ← الإضافة ومحرك الفيديو.";
+            return L.T("يوتيوب لم يعطِ جودات لهذا الفيديو. اضغط «إعادة المحاولة»، وإذا تكرر حدّث محرك الفيديو من الإعدادات ← الإضافة ومحرك الفيديو.");
         if (line.Contains("not a bot") || line.Contains("confirm you"))
-            return "يوتيوب طلب التحقق بأنك لست روبوت (بسبب كثرة الطلبات من نفس الإنترنت). انتظر قليلاً ثم أعد المحاولة.";
-        if (line.Contains("HTTP Error 403")) return "الموقع رفض التحميل (403) — جرّب مرة ثانية أو حدّث محرك الفيديو من الإعدادات";
-        if (line.Contains("Sign in") || line.Contains("login")) return "هذا الفيديو يحتاج تسجيل دخول";
-        if (line.Contains("Private video")) return "هذا الفيديو خاص";
+            return L.T("يوتيوب طلب التحقق بأنك لست روبوت (بسبب كثرة الطلبات من نفس الإنترنت). انتظر قليلاً ثم أعد المحاولة.");
+        if (line.Contains("HTTP Error 403")) return L.T("الموقع رفض التحميل (403) — جرّب مرة ثانية أو حدّث محرك الفيديو من الإعدادات");
+        if (line.Contains("Sign in") || line.Contains("login")) return L.T("هذا الفيديو يحتاج تسجيل دخول");
+        if (line.Contains("Private video")) return L.T("هذا الفيديو خاص");
         return line.StartsWith("ERROR:") ? line[6..].Trim() : line;
     }
 

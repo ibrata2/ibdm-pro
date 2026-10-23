@@ -45,6 +45,9 @@ public sealed class Settings
     public bool ResumeOnStart { get; set; } = true;
 
     // App
+    /// <summary>"ar" (Arabic, default) or "en" (English). Changing it needs a restart.</summary>
+    public string Language { get; set; } = "ar";
+
     /// <summary>"glass" (red glass, the default), "auto" = light or dark like Windows, "dark", or "light".</summary>
     public string Theme { get; set; } = "glass";
     /// <summary>Set once the red glass style has been made the default for an existing install.</summary>
@@ -73,6 +76,20 @@ public sealed class Settings
     public bool NotifyOnComplete { get; set; } = true;
     public bool HasSeenTrayHint { get; set; }
     public bool HasSeenWelcome { get; set; }
+
+    /// <summary>Folder names on disk for the built-in types when the app is in English.</summary>
+    private static readonly Dictionary<string, string> EnglishFolders = new()
+    {
+        ["فيديو"] = "Video", ["صوتيات"] = "Audio", ["مضغوطات"] = "Compressed", ["برامج"] = "Programs",
+        ["مستندات"] = "Documents", ["صور"] = "Images", ["تورنت"] = "Torrent", ["أخرى"] = "Other",
+    };
+
+    public static List<Category> DefaultCategories(bool englishFolders)
+    {
+        var list = DefaultCategories();
+        if (englishFolders) foreach (var c in list) if (EnglishFolders.TryGetValue(c.Folder, out var f)) c.Folder = f;
+        return list;
+    }
 
     public static List<Category> DefaultCategories() =>
     [
@@ -150,6 +167,9 @@ public sealed class Settings
                 var text = File.ReadAllText(FilePath);
                 var s = JsonSerializer.Deserialize<Settings>(text, Json.Options);
                 if (s is not null && !text.Contains("\"GlassDefaultApplied\"")) s.GlassDefaultApplied = false;
+                // A first install in English (the installer writes only the language): English folder names.
+                if (s is not null && s.Language == "en" && !text.Contains("\"Categories\"")) s.Categories = DefaultCategories(englishFolders: true);
+                if (s is not null) L.Lang = s.Language == "en" ? "en" : "ar";
                 if (s is not null)
                 {
                     if (s.Categories.Count == 0) s.Categories = DefaultCategories();

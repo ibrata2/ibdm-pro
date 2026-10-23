@@ -173,7 +173,7 @@ public sealed class DownloadManager : IDisposable
         {
             Log.Write($"{item.FileName}: {e}");
             item.Status = DownloadStatus.Error;
-            item.Error = e is HttpRequestException h ? "خطأ في الاتصال: " + (h.InnerException?.Message ?? h.Message) : e.Message;
+            item.Error = e is HttpRequestException h ? L.T("خطأ في الاتصال: ") + (h.InnerException?.Message ?? h.Message) : e.Message;
             item.Speed = 0;
             ItemFailed?.Invoke(item);
         }

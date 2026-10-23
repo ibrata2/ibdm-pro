@@ -7,6 +7,7 @@
   let current = null;      // the video the button belongs to
   let hideTimer = 0;
   let host, button, label;
+  let sending = false;
 
   function makeButton() {
     host = document.createElement('div');
@@ -31,9 +32,9 @@
         .x{margin-inline-start:4px;color:var(--mu);font-weight:400;padding:0 3px}
         .x:hover{color:var(--ac)}
       </style>
-      <div class="b" title="IBDM Pro — اختر الجودة وحمّل">
+      <div class="b" title="${t('IBDM Pro — اختر الجودة وحمّل')}">
         <img class="i" alt="" src="${chrome.runtime.getURL('icons/icon48.png')}">
-        <span class="t">تحميل هذا الفيديو</span><span class="s">IBDM Pro</span><span class="x" title="إخفاء">✕</span>
+        <span class="t">${t('تحميل هذا الفيديو')}</span><span class="s">IBDM Pro</span><span class="x" title="${t('إخفاء')}">✕</span>
       </div>`;
     button = root.querySelector('.b');
     applyTheme();
@@ -59,14 +60,18 @@
     if (!button) return;
     button.classList.toggle('dark', theme === 'dark');
     button.classList.toggle('light', theme === 'light');
+    button.style.direction = IBDM_LANG === 'en' ? 'ltr' : 'rtl';
+    button.title = t('IBDM Pro — اختر الجودة وحمّل');
+    if (label && !sending) label.textContent = t('تحميل هذا الفيديو');
   }
   function loadTheme() {
     try {
-      chrome.storage.local.get({ theme: 'glass' }, v => { theme = v.theme || 'glass'; applyTheme(); });
+      chrome.storage.local.get({ theme: 'glass', lang: 'ar' }, v => { theme = v.theme || 'glass'; IBDM_LANG = v.lang; applyTheme(); });
       chrome.runtime.sendMessage({ cmd: 'ping' }, res => {
         if (chrome.runtime.lastError || !res || !res.app || !res.app.theme) return;
         theme = res.app.theme;
-        chrome.storage.local.set({ theme });
+        if (res.app.lang) IBDM_LANG = res.app.lang;
+        chrome.storage.local.set({ theme, lang: IBDM_LANG });
         applyTheme();
       });
     } catch (e) { }
@@ -101,7 +106,7 @@
     const fsParent = document.fullscreenElement || document.documentElement;
     if (host.parentNode !== fsParent) fsParent.appendChild(host);
     current = v;
-    label.textContent = 'تحميل هذا الفيديو';
+    label.textContent = t('تحميل هذا الفيديو');
     host.style.display = 'block';
     place();
     clearTimeout(hideTimer);
@@ -124,11 +129,12 @@
     if (!src) { const s = v.querySelector('source[src]'); if (s) src = s.src; }
     // blob:/MediaSource players (YouTube and most big sites): the page address is what can be downloaded.
     if (!/^https?:/i.test(src)) src = '';
-    label.textContent = 'جاري الإرسال…';
+    sending = true;
+    label.textContent = t('جاري الإرسال…');
     chrome.runtime.sendMessage({ cmd: 'media', src, pageUrl: location.href, title: document.title }, res => {
-      if (chrome.runtime.lastError) { label.textContent = 'أعد تحميل الصفحة'; return; }
-      label.textContent = res && res.ok ? '✓ تم — اختر الجودة بالبرنامج' : 'شغّل برنامج IBDM Pro أولاً';
-      setTimeout(() => { if (label) label.textContent = 'تحميل هذا الفيديو'; }, 3500);
+      if (chrome.runtime.lastError) { label.textContent = t('أعد تحميل الصفحة'); return; }
+      label.textContent = res && res.ok ? t('✓ تم — اختر الجودة بالبرنامج') : t('شغّل برنامج IBDM Pro أولاً');
+      setTimeout(() => { sending = false; if (label) label.textContent = t('تحميل هذا الفيديو'); }, 3500);
     });
   }
 

@@ -85,10 +85,10 @@ public static class ExtensionInstaller
         void Say(string s) { r.Steps.Add(s); step(s); Log.Write($"extension install ({browser.Name}): {s}"); }
         try
         {
-            if (!File.Exists(Path.Combine(extensionDir, "manifest.json"))) throw new InvalidOperationException("مجلد الإضافة غير موجود: " + extensionDir);
+            if (!File.Exists(Path.Combine(extensionDir, "manifest.json"))) throw new InvalidOperationException(L.T("مجلد الإضافة غير موجود: ") + extensionDir);
             var started = DateTime.Now;
 
-            Say($"فتح {browser.Name} على صفحة الإضافات…");
+            Say(L.F("فتح {0} على صفحة الإضافات…", browser.Name));
             var before = BrowserWindows(browser.ProcessName).Select(w => w.Handle).ToHashSet();
             var launched = DateTime.Now;
             Process.Start(new ProcessStartInfo(browser.Exe) { UseShellExecute = false, ArgumentList = { "--no-first-run", "--no-default-browser-check", "--new-window", browser.ExtensionsPage } });
@@ -127,12 +127,12 @@ public static class ExtensionInstaller
                     && DateTime.Now > (navigatedAt == DateTime.MinValue ? DateTime.Now.AddSeconds(-1) : navigatedAt))
                 {
                     if (tries == 0) Thread.Sleep(2500); // let the window finish opening
-                    if (TypeAddress(wins[0].Handle, browser.ExtensionsPage)) Say("كتابة عنوان صفحة الإضافات…");
+                    if (TypeAddress(wins[0].Handle, browser.ExtensionsPage)) Say(L.T("كتابة عنوان صفحة الإضافات…"));
                     navigatedAt = DateTime.Now;
                     tries++;
                 }
             }
-            if (window is null || devToggle is null) throw new InvalidOperationException("لم أجد صفحة الإضافات أو زر «وضع المطوّر» في المتصفح.");
+            if (window is null || devToggle is null) throw new InvalidOperationException(L.T("لم أجد صفحة الإضافات أو زر «وضع المطوّر» في المتصفح."));
             try
             {
                 if (window.TryGetCurrentPattern(WindowPattern.Pattern, out var wp))
@@ -140,7 +140,7 @@ public static class ExtensionInstaller
             }
             catch (Exception) { }
 
-            Say("تفعيل «وضع المطوّر»…");
+            Say(L.T("تفعيل «وضع المطوّر»…"));
             if (devToggle.GetCurrentPattern(TogglePattern.Pattern) is TogglePattern tp && tp.Current.ToggleState != ToggleState.On)
             {
                 tp.Toggle();
@@ -155,7 +155,7 @@ public static class ExtensionInstaller
                 Thread.Sleep(800);
             }
 
-            Say("الضغط على «تحميل إضافة غير مُجمَّعة»…");
+            Say(L.T("الضغط على «تحميل إضافة غير مُجمَّعة»…"));
             AutomationElement? load = null;
             until = DateTime.Now.AddSeconds(15);
             while (DateTime.Now < until && load is null)
@@ -164,7 +164,7 @@ public static class ExtensionInstaller
                 load = FindLoadUnpacked(window);
                 if (load is null) Thread.Sleep(500);
             }
-            if (load is null) throw new InvalidOperationException("لم أجد زر «تحميل إضافة غير مُجمَّعة / Load unpacked».");
+            if (load is null) throw new InvalidOperationException(L.T("لم أجد زر «تحميل إضافة غير مُجمَّعة / Load unpacked»."));
             var dialogsBefore = Dialogs(browser.ProcessName).ToHashSet();
             // Invoke blocks while the modal folder dialog is open on some versions, so press it from another thread.
             var press = new Thread(() =>
@@ -175,7 +175,7 @@ public static class ExtensionInstaller
             press.SetApartmentState(ApartmentState.MTA);
             press.Start();
 
-            Say("اختيار مجلد الإضافة…");
+            Say(L.T("اختيار مجلد الإضافة…"));
             IntPtr dlg = IntPtr.Zero;
             until = DateTime.Now.AddSeconds(15);
             while (DateTime.Now < until && dlg == IntPtr.Zero)
@@ -184,10 +184,10 @@ public static class ExtensionInstaller
                 Thread.Sleep(400);
                 dlg = Dialogs(browser.ProcessName).FirstOrDefault(h => !dialogsBefore.Contains(h));
             }
-            if (dlg == IntPtr.Zero) throw new InvalidOperationException("لم تظهر نافذة اختيار المجلد.");
+            if (dlg == IntPtr.Zero) throw new InvalidOperationException(L.T("لم تظهر نافذة اختيار المجلد."));
             ChooseFolder(dlg, extensionDir);
 
-            Say("انتظار تشغيل الإضافة والتأكد من اتصالها بالبرنامج…");
+            Say(L.T("انتظار تشغيل الإضافة والتأكد من اتصالها بالبرنامج…"));
             until = DateTime.Now.AddSeconds(20);
             while (DateTime.Now < until)
             {
@@ -199,11 +199,11 @@ public static class ExtensionInstaller
             }
             r.Ok = true;
             r.Message = r.Confirmed
-                ? $"تم تنصيب إضافة IBDM Pro على {browser.Name} وهي متصلة بالبرنامج ✓"
-                : $"تم تحميل الإضافة في {browser.Name}. إذا ما ظهرت أيقونة IBDM Pro، أعد تشغيل المتصفح.";
-            Say(r.Confirmed ? "✓ تم" : "تم (بدون تأكيد اتصال)");
+                ? L.F("تم تنصيب إضافة IBDM Pro على {0} وهي متصلة بالبرنامج ✓", browser.Name)
+                : L.F("تم تحميل الإضافة في {0}. إذا ما ظهرت أيقونة IBDM Pro، أعد تشغيل المتصفح.", browser.Name);
+            Say(r.Confirmed ? L.T("✓ تم") : L.T("تم (بدون تأكيد اتصال)"));
         }
-        catch (OperationCanceledException) { r.Message = "تم الإلغاء"; }
+        catch (OperationCanceledException) { r.Message = L.T("تم الإلغاء"); }
         catch (Exception e)
         {
             r.Message = e.Message;
@@ -352,7 +352,7 @@ public static class ExtensionInstaller
     /// <summary>Types the folder into the Windows "Select folder" dialog and confirms it.</summary>
     private static void ChooseFolder(IntPtr dialog, string folder)
     {
-        var dlg = Element(dialog) ?? throw new InvalidOperationException("تعذر قراءة نافذة اختيار المجلد.");
+        var dlg = Element(dialog) ?? throw new InvalidOperationException(L.T("تعذر قراءة نافذة اختيار المجلد."));
         AutomationElement? edit = null;
         var until = DateTime.Now.AddSeconds(8);
         while (DateTime.Now < until && edit is null)
@@ -365,7 +365,7 @@ public static class ExtensionInstaller
                        new PropertyCondition(AutomationElement.IsValuePatternAvailableProperty, true)));
             if (edit is null) Thread.Sleep(300);
         }
-        if (edit is null) throw new InvalidOperationException("لم أجد خانة اسم المجلد في نافذة الاختيار.");
+        if (edit is null) throw new InvalidOperationException(L.T("لم أجد خانة اسم المجلد في نافذة الاختيار."));
         ((ValuePattern)edit.GetCurrentPattern(ValuePattern.Pattern)).SetValue(folder);
         Thread.Sleep(300);
         var ok = dlg.FindFirst(TreeScope.Descendants, new AndCondition(
@@ -444,11 +444,11 @@ public static class ExtensionInstaller
     /// <summary>Asks first, shows "don't touch anything" while it works, then the result.</summary>
     public static async Task RunWithUi(Window? owner, IReadOnlyList<BrowserInfo> browsers)
     {
-        if (browsers.Count == 0) { Ui.Message(owner, "لا يوجد متصفح", "لم أجد Chrome أو Edge أو متصفح مشابه على الجهاز."); return; }
-        var names = string.Join(" و ", browsers.Select(b => b.Name));
-        if (Ui.Ask(owner, "تنصيب الإضافة تلقائياً",
-                $"سيتم فتح {names} وتنصيب إضافة IBDM Pro بشكل تلقائي.\n\n⚠ لا تضغط على أي شيء ولا تحرّك الماوس على المتصفح لحين انتهاء التنصيب (حوالي ١٥ ثانية لكل متصفح).",
-                "ابدأ التنصيب", "إلغاء") != 0) return;
+        if (browsers.Count == 0) { Ui.Message(owner, L.T("لا يوجد متصفح"), L.T("لم أجد Chrome أو Edge أو متصفح مشابه على الجهاز.")); return; }
+        var names = string.Join(L.T(" و "), browsers.Select(b => b.Name));
+        if (Ui.Ask(owner, L.T("تنصيب الإضافة تلقائياً"),
+                L.F("سيتم فتح {0} وتنصيب إضافة IBDM Pro بشكل تلقائي.\n\n⚠ لا تضغط على أي شيء ولا تحرّك الماوس على المتصفح لحين انتهاء التنصيب (حوالي ١٥ ثانية لكل متصفح).", names),
+                L.T("ابدأ التنصيب"), L.T("إلغاء")) != 0) return;
 
         var overlay = new InstallOverlay();
         overlay.Show();
@@ -458,7 +458,7 @@ public static class ExtensionInstaller
         var server = IbdmApp.Instance.Server;
         foreach (var b in browsers)
         {
-            overlay.SetTitle($"جاري تنصيب الإضافة على {b.Name}");
+            overlay.SetTitle(L.F("جاري تنصيب الإضافة على {0}", b.Name));
             var r = await Task.Run(() =>
             {
                 Result res = null!;
@@ -476,8 +476,8 @@ public static class ExtensionInstaller
 
         var ok = results.All(x => x.R.Ok);
         var text = string.Join("\n\n", results.Select(x => (x.R.Ok ? "✓ " : "✗ ") + x.B.Name + ": " + x.R.Message));
-        if (!ok) text += "\n\nإذا فشل التنصيب التلقائي، استخدم الخطوات اليدوية بنافذة «الإضافة».";
-        Ui.Message(owner, ok ? "تم تنصيب الإضافة ✓" : "لم يكتمل التنصيب", text);
+        if (!ok) text += L.T("\n\nإذا فشل التنصيب التلقائي، استخدم الخطوات اليدوية بنافذة «الإضافة».");
+        Ui.Message(owner, ok ? L.T("تم تنصيب الإضافة ✓") : L.T("لم يكتمل التنصيب"), text);
     }
 }
 
@@ -491,7 +491,7 @@ public sealed class InstallOverlay : Window
 
     public InstallOverlay()
     {
-        Ui.Setup(this, "IBDM Pro — تنصيب الإضافة", 560, 300);
+        Ui.Setup(this, L.T("IBDM Pro — تنصيب الإضافة"), 560, 300);
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         Topmost = true;
@@ -506,10 +506,10 @@ public sealed class InstallOverlay : Window
         head.Children.Add(Ui.Logo(40));
         _title.Margin = new Thickness(12, 0, 0, 0);
         head.Children.Add(_title);
-        var warn = Ui.Card(Ui.Text("⚠ لا تضغط على أي شيء ولا تحرّك الماوس لحين انتهاء تنصيب الإضافة", 15, Theme.Gold, bold: true, wrap: TextWrapping.Wrap));
+        var warn = Ui.Card(Ui.Text(L.T("⚠ لا تضغط على أي شيء ولا تحرّك الماوس لحين انتهاء تنصيب الإضافة"), 15, Theme.Gold, bold: true, wrap: TextWrapping.Wrap));
         warn.Margin = new Thickness(0, 14, 0, 0);
         var bar = new ProgressBar { Style = Theme.Progress, IsIndeterminate = true, Margin = new Thickness(0, 14, 0, 0) };
-        var hint = Ui.Text("للإيقاف اضغط Esc", 11.5, Theme.Muted);
+        var hint = Ui.Text(L.T("للإيقاف اضغط Esc"), 11.5, Theme.Muted);
         hint.Margin = new Thickness(0, 10, 0, 0);
         var root = new StackPanel { Margin = new Thickness(24) };
         root.Children.Add(head);

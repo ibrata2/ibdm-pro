@@ -108,7 +108,7 @@ public static class Fmt
 {
     public static string Size(long bytes)
     {
-        if (bytes < 0) return "غير معروف";
+        if (bytes < 0) return L.T("غير معروف");
         string[] units = ["B", "KB", "MB", "GB", "TB"];
         double v = bytes;
         var i = 0;
@@ -123,7 +123,7 @@ public static class Fmt
     {
         if (bps <= 1 || remaining <= 0) return "";
         var t = TimeSpan.FromSeconds(remaining / bps);
-        if (t.TotalDays >= 1) return "+يوم";
+        if (t.TotalDays >= 1) return L.T("+يوم");
         return "\u200E" + (t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:00}:{t.Seconds:00}" : $"{t.Minutes:00}:{t.Seconds:00}");
     }
 

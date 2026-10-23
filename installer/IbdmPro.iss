@@ -37,7 +37,7 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
 WizardStyle=modern
-ShowLanguageDialog=no
+ShowLanguageDialog=yes
 LanguageDetectionMethod=none
 MinVersion=10.0.17763
 CloseApplications=no
@@ -46,8 +46,13 @@ ArchitecturesInstallIn64BitMode=x64compatible
 
 [Languages]
 Name: "ar"; MessagesFile: "compiler:Languages\Arabic.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
+en.StartWithWindows=Start IBDM Pro with Windows (so it always catches downloads from the browser)
+en.DesktopIcon=Create a desktop shortcut
+en.Extras=Options:
+en.Launch=Start IBDM Pro
 ar.StartWithWindows=تشغيل IBDM Pro مع بدء Windows (حتى يلتقط التحميلات من المتصفح دائماً)
 ar.DesktopIcon=إنشاء اختصار على سطح المكتب
 ar.Extras=خيارات:
@@ -95,4 +100,21 @@ begin
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im yt-dlp.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Sleep(500);
   Result := '';
+end;
+
+{ A first install in English starts the app in English (with English folder names); later installs keep the
+  language chosen in the app's settings. }
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Folder: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    Folder := ExpandConstant('{userappdata}\IBDM Pro');
+    if (ActiveLanguage = 'en') and not FileExists(Folder + '\settings.json') then
+    begin
+      ForceDirectories(Folder);
+      SaveStringToFile(Folder + '\settings.json', '{"Language":"en"}', False);
+    end;
+  end;
 end;

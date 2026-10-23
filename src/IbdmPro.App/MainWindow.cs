@@ -27,7 +27,7 @@ public sealed class Row : INotifyPropertyChanged
     public string PercentText => Item.Status == DownloadStatus.Completed ? "100%" : Item.TotalBytes > 0 ? $"{Item.Percent:0.#}%" : (Item.Downloaded > 0 ? Fmt.Size(Item.Downloaded) : "");
     public string Speed => Item.Status == DownloadStatus.Downloading ? Fmt.Speed(Item.Speed) : "";
     public string Eta => Item.Status == DownloadStatus.Downloading && Item.TotalBytes > 0 ? Fmt.Eta(Item.TotalBytes - Item.Downloaded, Item.Speed) : "";
-    public string Status => Item.Status == DownloadStatus.Error ? "خطأ — " + Item.Error : Item.StatusText;
+    public string Status => Item.Status == DownloadStatus.Error ? L.T("خطأ — ") + Item.Error : Item.StatusText;
     public Brush StatusBrush => Item.Status switch
     {
         DownloadStatus.Completed => Theme.Green,
@@ -57,7 +57,7 @@ public sealed class MainWindow : Window
     private readonly TextBox _search = Ui.Input();
     private readonly StackPanel _nav = new() { Margin = new Thickness(10, 12, 10, 12) };
     private readonly Dictionary<string, TextBlock> _counts = [];
-    private readonly TextBlock _empty = Ui.Text("لا توجد تحميلات هنا بعد.\nاضغط «إضافة رابط» أو حمّل أي ملف من المتصفح وسيلتقطه IBDM Pro.", 14, Theme.Muted, wrap: TextWrapping.Wrap);
+    private readonly TextBlock _empty = Ui.Text(L.T("لا توجد تحميلات هنا بعد.\nاضغط «إضافة رابط» أو حمّل أي ملف من المتصفح وسيلتقطه IBDM Pro."), 14, Theme.Muted, wrap: TextWrapping.Wrap);
     private readonly TextBlock _extStatus = Ui.Text("", 12, Theme.Muted);
     private readonly TextBlock _extDot = Ui.Glyph("", 10, Theme.Muted);
     private readonly TextBlock _speed = Ui.Text("", 12, Theme.Gold);
@@ -70,8 +70,8 @@ public sealed class MainWindow : Window
     {
         if (_updateTool?.Content is not StackPanel sp) return;
         if (sp.Children[0] is TextBlock g) g.Foreground = Theme.Gold;
-        if (sp.Children[1] is TextBlock t) { t.Text = "تحديث جديد!"; t.Foreground = Theme.Gold; t.FontWeight = FontWeights.SemiBold; }
-        _updateTool.ToolTip = $"يتوفر الإصدار {version} — اضغط للتثبيت";
+        if (sp.Children[1] is TextBlock t) { t.Text = L.T("تحديث جديد!"); t.Foreground = Theme.Gold; t.FontWeight = FontWeights.SemiBold; }
+        _updateTool.ToolTip = L.F("يتوفر الإصدار {0} — اضغط للتثبيت", version);
     }
     private string _filter = "all";
     private string _sortBy = "date";
@@ -140,37 +140,37 @@ public sealed class MainWindow : Window
         var pro = Ui.Text(" Pro", 18, Theme.Gold, bold: true);
         title.Children.Add(pro);
         names.Children.Add(title);
-        names.Children.Add(Ui.Text("الإصدار " + Program.Version, 11, Theme.Muted));
+        names.Children.Add(Ui.Text(L.T("الإصدار ") + Program.Version, 11, Theme.Muted));
         brand.Children.Add(names);
         DockPanel.SetDock(brand, Dock.Left);
         bar.Children.Add(brand);
 
         var tools = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        tools.Children.Add(Ui.Tool("إضافة رابط", "", AddUrl));
-        tools.Children.Add(Ui.Tool("استئناف", "", () => ForSelected(i => _manager.Resume(i)), Theme.Green));
-        tools.Children.Add(Ui.Tool("إيقاف", "", () => ForSelected(i => _manager.Pause(i)), Theme.Ink));
-        tools.Children.Add(Ui.Tool("إيقاف الكل", "", _manager.PauseAll, Theme.Ink));
-        tools.Children.Add(Ui.Tool("حذف", "", Delete, Theme.Red));
+        tools.Children.Add(Ui.Tool(L.T("إضافة رابط"), "", AddUrl));
+        tools.Children.Add(Ui.Tool(L.T("استئناف"), "", () => ForSelected(i => _manager.Resume(i)), Theme.Green));
+        tools.Children.Add(Ui.Tool(L.T("إيقاف"), "", () => ForSelected(i => _manager.Pause(i)), Theme.Ink));
+        tools.Children.Add(Ui.Tool(L.T("إيقاف الكل"), "", _manager.PauseAll, Theme.Ink));
+        tools.Children.Add(Ui.Tool(L.T("حذف"), "", Delete, Theme.Red));
         tools.Children.Add(Separator());
-        tools.Children.Add(Ui.Tool("فتح الملف", "", OpenSelectedFile, Theme.Ink));
-        tools.Children.Add(Ui.Tool("فتح المجلد", "", OpenSelectedFolder, Theme.Ink));
+        tools.Children.Add(Ui.Tool(L.T("فتح الملف"), "", OpenSelectedFile, Theme.Ink));
+        tools.Children.Add(Ui.Tool(L.T("فتح المجلد"), "", OpenSelectedFolder, Theme.Ink));
         tools.Children.Add(Separator());
-        tools.Children.Add(Ui.Tool("الإعدادات", "", OpenSettings, Theme.Ink));
-        tools.Children.Add(Ui.Tool("الإضافة", "", () => ExtensionGuide.Show(this), Theme.Ink));
-        _updateTool = Ui.Tool("التحديثات", "\uE895", () => Updater.ShowWindow(this), Theme.Ink);
+        tools.Children.Add(Ui.Tool(L.T("الإعدادات"), "", OpenSettings, Theme.Ink));
+        tools.Children.Add(Ui.Tool(L.T("الإضافة"), "", () => ExtensionGuide.Show(this), Theme.Ink));
+        _updateTool = Ui.Tool(L.T("التحديثات"), "\uE895", () => Updater.ShowWindow(this), Theme.Ink);
         tools.Children.Add(_updateTool);
-        tools.Children.Add(Ui.Tool("حول", "", () => new AboutWindow { Owner = this }.ShowDialog(), Theme.Ink));
+        tools.Children.Add(Ui.Tool(L.T("حول"), "", () => new AboutWindow { Owner = this }.ShowDialog(), Theme.Ink));
         DockPanel.SetDock(tools, Dock.Left);
         bar.Children.Add(tools);
 
         _search.Width = 200;
         _search.Margin = new Thickness(10, 0, 14, 0);
         _search.VerticalAlignment = VerticalAlignment.Center;
-        _search.ToolTip = "بحث";
+        _search.ToolTip = L.T("بحث");
         _search.TextChanged += (_, _) => _view.Refresh();
         var searchBox = new Grid { VerticalAlignment = VerticalAlignment.Center };
         searchBox.Children.Add(_search);
-        var hint = Ui.Text("بحث في التحميلات…", 12, Theme.Muted);
+        var hint = Ui.Text(L.T("بحث في التحميلات…"), 12, Theme.Muted);
         hint.Margin = new Thickness(20, 0, 0, 0);
         hint.IsHitTestVisible = false;
         _search.TextChanged += (_, _) => hint.Visibility = _search.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -187,8 +187,8 @@ public sealed class MainWindow : Window
     {
         var bar = new DockPanel { Background = Theme.Panel, LastChildFill = false };
         var credit = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 5, 14, 5) };
-        credit.Children.Add(Ui.Text("من تصميم و تطوير و تعريب ", 12, Theme.Muted));
-        credit.Children.Add(Ui.Text("ابراهيم الخزرجي", 12, Theme.Gold, bold: true));
+        credit.Children.Add(Ui.Text(L.T("من تصميم و تطوير و تعريب "), 12, Theme.Muted));
+        credit.Children.Add(Ui.Text(L.T("ابراهيم الخزرجي"), 12, Theme.Gold, bold: true));
         DockPanel.SetDock(credit, Dock.Left);
         bar.Children.Add(credit);
 
@@ -212,15 +212,15 @@ public sealed class MainWindow : Window
     {
         _nav.Children.Clear();
         _counts.Clear();
-        _nav.Children.Add(NavItem("all", "كل التحميلات", "", Theme.Gold));
-        _nav.Children.Add(NavItem("active", "قيد التحميل", "", Theme.Gold));
-        _nav.Children.Add(NavItem("unfinished", "غير مكتملة", "", Theme.Muted));
-        _nav.Children.Add(NavItem("done", "مكتملة", "", Theme.Green));
-        var h = Ui.Text("الأنواع", 11.5, Theme.Muted);
+        _nav.Children.Add(NavItem("all", L.T("كل التحميلات"), "", Theme.Gold));
+        _nav.Children.Add(NavItem("active", L.T("قيد التحميل"), "", Theme.Gold));
+        _nav.Children.Add(NavItem("unfinished", L.T("غير مكتملة"), "", Theme.Muted));
+        _nav.Children.Add(NavItem("done", L.T("مكتملة"), "", Theme.Green));
+        var h = Ui.Text(L.T("الأنواع"), 11.5, Theme.Muted);
         h.Margin = new Thickness(10, 14, 0, 6);
         _nav.Children.Add(h);
-        foreach (var c in Settings.Current.Categories) _nav.Children.Add(NavItem("cat:" + c.Name, c.Name, c.Icon, Theme.Br(c.Color)));
-        var openRoot = Ui.Button("فتح مجلد IBDM Pro", "", Theme.Button, () => { Directory.CreateDirectory(Settings.Current.DownloadRoot); Ui.Open(Settings.Current.DownloadRoot); });
+        foreach (var c in Settings.Current.Categories) _nav.Children.Add(NavItem("cat:" + c.Name, L.T(c.Name), c.Icon, Theme.Br(c.Color)));
+        var openRoot = Ui.Button(L.T("فتح مجلد IBDM Pro"), "", Theme.Button, () => { Directory.CreateDirectory(Settings.Current.DownloadRoot); Ui.Open(Settings.Current.DownloadRoot); });
         openRoot.Margin = new Thickness(0, 16, 0, 0);
         openRoot.FontSize = 12;
         openRoot.Padding = new Thickness(8, 6, 8, 6);
@@ -270,9 +270,9 @@ public sealed class MainWindow : Window
         nameText.SetBinding(FrameworkElement.FlowDirectionProperty, new Binding(nameof(Row.NameFlow)));
         nameText.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
         name.AppendChild(nameText);
-        grid.Columns.Add(Column("الاسم", 340, name, "name"));
+        grid.Columns.Add(Column(L.T("الاسم"), 340, name, "name"));
 
-        grid.Columns.Add(Column("الحجم", 95, TextCell(nameof(Row.Size), ltr: true), "size"));
+        grid.Columns.Add(Column(L.T("الحجم"), 95, TextCell(nameof(Row.Size), ltr: true), "size"));
 
         // progress bar with the percentage under it
         var prog = new FrameworkElementFactory(typeof(StackPanel));
@@ -285,12 +285,12 @@ public sealed class MainWindow : Window
         bar.SetBinding(ProgressBar.IsIndeterminateProperty, new Binding(nameof(Row.Indeterminate)) { Mode = BindingMode.OneWay });
         prog.AppendChild(bar);
         prog.AppendChild(TextCell(nameof(Row.PercentText), null, 11.5, ltr: true));
-        grid.Columns.Add(Column("التقدم", 150, prog, "progress"));
+        grid.Columns.Add(Column(L.T("التقدم"), 150, prog, "progress"));
 
-        grid.Columns.Add(Column("السرعة", 95, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
-        grid.Columns.Add(Column("المتبقي", 75, TextCell(nameof(Row.Eta), ltr: true), "eta"));
-        grid.Columns.Add(Column("الحالة", 150, TextCell(nameof(Row.Status), null, 12.5, nameof(Row.StatusBrush)), "status"));
-        grid.Columns.Add(Column("التاريخ", 150, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
+        grid.Columns.Add(Column(L.T("السرعة"), 95, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
+        grid.Columns.Add(Column(L.T("المتبقي"), 75, TextCell(nameof(Row.Eta), ltr: true), "eta"));
+        grid.Columns.Add(Column(L.T("الحالة"), 150, TextCell(nameof(Row.Status), null, 12.5, nameof(Row.StatusBrush)), "status"));
+        grid.Columns.Add(Column(L.T("التاريخ"), 150, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
         _list.View = grid;
 
         _list.MouseDoubleClick += (_, e) =>
@@ -302,7 +302,7 @@ public sealed class MainWindow : Window
             }
         };
         _list.SelectionChanged += (_, _) => UpdateDetail();
-        var menu = new ContextMenu { FlowDirection = FlowDirection.RightToLeft };
+        var menu = new ContextMenu { FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
         _list.ContextMenu = menu;
         _list.ContextMenuOpening += (_, e) => { if (Selected().Count == 0) e.Handled = true; else FillMenu(menu); };
     }
@@ -342,17 +342,17 @@ public sealed class MainWindow : Window
         m.Items.Clear();
         void Add(string text, Action a) { var mi = new MenuItem { Header = text }; mi.Click += (_, _) => a(); m.Items.Add(mi); }
         var one = Selected().FirstOrDefault();
-        if (one?.Status == DownloadStatus.Completed) Add("فتح الملف", OpenSelectedFile);
-        Add("فتح المجلد", OpenSelectedFolder);
-        if (one is not null && one.Status != DownloadStatus.Completed) Add("عرض نافذة التقدّم", () => ProgressWindow.Open(one, _manager));
+        if (one?.Status == DownloadStatus.Completed) Add(L.T("فتح الملف"), OpenSelectedFile);
+        Add(L.T("فتح المجلد"), OpenSelectedFolder);
+        if (one is not null && one.Status != DownloadStatus.Completed) Add(L.T("عرض نافذة التقدّم"), () => ProgressWindow.Open(one, _manager));
         m.Items.Add(new Separator());
-        Add("استئناف", () => ForSelected(i => _manager.Resume(i)));
-        Add("إيقاف", () => ForSelected(i => _manager.Pause(i)));
-        Add("إعادة التحميل من البداية", () => ForSelected(i => _manager.Redownload(i)));
+        Add(L.T("استئناف"), () => ForSelected(i => _manager.Resume(i)));
+        Add(L.T("إيقاف"), () => ForSelected(i => _manager.Pause(i)));
+        Add(L.T("إعادة التحميل من البداية"), () => ForSelected(i => _manager.Redownload(i)));
         m.Items.Add(new Separator());
-        Add("نسخ الرابط", () => { if (one is not null) Clipboard.SetText(one.PageUrl ?? one.Url); });
+        Add(L.T("نسخ الرابط"), () => { if (one is not null) Clipboard.SetText(one.PageUrl ?? one.Url); });
         m.Items.Add(new Separator());
-        Add("حذف…", Delete);
+        Add(L.T("حذف…"), Delete);
     }
 
     // ---------- keeping the list current ----------
@@ -387,16 +387,16 @@ public sealed class MainWindow : Window
 
         var speed = _manager.TotalSpeed;
         var active = items.Count(i => i.IsActive);
-        _speed.Text = active > 0 ? $"⬇ {active} قيد التحميل" : "";
+        _speed.Text = active > 0 ? L.F("⬇ {0} قيد التحميل", active) : "";
         _speedValue.Text = active > 0 ? Fmt.Speed(speed) : "";
-        IbdmApp.Instance.Tray?.SetTooltip(active > 0 ? $"IBDM Pro — {active} قيد التحميل {Fmt.Speed(speed)}" : "IBDM Pro");
+        IbdmApp.Instance.Tray?.SetTooltip(active > 0 ? L.F("IBDM Pro — {0} قيد التحميل {1}", active, Fmt.Speed(speed)) : "IBDM Pro");
         Title = active > 0 && items.FirstOrDefault(i => i.Status == DownloadStatus.Downloading) is { TotalBytes: > 0 } a
             ? $"{a.Percent:0}% — IBDM Pro {Program.Version}" : $"IBDM Pro {Program.Version}";
 
         var server = IbdmApp.Instance.Server;
-        if (server is null) { _extStatus.Text = "خادم الإضافة متوقف"; _extDot.Foreground = Theme.Red; }
-        else if ((DateTime.Now - server.LastExtensionContact).TotalMinutes < 3) { _extStatus.Text = "إضافة المتصفح متصلة"; _extDot.Foreground = Theme.Green; }
-        else { _extStatus.Text = "إضافة المتصفح غير متصلة — اضغط لتثبيتها"; _extDot.Foreground = Theme.Muted; }
+        if (server is null) { _extStatus.Text = L.T("خادم الإضافة متوقف"); _extDot.Foreground = Theme.Red; }
+        else if ((DateTime.Now - server.LastExtensionContact).TotalMinutes < 3) { _extStatus.Text = L.T("إضافة المتصفح متصلة"); _extDot.Foreground = Theme.Green; }
+        else { _extStatus.Text = L.T("إضافة المتصفح غير متصلة — اضغط لتثبيتها"); _extDot.Foreground = Theme.Muted; }
 
         UpdateEmpty();
         UpdateDetail();
@@ -412,12 +412,12 @@ public sealed class MainWindow : Window
     private void UpdateDetail()
     {
         var sel = Selected();
-        if (sel.Count != 1) { _detail.Text = sel.Count > 1 ? $"تم تحديد {sel.Count} تحميلات" : "IBDM Pro — مدير التحميل"; return; }
+        if (sel.Count != 1) { _detail.Text = sel.Count > 1 ? L.F("تم تحديد {0} تحميلات", sel.Count) : L.T("IBDM Pro — مدير التحميل"); return; }
         var i = sel[0];
         var where = i.Status == DownloadStatus.Completed ? i.FullPath : i.Folder;
-        var q = i.Quality is not null ? $"الجودة: {i.Quality}   •   " : "";
-        var conn = i.Kind == DownloadKind.File && i.Resumable && i.Status == DownloadStatus.Downloading ? $"الاتصالات: {i.Segments.Count(s => !s.Finished)}   •   " : "";
-        _detail.Text = $"{q}{conn}المكان: {where}   •   الرابط: {i.PageUrl ?? i.Url}" + (i.Error is { Length: > 0 } e && i.Status == DownloadStatus.Error ? $"   •   {e}" : "");
+        var q = i.Quality is not null ? L.F("الجودة: {0}   •   ", i.Quality) : "";
+        var conn = i.Kind == DownloadKind.File && i.Resumable && i.Status == DownloadStatus.Downloading ? L.F("الاتصالات: {0}   •   ", i.Segments.Count(s => !s.Finished)) : "";
+        _detail.Text = L.F("{0}{1}المكان: {2}   •   الرابط: {3}", q, conn, where, i.PageUrl ?? i.Url) + (i.Error is { Length: > 0 } e && i.Status == DownloadStatus.Error ? $"   •   {e}" : "");
     }
 
     private bool Matches(Row r)
@@ -458,7 +458,7 @@ public sealed class MainWindow : Window
     private void ForSelected(Action<DownloadItem> a)
     {
         var sel = Selected();
-        if (sel.Count == 0) { Ui.Message(this, "لم يتم تحديد تحميل", "اختر تحميلاً من القائمة أولاً."); return; }
+        if (sel.Count == 0) { Ui.Message(this, L.T("لم يتم تحديد تحميل"), L.T("اختر تحميلاً من القائمة أولاً.")); return; }
         foreach (var i in sel) a(i);
         Sync();
     }
@@ -480,14 +480,14 @@ public sealed class MainWindow : Window
     {
         var i = Selected().FirstOrDefault();
         if (i is null) return;
-        if (i.Status != DownloadStatus.Completed) { Ui.Message(this, "الملف غير مكتمل", "انتظر حتى يكتمل التحميل."); return; }
+        if (i.Status != DownloadStatus.Completed) { Ui.Message(this, L.T("الملف غير مكتمل"), L.T("انتظر حتى يكتمل التحميل.")); return; }
         OpenFile(i);
     }
 
     private void OpenFile(DownloadItem i)
     {
         if (File.Exists(i.FullPath)) Ui.Open(i.FullPath);
-        else Ui.Message(this, "الملف غير موجود", $"ربما تم نقله أو حذفه:\n{i.FullPath}");
+        else Ui.Message(this, L.T("الملف غير موجود"), L.F("ربما تم نقله أو حذفه:\n{0}", i.FullPath));
     }
 
     private void OpenSelectedFolder()
@@ -502,11 +502,11 @@ public sealed class MainWindow : Window
     {
         var sel = Selected();
         if (sel.Count == 0) return;
-        var what = sel.Count == 1 ? $"«{sel[0].FileName}»" : $"{sel.Count} تحميلات";
+        var what = sel.Count == 1 ? $"«{sel[0].FileName}»" : L.F("{0} تحميلات", sel.Count);
         var anyDone = sel.Any(i => i.Status == DownloadStatus.Completed);
         var choice = anyDone
-            ? Ui.Ask(this, "حذف", $"هل تريد حذف {what} من القائمة؟", "حذف من القائمة فقط", "حذف مع الملف من الجهاز", "إلغاء")
-            : Ui.Ask(this, "حذف", $"هل تريد حذف {what}؟ سيتم حذف الجزء غير المكتمل.", "حذف", "إلغاء") switch { 0 => 0, _ => 2 };
+            ? Ui.Ask(this, L.T("حذف"), L.F("هل تريد حذف {0} من القائمة؟", what), L.T("حذف من القائمة فقط"), L.T("حذف مع الملف من الجهاز"), L.T("إلغاء"))
+            : Ui.Ask(this, L.T("حذف"), L.F("هل تريد حذف {0}؟ سيتم حذف الجزء غير المكتمل.", what), L.T("حذف"), L.T("إلغاء")) switch { 0 => 0, _ => 2 };
         if (choice is < 0 or 2) return;
         foreach (var i in sel) await _manager.RemoveAsync(i, deleteFile: choice == 1);
         Sync();
@@ -539,7 +539,7 @@ public sealed class MainWindow : Window
             {
                 Settings.Current.HasSeenTrayHint = true;
                 Settings.Current.Save();
-                IbdmApp.Instance.Tray?.Notify("IBDM Pro يعمل في الخلفية", "البرنامج بجانب الساعة حتى يلتقط التحميلات من المتصفح. للخروج: زر يمين على الأيقونة ← خروج.", null);
+                IbdmApp.Instance.Tray?.Notify(L.T("IBDM Pro يعمل في الخلفية"), L.T("البرنامج بجانب الساعة حتى يلتقط التحميلات من المتصفح. للخروج: زر يمين على الأيقونة ← خروج."), null);
             }
         }
         else

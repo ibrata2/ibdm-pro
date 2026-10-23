@@ -32,7 +32,7 @@ public static class Updater
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(20));
         using var resp = await Http.Client.SendAsync(req, timeout.Token);
-        if (!resp.IsSuccessStatusCode) throw new InvalidOperationException($"تعذر الوصول لصفحة التحديثات ({(int)resp.StatusCode})");
+        if (!resp.IsSuccessStatusCode) throw new InvalidOperationException(L.F("تعذر الوصول لصفحة التحديثات ({0})", (int)resp.StatusCode));
         using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(timeout.Token));
         var root = doc.RootElement;
         var tag = root.GetProperty("tag_name").GetString() ?? "";
@@ -64,7 +64,7 @@ public static class Updater
                 IbdmApp.Instance.Dispatcher.Invoke(() =>
                 {
                     IbdmApp.Instance.Main.ShowUpdateBadge(r.Version.ToString());
-                    IbdmApp.Instance.Tray?.Notify("يتوفر إصدار جديد من IBDM Pro", $"الإصدار {r.Version} — اضغط زر «التحديثات» بالبرنامج لتثبيته.", null);
+                    IbdmApp.Instance.Tray?.Notify(L.T("يتوفر إصدار جديد من IBDM Pro"), L.F("الإصدار {0} — اضغط زر «التحديثات» بالبرنامج لتثبيته.", r.Version), null);
                 });
             }
         }
@@ -95,7 +95,7 @@ public static class Updater
                 done += n;
                 progress(done, total, done / Math.Max(0.2, sw.Elapsed.TotalSeconds));
             }
-            if (total > 0 && done != total) throw new IOException("انقطع تحميل التحديث، حاول مرة ثانية");
+            if (total > 0 && done != total) throw new IOException(L.T("انقطع تحميل التحديث، حاول مرة ثانية"));
         }
         File.Move(file + ".part", file, true);
         return file;
@@ -116,7 +116,7 @@ public sealed class UpdateWindow : Window
 
     public UpdateWindow()
     {
-        Ui.Setup(this, "التحديثات — IBDM Pro", 520, 360);
+        Ui.Setup(this, L.T("التحديثات — IBDM Pro"), 520, 360);
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -124,9 +124,9 @@ public sealed class UpdateWindow : Window
         var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 14) };
         head.Children.Add(Ui.Logo(44));
         var titles = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        titles.Children.Add(Ui.Text("البحث عن أحدث إصدار", 17, Theme.Ink, bold: true));
+        titles.Children.Add(Ui.Text(L.T("البحث عن أحدث إصدار"), 17, Theme.Ink, bold: true));
         var cur = new StackPanel { Orientation = Orientation.Horizontal };
-        cur.Children.Add(Ui.Text("الإصدار الحالي:", 12, Theme.Muted));
+        cur.Children.Add(Ui.Text(L.T("الإصدار الحالي:"), 12, Theme.Muted));
         var v = Ui.Ltr(Program.Version, 12, Theme.Muted);
         v.Margin = new Thickness(6, 0, 0, 0);
         cur.Children.Add(v);
@@ -148,18 +148,18 @@ public sealed class UpdateWindow : Window
 
     private async Task Check()
     {
-        Busy("جاري البحث عن تحديث…");
+        Busy(L.T("جاري البحث عن تحديث…"));
         Updater.Release? r;
         try { r = await Updater.LatestAsync(_cts.Token); }
         catch (OperationCanceledException) { return; }
         catch (Exception e)
         {
-            Result("تعذر البحث عن تحديث", "تأكد من اتصال الإنترنت وحاول مرة ثانية.\n" + e.Message, Theme.Red, retry: true);
+            Result(L.T("تعذر البحث عن تحديث"), L.T("تأكد من اتصال الإنترنت وحاول مرة ثانية.\n") + e.Message, Theme.Red, retry: true);
             return;
         }
         if (r is null || r.Version <= Updater.Current)
         {
-            Result("✓ أنت تستخدم أحدث إصدار", $"IBDM Pro {Program.Version} هو آخر إصدار متوفر.", Theme.Green, retry: false);
+            Result(L.T("✓ أنت تستخدم أحدث إصدار"), L.F("IBDM Pro {0} هو آخر إصدار متوفر.", Program.Version), Theme.Green, retry: false);
             return;
         }
         Offer(r);
@@ -175,11 +175,11 @@ public sealed class UpdateWindow : Window
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         if (retry)
         {
-            var again = Ui.Button("إعادة المحاولة", "", Theme.Button, async () => await Check());
+            var again = Ui.Button(L.T("إعادة المحاولة"), "", Theme.Button, async () => await Check());
             again.Margin = new Thickness(0, 0, 8, 0);
             row.Children.Add(again);
         }
-        var close = Ui.Button("إغلاق", style: Theme.Button, click: Close);
+        var close = Ui.Button(L.T("إغلاق"), style: Theme.Button, click: Close);
         close.IsCancel = true;
         row.Children.Add(close);
         _body.Children.Add(row);
@@ -188,9 +188,9 @@ public sealed class UpdateWindow : Window
     private void Offer(Updater.Release r)
     {
         _body.Children.Clear();
-        _body.Children.Add(Ui.Text("يتوفر إصدار جديد!", 15, Theme.Gold, bold: true));
+        _body.Children.Add(Ui.Text(L.T("يتوفر إصدار جديد!"), 15, Theme.Gold, bold: true));
         var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        line.Children.Add(Ui.Text("الإصدار الجديد:", 13, Theme.Ink));
+        line.Children.Add(Ui.Text(L.T("الإصدار الجديد:"), 13, Theme.Ink));
         var nv = Ui.Ltr($"{r.Version}   ({Fmt.Size(r.Size).TrimStart('‎')})", 13, Theme.Ink, bold: true);
         nv.Margin = new Thickness(6, 0, 0, 0);
         line.Children.Add(nv);
@@ -198,21 +198,21 @@ public sealed class UpdateWindow : Window
 
         var active = IbdmApp.Instance.Manager.Items.Count(i => i.IsActive);
         var note = Ui.Text(
-            "سيتم تحميل التحديث وتثبيته تلقائياً، ثم يعاد تشغيل البرنامج." +
-            (active > 0 ? $"\nالتحميلات الجارية ({active}) تتوقف مؤقتاً وتكمل بعد التحديث من نفس المكان." : ""),
+            L.T("سيتم تحميل التحديث وتثبيته تلقائياً، ثم يعاد تشغيل البرنامج.") +
+            (active > 0 ? L.F("\nالتحميلات الجارية ({0}) تتوقف مؤقتاً وتكمل بعد التحديث من نفس المكان.", active) : ""),
             12.5, Theme.Muted, wrap: TextWrapping.Wrap);
         note.Margin = new Thickness(0, 10, 0, 16);
         _body.Children.Add(note);
 
         var row = new StackPanel { Orientation = Orientation.Horizontal };
-        var go = Ui.Button("تحميل وتثبيت التحديث", "", Theme.PrimaryButton, async () => await Install(r));
+        var go = Ui.Button(L.T("تحميل وتثبيت التحديث"), "", Theme.PrimaryButton, async () => await Install(r));
         go.IsDefault = true;
         go.Margin = new Thickness(0, 0, 8, 0);
         row.Children.Add(go);
-        var page = Ui.Button("صفحة الإصدار", "", Theme.Button, () => Ui.Open(Updater.Page));
+        var page = Ui.Button(L.T("صفحة الإصدار"), "", Theme.Button, () => Ui.Open(Updater.Page));
         page.Margin = new Thickness(0, 0, 8, 0);
         row.Children.Add(page);
-        var later = Ui.Button("لاحقاً", style: Theme.Button, click: Close);
+        var later = Ui.Button(L.T("لاحقاً"), style: Theme.Button, click: Close);
         later.IsCancel = true;
         row.Children.Add(later);
         _body.Children.Add(row);
@@ -221,13 +221,13 @@ public sealed class UpdateWindow : Window
     private async Task Install(Updater.Release r)
     {
         _body.Children.Clear();
-        var label = Ui.Text($"جاري تحميل الإصدار {r.Version}…", 13, Theme.Ink);
+        var label = Ui.Text(L.F("جاري تحميل الإصدار {0}…", r.Version), 13, Theme.Ink);
         var bar = new ProgressBar { Style = Theme.Progress, Maximum = 100, Margin = new Thickness(0, 12, 0, 6) };
         var stats = Ui.Ltr("", 12, Theme.Muted);
         _body.Children.Add(label);
         _body.Children.Add(bar);
         _body.Children.Add(stats);
-        var cancel = Ui.Button("إلغاء", style: Theme.Button, click: Close);
+        var cancel = Ui.Button(L.T("إلغاء"), style: Theme.Button, click: Close);
         cancel.Margin = new Thickness(0, 14, 0, 0);
         cancel.HorizontalAlignment = HorizontalAlignment.Left;
         _body.Children.Add(cancel);
@@ -238,7 +238,7 @@ public sealed class UpdateWindow : Window
                 if (total > 0) bar.Value = done * 100.0 / total;
                 stats.Text = $"{Fmt.Size(done).TrimStart('‎')} / {Fmt.Size(total).TrimStart('‎')}   •   {Fmt.Speed(speed).TrimStart('‎')}";
             }), _cts.Token);
-            label.Text = "جاري التثبيت… سيعاد تشغيل البرنامج تلقائياً";
+            label.Text = L.T("جاري التثبيت… سيعاد تشغيل البرنامج تلقائياً");
             bar.IsIndeterminate = true;
             await Task.Delay(600);
             Updater.Install(setup);
@@ -246,7 +246,7 @@ public sealed class UpdateWindow : Window
         catch (OperationCanceledException) { }
         catch (Exception e)
         {
-            Result("تعذر تحميل التحديث", e.Message, Theme.Red, retry: true);
+            Result(L.T("تعذر تحميل التحديث"), e.Message, Theme.Red, retry: true);
         }
     }
 }

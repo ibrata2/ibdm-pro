@@ -171,6 +171,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force build/snapshots/dark, build/snapshots/light, build/snapshots/glass | Out-Null
           Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/glass", "--theme", "glass" -Wait
+          New-Item -ItemType Directory -Force build/snapshots/english | Out-Null
+          Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/english", "--theme", "glass", "--lang", "en" -Wait
           Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/dark", "--theme", "dark" -Wait
           Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/light", "--theme", "light" -Wait
           Get-ChildItem build/snapshots -Recurse | Format-Table FullName, Length

@@ -14,7 +14,7 @@ public static class AddUrlDialog
     public static string? Ask(Window owner)
     {
         var w = new Window { ResizeMode = ResizeMode.NoResize, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        Ui.Setup(w, "إضافة رابط", 560, 220);
+        Ui.Setup(w, L.T("إضافة رابط"), 560, 220);
         if (owner.IsVisible) w.Owner = owner;
         string? result = null;
         var input = Ui.Input();
@@ -27,12 +27,12 @@ public static class AddUrlDialog
         catch (Exception) { }
 
         var root = new StackPanel { Margin = new Thickness(22) };
-        root.Children.Add(Ui.Text("إضافة رابط تحميل", 16, Theme.Ink, bold: true));
-        root.Children.Add(Ui.Text("الصق رابط ملف، أو رابط صفحة فيها فيديو (يوتيوب، انستغرام، فيسبوك، تيك توك…)", 12, Theme.Muted, wrap: TextWrapping.Wrap));
+        root.Children.Add(Ui.Text(L.T("إضافة رابط تحميل"), 16, Theme.Ink, bold: true));
+        root.Children.Add(Ui.Text(L.T("الصق رابط ملف، أو رابط صفحة فيها فيديو (يوتيوب، انستغرام، فيسبوك، تيك توك…)"), 12, Theme.Muted, wrap: TextWrapping.Wrap));
         input.Margin = new Thickness(0, 14, 0, 16);
         root.Children.Add(input);
         var row = new StackPanel { Orientation = Orientation.Horizontal };
-        var ok = Ui.Button("متابعة", "", Theme.PrimaryButton, () =>
+        var ok = Ui.Button(L.T("متابعة"), "", Theme.PrimaryButton, () =>
         {
             var t = input.Text.Trim();
             if (!t.StartsWith("http", StringComparison.OrdinalIgnoreCase)) t = "https://" + t;
@@ -40,7 +40,7 @@ public static class AddUrlDialog
             else input.Focus();
         });
         ok.IsDefault = true;
-        var cancel = Ui.Button("إلغاء", style: Theme.Button, click: w.Close);
+        var cancel = Ui.Button(L.T("إلغاء"), style: Theme.Button, click: w.Close);
         cancel.IsCancel = true;
         cancel.Margin = new Thickness(8, 0, 0, 0);
         row.Children.Add(ok);
@@ -59,26 +59,26 @@ public static class ExtensionGuide
     public static void Show(Window owner)
     {
         var w = new Window { ResizeMode = ResizeMode.NoResize, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        Ui.Setup(w, "تثبيت إضافة المتصفح", 600, 560);
+        Ui.Setup(w, L.T("تثبيت إضافة المتصفح"), 600, 560);
         if (owner.IsVisible) w.Owner = owner;
         var root = new StackPanel { Margin = new Thickness(24) };
         var head = new StackPanel { Orientation = Orientation.Horizontal };
         head.Children.Add(Ui.Logo(44));
         var titles = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        titles.Children.Add(Ui.Text("إضافة IBDM Pro للمتصفح", 17, Theme.Ink, bold: true));
-        titles.Children.Add(Ui.Text("حتى يلتقط البرنامج أي تحميل من أي موقع بدل المتصفح", 12, Theme.Muted));
+        titles.Children.Add(Ui.Text(L.T("إضافة IBDM Pro للمتصفح"), 17, Theme.Ink, bold: true));
+        titles.Children.Add(Ui.Text(L.T("حتى يلتقط البرنامج أي تحميل من أي موقع بدل المتصفح"), 12, Theme.Muted));
         head.Children.Add(titles);
         root.Children.Add(head);
 
         // ---- automatic ----
         var auto = new StackPanel();
-        auto.Children.Add(Ui.Text("⚡ تنصيب تلقائي", 15, Theme.Gold, bold: true));
-        auto.Children.Add(Ui.Text("البرنامج يفتح المتصفح، يفعّل وضع المطوّر، ويركّب الإضافة بنفسه. لا تضغط شي أثناء التنصيب.", 12.5, Theme.Muted, wrap: TextWrapping.Wrap));
+        auto.Children.Add(Ui.Text(L.T("⚡ تنصيب تلقائي"), 15, Theme.Gold, bold: true));
+        auto.Children.Add(Ui.Text(L.T("البرنامج يفتح المتصفح، يفعّل وضع المطوّر، ويركّب الإضافة بنفسه. لا تضغط شي أثناء التنصيب."), 12.5, Theme.Muted, wrap: TextWrapping.Wrap));
         var found = ExtensionInstaller.Installed();
         var autoButtons = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
         if (found.Count > 1)
         {
-            var all = Ui.Button("تنصيب على كل المتصفحات (" + found.Count + ")", "\uE896", Theme.PrimaryButton, async () => { w.Hide(); await ExtensionInstaller.RunWithUi(owner, found); w.Close(); });
+            var all = Ui.Button(L.T("تنصيب على كل المتصفحات (") + found.Count + ")", "\uE896", Theme.PrimaryButton, async () => { w.Hide(); await ExtensionInstaller.RunWithUi(owner, found); w.Close(); });
             all.Margin = new Thickness(0, 0, 8, 8);
             autoButtons.Children.Add(all);
         }
@@ -90,23 +90,23 @@ public static class ExtensionGuide
             btn.Margin = new Thickness(0, 0, 8, 8);
             autoButtons.Children.Add(btn);
         }
-        if (found.Count == 0) autoButtons.Children.Add(Ui.Text("لم أجد Chrome أو Edge أو Brave أو Vivaldi أو Opera على الجهاز.", 12.5, Theme.Red));
+        if (found.Count == 0) autoButtons.Children.Add(Ui.Text(L.T("لم أجد Chrome أو Edge أو Brave أو Vivaldi أو Opera على الجهاز."), 12.5, Theme.Red));
         auto.Children.Add(autoButtons);
         var autoCard = Ui.Card(auto);
         autoCard.Margin = new Thickness(0, 18, 0, 0);
         root.Children.Add(autoCard);
 
-        var manualTitle = Ui.Text("أو يدوياً:", 13, Theme.Muted, bold: true);
+        var manualTitle = Ui.Text(L.T("أو يدوياً:"), 13, Theme.Muted, bold: true);
         manualTitle.Margin = new Thickness(0, 16, 0, 0);
         root.Children.Add(manualTitle);
 
         string[] steps =
         [
-            "اضغط «فتح مجلد الإضافة» بالأسفل وخلي النافذة مفتوحة.",
-            "اضغط «فتح صفحة الإضافات» (Chrome أو Edge).",
-            "شغّل «وضع المطوّر / Developer mode» من أعلى الصفحة.",
-            "اضغط «تحميل إضافة غير مُجمَّعة / Load unpacked» واختر مجلد extension.",
-            "ثبّت أيقونة IBDM Pro بشريط المتصفح — وخلص! جرّب تحمّل أي ملف.",
+            L.T("اضغط «فتح مجلد الإضافة» بالأسفل وخلي النافذة مفتوحة."),
+            L.T("اضغط «فتح صفحة الإضافات» (Chrome أو Edge)."),
+            L.T("شغّل «وضع المطوّر / Developer mode» من أعلى الصفحة."),
+            L.T("اضغط «تحميل إضافة غير مُجمَّعة / Load unpacked» واختر مجلد extension."),
+            L.T("ثبّت أيقونة IBDM Pro بشريط المتصفح — وخلص! جرّب تحمّل أي ملف."),
         ];
         var list = new StackPanel { Margin = new Thickness(0, 10, 0, 8) };
         for (var i = 0; i < steps.Length; i++)
@@ -130,15 +130,15 @@ public static class ExtensionGuide
             b.Margin = new Thickness(0, 0, 8, 8);
             buttons.Children.Add(b);
         }
-        Add("فتح مجلد الإضافة", "", Theme.PrimaryButton, OpenExtensionFolder);
-        Add("فتح صفحة الإضافات — Chrome", "", Theme.Button, () => Browser("chrome", "chrome://extensions"));
-        Add("فتح صفحة الإضافات — Edge", "", Theme.Button, () => Browser("msedge", "edge://extensions"));
+        Add(L.T("فتح مجلد الإضافة"), "", Theme.PrimaryButton, OpenExtensionFolder);
+        Add(L.T("فتح صفحة الإضافات — Chrome"), "", Theme.Button, () => Browser("chrome", "chrome://extensions"));
+        Add(L.T("فتح صفحة الإضافات — Edge"), "", Theme.Button, () => Browser("msedge", "edge://extensions"));
         root.Children.Add(buttons);
 
-        var note = Ui.Text("بعد كل تحديث للبرنامج: أعد «التنصيب التلقائي» أو اضغط زر التحديث ⟳ على بطاقة الإضافة بصفحة الإضافات.\nإذا كان البرنامج مسكّر، المتصفح يحمّل بشكل عادي — لذلك خليه يشتغل مع بدء Windows.", 12, Theme.Muted, wrap: TextWrapping.Wrap);
+        var note = Ui.Text(L.T("بعد كل تحديث للبرنامج: أعد «التنصيب التلقائي» أو اضغط زر التحديث ⟳ على بطاقة الإضافة بصفحة الإضافات.\nإذا كان البرنامج مسكّر، المتصفح يحمّل بشكل عادي — لذلك خليه يشتغل مع بدء Windows."), 12, Theme.Muted, wrap: TextWrapping.Wrap);
         note.Margin = new Thickness(0, 8, 0, 14);
         root.Children.Add(note);
-        var close = Ui.Button("تم", style: Theme.Button, click: w.Close);
+        var close = Ui.Button(L.T("تم"), style: Theme.Button, click: w.Close);
         close.IsCancel = true;
         close.HorizontalAlignment = HorizontalAlignment.Left;
         root.Children.Add(close);
@@ -150,7 +150,7 @@ public static class ExtensionGuide
     {
         var dir = Paths.ExtensionDir;
         if (Directory.Exists(dir)) Ui.Open(dir);
-        else Ui.Message(null, "مجلد الإضافة غير موجود", dir);
+        else Ui.Message(null, L.T("مجلد الإضافة غير موجود"), dir);
     }
 
     private static void Browser(string exe, string page)
@@ -159,7 +159,7 @@ public static class ExtensionGuide
         catch (Exception)
         {
             try { Clipboard.SetText(page); } catch (Exception) { }
-            Ui.Message(null, "تعذر فتح المتصفح", $"افتح المتصفح والصق هذا العنوان (تم نسخه):\n{page}");
+            Ui.Message(null, L.T("تعذر فتح المتصفح"), L.F("افتح المتصفح والصق هذا العنوان (تم نسخه):\n{0}", page));
         }
     }
 }
@@ -168,7 +168,7 @@ public sealed class AboutWindow : Window
 {
     public AboutWindow()
     {
-        Ui.Setup(this, "حول IBDM Pro", 460, 520);
+        Ui.Setup(this, L.T("حول IBDM Pro"), 460, 520);
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -180,29 +180,29 @@ public sealed class AboutWindow : Window
         name.Children.Add(Ui.Text("IBDM", 26, Theme.Ink, bold: true));
         name.Children.Add(Ui.Text(" Pro", 26, Theme.Gold, bold: true));
         root.Children.Add(name);
-        root.Children.Add(Center(Ui.Text("الإصدار " + Program.Version, 13, Theme.Muted)));
-        root.Children.Add(Center(Ui.Text("مدير التحميل — يلتقط التحميلات من المتصفح، يقسّم الملف على عدة اتصالات، ويحمّل الفيديو بالجودة اللي تختارها", 13, Theme.Ink, wrap: TextWrapping.Wrap), 14));
+        root.Children.Add(Center(Ui.Text(L.T("الإصدار ") + Program.Version, 13, Theme.Muted)));
+        root.Children.Add(Center(Ui.Text(L.T("مدير التحميل — يلتقط التحميلات من المتصفح، يقسّم الملف على عدة اتصالات، ويحمّل الفيديو بالجودة اللي تختارها"), 13, Theme.Ink, wrap: TextWrapping.Wrap), 14));
 
         var credit = Ui.Card(new StackPanel
         {
             Children =
             {
-                Center(Ui.Text("من تصميم و تطوير و تعريب", 13, Theme.Muted)),
-                Center(Ui.Text("ابراهيم الخزرجي", 20, Theme.Gold, bold: true)),
+                Center(Ui.Text(L.T("من تصميم و تطوير و تعريب"), 13, Theme.Muted)),
+                Center(Ui.Text(L.T("ابراهيم الخزرجي"), 20, Theme.Gold, bold: true)),
             },
         });
         credit.Margin = new Thickness(0, 18, 0, 14);
         root.Children.Add(credit);
 
-        root.Children.Add(Center(Link("قناة البرامج على تيليكرام: t.me/ibraprogram", "https://t.me/ibraprogram")));
-        root.Children.Add(Center(Ui.Text("للطلبات البرمجية: 07818814000", 13, Theme.Ink)));
-        root.Children.Add(Center(Link("صفحة البرنامج والتحديثات على GitHub", "https://github.com/ibrata2/ibdm-pro/releases/latest")));
-        root.Children.Add(Center(Ui.Text("يستخدم yt-dlp و FFmpeg (برامج مفتوحة المصدر)", 11, Theme.Muted), 14));
-        var upd = Ui.Button("البحث عن أحدث إصدار", "\uE895", Theme.PrimaryButton, () => Updater.ShowWindow(this));
+        root.Children.Add(Center(Link(L.T("قناة البرامج على تيليكرام: t.me/ibraprogram"), "https://t.me/ibraprogram")));
+        root.Children.Add(Center(Ui.Text(L.T("للطلبات البرمجية: 07818814000"), 13, Theme.Ink)));
+        root.Children.Add(Center(Link(L.T("صفحة البرنامج والتحديثات على GitHub"), "https://github.com/ibrata2/ibdm-pro/releases/latest")));
+        root.Children.Add(Center(Ui.Text(L.T("يستخدم yt-dlp و FFmpeg (برامج مفتوحة المصدر)"), 11, Theme.Muted), 14));
+        var upd = Ui.Button(L.T("البحث عن أحدث إصدار"), "\uE895", Theme.PrimaryButton, () => Updater.ShowWindow(this));
         upd.HorizontalAlignment = HorizontalAlignment.Center;
         upd.Margin = new Thickness(0, 16, 0, 0);
         root.Children.Add(upd);
-        var ok = Ui.Button("إغلاق", style: Theme.Button, click: Close);
+        var ok = Ui.Button(L.T("إغلاق"), style: Theme.Button, click: Close);
         ok.IsCancel = true;
         ok.HorizontalAlignment = HorizontalAlignment.Center;
         ok.Margin = new Thickness(0, 8, 0, 0);
@@ -237,7 +237,7 @@ public sealed class SettingsWindow : Window
     // general
     private readonly TextBox _root = Ui.Input();
     private readonly CheckBox _startup, _tray, _notify, _showInfo, _resume, _updates, _showProgress;
-    private readonly RadioButton _themeAuto = new(), _themeDark = new(), _themeLight = new(), _themeGlass = new();
+    private readonly RadioButton _themeAuto = new(), _themeDark = new(), _themeLight = new(), _themeGlass = new(), _langAr = new(), _langEn = new();
     // speed
     private readonly Slider _conn = new() { Minimum = 1, Maximum = 32, IsSnapToTickEnabled = true, TickFrequency = 1 };
     private readonly Slider _parallel = new() { Minimum = 1, Maximum = 10, IsSnapToTickEnabled = true, TickFrequency = 1 };
@@ -257,19 +257,19 @@ public sealed class SettingsWindow : Window
     {
         _manager = manager;
         _s = Settings.Load(); // a copy: Cancel throws it away
-        Ui.Setup(this, "الإعدادات — IBDM Pro", 820, 600);
+        Ui.Setup(this, L.T("الإعدادات — IBDM Pro"), 820, 600);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         MinWidth = 700;
         MinHeight = 480;
 
-        _startup = Ui.Check("تشغيل IBDM Pro مع بدء Windows (مهم حتى يلتقط التحميلات دائماً)", _s.StartWithWindows);
-        _tray = Ui.Check("عند إغلاق النافذة يبقى البرنامج يعمل بجانب الساعة", _s.MinimizeToTray);
-        _notify = Ui.Check("إشعار عند اكتمال التحميل", _s.NotifyOnComplete);
-        _showProgress = Ui.Check("إظهار نافذة تقدّم التحميل (التفاصيل والسرعة وكل اتصال) عند بدء كل تحميل", _s.ShowProgressWindow);
-        _showInfo = Ui.Check("عرض نافذة «معلومات الملف» (الحجم والنوع ومكان الحفظ) قبل كل تحميل", _s.ShowInfoBeforeDownload);
-        _resume = Ui.Check("استئناف التحميلات غير المكتملة تلقائياً عند تشغيل البرنامج", _s.ResumeOnStart);
-        _capture = Ui.Check("التقاط التحميلات من المتصفح", _s.CaptureEnabled);
-        _updates = Ui.Check("البحث عن تحديث تلقائياً عند تشغيل البرنامج", _s.CheckUpdatesOnStart);
+        _startup = Ui.Check(L.T("تشغيل IBDM Pro مع بدء Windows (مهم حتى يلتقط التحميلات دائماً)"), _s.StartWithWindows);
+        _tray = Ui.Check(L.T("عند إغلاق النافذة يبقى البرنامج يعمل بجانب الساعة"), _s.MinimizeToTray);
+        _notify = Ui.Check(L.T("إشعار عند اكتمال التحميل"), _s.NotifyOnComplete);
+        _showProgress = Ui.Check(L.T("إظهار نافذة تقدّم التحميل (التفاصيل والسرعة وكل اتصال) عند بدء كل تحميل"), _s.ShowProgressWindow);
+        _showInfo = Ui.Check(L.T("عرض نافذة «معلومات الملف» (الحجم والنوع ومكان الحفظ) قبل كل تحميل"), _s.ShowInfoBeforeDownload);
+        _resume = Ui.Check(L.T("استئناف التحميلات غير المكتملة تلقائياً عند تشغيل البرنامج"), _s.ResumeOnStart);
+        _capture = Ui.Check(L.T("التقاط التحميلات من المتصفح"), _s.CaptureEnabled);
+        _updates = Ui.Check(L.T("البحث عن تحديث تلقائياً عند تشغيل البرنامج"), _s.CheckUpdatesOnStart);
 
         _pages["general"] = General();
         _pages["speed"] = Speed();
@@ -290,16 +290,16 @@ public sealed class SettingsWindow : Window
             nav.Children.Add(rb);
             if (key == "general") rb.IsChecked = true;
         }
-        NavItem("general", "عام", "");
-        NavItem("speed", "السرعة والاتصالات", "");
-        NavItem("capture", "الالتقاط من المتصفح", "");
-        NavItem("types", "الأنواع والمجلدات", "");
-        NavItem("engine", "الإضافة ومحرك الفيديو", "");
+        NavItem("general", L.T("عام"), "");
+        NavItem("speed", L.T("السرعة والاتصالات"), "");
+        NavItem("capture", L.T("الالتقاط من المتصفح"), "");
+        NavItem("types", L.T("الأنواع والمجلدات"), "");
+        NavItem("engine", L.T("الإضافة ومحرك الفيديو"), "");
 
         var side = new Border { Width = 210, Background = Theme.Panel, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 1, 0), Child = nav };
-        var save = Ui.Button("حفظ", "", Theme.PrimaryButton, Save);
+        var save = Ui.Button(L.T("حفظ"), "", Theme.PrimaryButton, Save);
         save.IsDefault = true;
-        var cancel = Ui.Button("إلغاء", style: Theme.Button, click: Close);
+        var cancel = Ui.Button(L.T("إلغاء"), style: Theme.Button, click: Close);
         cancel.IsCancel = true;
         cancel.Margin = new Thickness(8, 0, 0, 0);
         var bottom = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(20, 10, 20, 14) };
@@ -328,13 +328,13 @@ public sealed class SettingsWindow : Window
 
     private UIElement General()
     {
-        var p = Page("عام");
-        p.Children.Add(Ui.Label("المجلد الرئيسي للتحميلات (يُنشأ بداخله مجلد لكل نوع)"));
+        var p = Page(L.T("عام"));
+        p.Children.Add(Ui.Label(L.T("المجلد الرئيسي للتحميلات (يُنشأ بداخله مجلد لكل نوع)")));
         _root.Text = _s.DownloadRoot;
         _root.FlowDirection = FlowDirection.LeftToRight;
-        var browse = Ui.Button("تغيير…", "", Theme.Button, () =>
+        var browse = Ui.Button(L.T("تغيير…"), "", Theme.Button, () =>
         {
-            var d = new Microsoft.Win32.OpenFolderDialog { Title = "اختر المجلد الرئيسي للتحميلات" };
+            var d = new Microsoft.Win32.OpenFolderDialog { Title = L.T("اختر المجلد الرئيسي للتحميلات") };
             if (d.ShowDialog(this) == true) _root.Text = Path.Combine(d.FolderName, Path.GetFileName(d.FolderName).Equals("IBDM Pro", StringComparison.OrdinalIgnoreCase) ? "" : "IBDM Pro").TrimEnd('\\');
         });
         browse.Margin = new Thickness(8, 0, 0, 0);
@@ -347,7 +347,23 @@ public sealed class SettingsWindow : Window
         p.Children.Add(spacer);
         foreach (var c in new[] { _startup, _tray, _notify, _showInfo, _showProgress, _resume, _updates }) p.Children.Add(c);
 
-        p.Children.Add(Ui.Label("المظهر"));
+        // Language: each choice is written in its own language so it can always be found.
+        p.Children.Add(Ui.Label("اللغة / Language"));
+        var langs = new WrapPanel();
+        void LangChoice(RadioButton rb, string text, string key)
+        {
+            rb.Style = Theme.Choice;
+            rb.Content = Ui.Text(text, 13);
+            rb.GroupName = "lang";
+            rb.Margin = new Thickness(0, 0, 8, 6);
+            rb.IsChecked = (_s.Language == "en") == (key == "en");
+            langs.Children.Add(rb);
+        }
+        LangChoice(_langAr, "العربية", "ar");
+        LangChoice(_langEn, "English", "en");
+        p.Children.Add(langs);
+
+        p.Children.Add(Ui.Label(L.T("المظهر")));
         var themes = new WrapPanel();
         void ThemeChoice(RadioButton rb, string text, string glyph, string key)
         {
@@ -363,15 +379,15 @@ public sealed class SettingsWindow : Window
             rb.IsChecked = _s.Theme == key;
             themes.Children.Add(rb);
         }
-        ThemeChoice(_themeAuto, "تلقائي — حسب Windows", "\uE7F4", "auto");
-        ThemeChoice(_themeDark, "ليلي", "\uE708", "dark");
-        ThemeChoice(_themeLight, "نهاري", "\uE706", "light");
-        ThemeChoice(_themeGlass, "زجاجي أحمر (تجريبي)", "\uE790", "glass");
+        ThemeChoice(_themeAuto, L.T("تلقائي — حسب Windows"), "\uE7F4", "auto");
+        ThemeChoice(_themeDark, L.T("ليلي"), "\uE708", "dark");
+        ThemeChoice(_themeLight, L.T("نهاري"), "\uE706", "light");
+        ThemeChoice(_themeGlass, L.T("زجاجي أحمر (تجريبي)"), "\uE790", "glass");
         if (_themeAuto.IsChecked != true && _themeDark.IsChecked != true && _themeLight.IsChecked != true && _themeGlass.IsChecked != true) _themeAuto.IsChecked = true;
         p.Children.Add(themes);
-        p.Children.Add(Ui.Text($"الوضع الحالي: {(Theme.IsGlass ? "زجاجي" : Theme.IsDark ? "ليلي" : "نهاري")}. تغيير المظهر يحتاج إعادة تشغيل البرنامج.", 12, Theme.Muted, wrap: TextWrapping.Wrap));
+        p.Children.Add(Ui.Text(L.F("الوضع الحالي: {0}. تغيير المظهر يحتاج إعادة تشغيل البرنامج.", (Theme.IsGlass ? L.T("زجاجي") : Theme.IsDark ? L.T("ليلي") : L.T("نهاري"))), 12, Theme.Muted, wrap: TextWrapping.Wrap));
 
-        var check = Ui.Button("البحث عن أحدث إصدار", "\uE895", Theme.Button, () => Updater.ShowWindow(this));
+        var check = Ui.Button(L.T("البحث عن أحدث إصدار"), "\uE895", Theme.Button, () => Updater.ShowWindow(this));
         check.HorizontalAlignment = HorizontalAlignment.Left;
         check.Margin = new Thickness(0, 16, 0, 0);
         p.Children.Add(check);
@@ -380,12 +396,12 @@ public sealed class SettingsWindow : Window
 
     private UIElement Speed()
     {
-        var p = Page("السرعة والاتصالات", "كل ملف يتقسّم على عدة اتصالات تحمّل بنفس الوقت — هذا يسرّع التحميل كثيراً.");
-        p.Children.Add(Ui.Label("عدد الاتصالات لكل ملف"));
-        p.Children.Add(SliderRow(_conn, _s.Connections, v => $"{v} اتصال"));
-        p.Children.Add(Ui.Label("عدد التحميلات بنفس الوقت"));
-        p.Children.Add(SliderRow(_parallel, _s.MaxParallel, v => $"{v} تحميل"));
-        p.Children.Add(Ui.Label("حد أقصى للسرعة KB/ث (0 = بدون حد)"));
+        var p = Page(L.T("السرعة والاتصالات"), L.T("كل ملف يتقسّم على عدة اتصالات تحمّل بنفس الوقت — هذا يسرّع التحميل كثيراً."));
+        p.Children.Add(Ui.Label(L.T("عدد الاتصالات لكل ملف")));
+        p.Children.Add(SliderRow(_conn, _s.Connections, v => L.F("{0} اتصال", v)));
+        p.Children.Add(Ui.Label(L.T("عدد التحميلات بنفس الوقت")));
+        p.Children.Add(SliderRow(_parallel, _s.MaxParallel, v => L.F("{0} تحميل", v)));
+        p.Children.Add(Ui.Label(L.T("حد أقصى للسرعة KB/ث (0 = بدون حد)")));
         _limit.Text = _s.SpeedLimitKBps.ToString();
         _limit.Width = 140;
         _limit.HorizontalAlignment = HorizontalAlignment.Left;
@@ -408,39 +424,39 @@ public sealed class SettingsWindow : Window
 
     private UIElement CapturePage()
     {
-        var p = Page("الالتقاط من المتصفح", "عندما تحمّل ملف من أي موقع، الإضافة توقف تحميل المتصفح وترسله لـ IBDM Pro.");
+        var p = Page(L.T("الالتقاط من المتصفح"), L.T("عندما تحمّل ملف من أي موقع، الإضافة توقف تحميل المتصفح وترسله لـ IBDM Pro."));
         p.Children.Add(_capture);
-        p.Children.Add(Ui.Label("أنواع الملفات التي يلتقطها البرنامج (امتدادات مفصولة بمسافة)"));
+        p.Children.Add(Ui.Label(L.T("أنواع الملفات التي يلتقطها البرنامج (امتدادات مفصولة بمسافة)")));
         _exts.Text = string.Join(" ", _s.CaptureExtensions);
         _exts.Height = 110;
         _exts.FlowDirection = FlowDirection.LeftToRight;
         p.Children.Add(_exts);
-        var reset = Ui.Button("استعادة القائمة الافتراضية", "", Theme.Button, () => _exts.Text = string.Join(" ", Settings.DefaultCaptureExtensions()));
+        var reset = Ui.Button(L.T("استعادة القائمة الافتراضية"), "", Theme.Button, () => _exts.Text = string.Join(" ", Settings.DefaultCaptureExtensions()));
         reset.HorizontalAlignment = HorizontalAlignment.Left;
         reset.Margin = new Thickness(0, 6, 0, 0);
         p.Children.Add(reset);
-        p.Children.Add(Ui.Label("لا تلتقط الملفات الأصغر من (KB) — 0 = التقط الكل"));
+        p.Children.Add(Ui.Label(L.T("لا تلتقط الملفات الأصغر من (KB) — 0 = التقط الكل")));
         _minSize.Text = _s.MinCaptureSizeKB.ToString();
         _minSize.Width = 140;
         _minSize.HorizontalAlignment = HorizontalAlignment.Left;
         p.Children.Add(_minSize);
-        p.Children.Add(Ui.Label("مواقع يتركها البرنامج للمتصفح (موقع بكل سطر)"));
+        p.Children.Add(Ui.Label(L.T("مواقع يتركها البرنامج للمتصفح (موقع بكل سطر)")));
         _excluded.Text = string.Join(Environment.NewLine, _s.ExcludedSites);
         _excluded.Height = 90;
         _excluded.FlowDirection = FlowDirection.LeftToRight;
         p.Children.Add(_excluded);
-        p.Children.Add(Ui.Text("تلميح: إذا تريد المتصفح يحمّل ملف معيّن بنفسه، عطّل الالتقاط مؤقتاً من أيقونة الإضافة.", 12, Theme.Muted, wrap: TextWrapping.Wrap));
+        p.Children.Add(Ui.Text(L.T("تلميح: إذا تريد المتصفح يحمّل ملف معيّن بنفسه، عطّل الالتقاط مؤقتاً من أيقونة الإضافة."), 12, Theme.Muted, wrap: TextWrapping.Wrap));
         return p;
     }
 
     private UIElement Types()
     {
-        var p = Page("الأنواع والمجلدات", "كل نوع ملفات يُحفظ بمجلد خاص داخل مجلد IBDM Pro. تقدر تغيّر اسم المجلد أو تختار مجلد بمكان ثاني.");
+        var p = Page(L.T("الأنواع والمجلدات"), L.T("كل نوع ملفات يُحفظ بمجلد خاص داخل مجلد IBDM Pro. تقدر تغيّر اسم المجلد أو تختار مجلد بمكان ثاني."));
         p.Children.Add(_catRows);
         foreach (var c in _s.Categories) AddCatRow(c);
-        var add = Ui.Button("إضافة نوع جديد", "", Theme.Button, () =>
+        var add = Ui.Button(L.T("إضافة نوع جديد"), "", Theme.Button, () =>
         {
-            var c = new Category { Name = "نوع جديد", Folder = "نوع جديد", Icon = "", Color = "#9AA0A6" };
+            var c = new Category { Name = L.T("نوع جديد"), Folder = L.T("نوع جديد"), Icon = "", Color = "#9AA0A6" };
             _s.Categories.Insert(Math.Max(0, _s.Categories.Count - 1), c);
             AddCatRow(c);
         });
@@ -462,19 +478,19 @@ public sealed class SettingsWindow : Window
         var icon = Ui.Glyph(c.Icon, 16, Theme.Br(c.Color));
         Grid.SetRowSpan(icon, 2);
         grid.Children.Add(icon);
-        var name = Ui.Input(c.Name);
+        var name = Ui.Input(L.T(c.Name));
         name.Margin = new Thickness(6, 0, 6, 4);
         Grid.SetColumn(name, 1);
         grid.Children.Add(name);
         var folder = Ui.Input(c.Folder);
         folder.FlowDirection = FlowDirection.LeftToRight;
         folder.Margin = new Thickness(0, 0, 6, 4);
-        folder.ToolTip = "اسم المجلد داخل مجلد IBDM Pro، أو مسار كامل";
+        folder.ToolTip = L.T("اسم المجلد داخل مجلد IBDM Pro، أو مسار كامل");
         Grid.SetColumn(folder, 2);
         grid.Children.Add(folder);
         var browse = Ui.Button("…", style: Theme.Button, click: () =>
         {
-            var d = new Microsoft.Win32.OpenFolderDialog { Title = "مجلد " + c.Name };
+            var d = new Microsoft.Win32.OpenFolderDialog { Title = L.T("مجلد ") + c.Name };
             if (d.ShowDialog(this) == true) folder.Text = d.FolderName;
         });
         browse.Padding = new Thickness(10, 5, 10, 5);
@@ -485,8 +501,8 @@ public sealed class SettingsWindow : Window
         exts.FlowDirection = FlowDirection.LeftToRight;
         exts.FontSize = 12;
         exts.Margin = new Thickness(6, 0, 0, 0);
-        exts.ToolTip = c.Name == Settings.OtherCategory ? "كل ملف لا ينتمي لنوع آخر" : "الامتدادات مفصولة بمسافة";
-        if (c.Name == Settings.OtherCategory) { exts.IsEnabled = false; exts.Text = "(أي ملف آخر)"; name.IsEnabled = false; }
+        exts.ToolTip = c.Name == Settings.OtherCategory ? L.T("كل ملف لا ينتمي لنوع آخر") : L.T("الامتدادات مفصولة بمسافة");
+        if (c.Name == Settings.OtherCategory) { exts.IsEnabled = false; exts.Text = L.T("(أي ملف آخر)"); name.IsEnabled = false; }
         Grid.SetRow(exts, 1);
         Grid.SetColumn(exts, 1);
         Grid.SetColumnSpan(exts, 3);
@@ -499,26 +515,26 @@ public sealed class SettingsWindow : Window
 
     private UIElement Engine()
     {
-        var p = Page("الإضافة ومحرك الفيديو");
+        var p = Page(L.T("الإضافة ومحرك الفيديو"));
         var server = IbdmApp.Instance.Server;
         var connected = server is not null && (DateTime.Now - server.LastExtensionContact).TotalMinutes < 3;
-        p.Children.Add(Ui.Label("إضافة المتصفح"));
-        p.Children.Add(Ui.Text(server is null ? "⚠ خادم الإضافة متوقف (المنفذ مستخدم)" : connected ? "✓ الإضافة متصلة بالبرنامج" : "الإضافة لم تتصل بعد — ثبّتها من الزر بالأسفل",
+        p.Children.Add(Ui.Label(L.T("إضافة المتصفح")));
+        p.Children.Add(Ui.Text(server is null ? L.T("⚠ خادم الإضافة متوقف (المنفذ مستخدم)") : connected ? L.T("✓ الإضافة متصلة بالبرنامج") : L.T("الإضافة لم تتصل بعد — ثبّتها من الزر بالأسفل"),
             13, server is null ? Theme.Red : connected ? Theme.Green : Theme.Muted));
-        var guide = Ui.Button("طريقة تثبيت الإضافة", "", Theme.PrimaryButton, () => ExtensionGuide.Show(this));
+        var guide = Ui.Button(L.T("طريقة تثبيت الإضافة"), "", Theme.PrimaryButton, () => ExtensionGuide.Show(this));
         guide.HorizontalAlignment = HorizontalAlignment.Left;
         guide.Margin = new Thickness(0, 8, 0, 0);
         p.Children.Add(guide);
 
-        p.Children.Add(Ui.Label("محرك تحميل الفيديو (yt-dlp)"));
-        p.Children.Add(Ui.Text("مواقع الفيديو تغيّر طريقة عملها باستمرار. إذا فشل تحميل فيديو من موقع كان يشتغل، حدّث المحرك من هنا.", 12, Theme.Muted, wrap: TextWrapping.Wrap));
-        var update = Ui.Button("تحديث محرك الفيديو", "", Theme.Button, null);
+        p.Children.Add(Ui.Label(L.T("محرك تحميل الفيديو (yt-dlp)")));
+        p.Children.Add(Ui.Text(L.T("مواقع الفيديو تغيّر طريقة عملها باستمرار. إذا فشل تحميل فيديو من موقع كان يشتغل، حدّث المحرك من هنا."), 12, Theme.Muted, wrap: TextWrapping.Wrap));
+        var update = Ui.Button(L.T("تحديث محرك الفيديو"), "", Theme.Button, null);
         update.Click += async (_, _) =>
         {
             update.IsEnabled = false;
-            _engineInfo.Text = "جاري التحديث…";
+            _engineInfo.Text = L.T("جاري التحديث…");
             try { _engineInfo.Text = await YtDlp.UpdateAsync(); }
-            catch (Exception e) { _engineInfo.Text = "تعذر التحديث: " + e.Message; }
+            catch (Exception e) { _engineInfo.Text = L.T("تعذر التحديث: ") + e.Message; }
             update.IsEnabled = true;
         };
         update.HorizontalAlignment = HorizontalAlignment.Left;
@@ -527,8 +543,8 @@ public sealed class SettingsWindow : Window
         _engineInfo.FlowDirection = FlowDirection.LeftToRight;
         p.Children.Add(_engineInfo);
 
-        p.Children.Add(Ui.Label("ملفات البرنامج"));
-        var data = Ui.Button("فتح مجلد بيانات البرنامج", "", Theme.Button, () => Ui.Open(Paths.AppData));
+        p.Children.Add(Ui.Label(L.T("ملفات البرنامج")));
+        var data = Ui.Button(L.T("فتح مجلد بيانات البرنامج"), "", Theme.Button, () => Ui.Open(Paths.AppData));
         data.HorizontalAlignment = HorizontalAlignment.Left;
         p.Children.Add(data);
         return p;
@@ -545,6 +561,8 @@ public sealed class SettingsWindow : Window
         _s.ResumeOnStart = _resume.IsChecked == true;
         _s.CheckUpdatesOnStart = _updates.IsChecked == true;
         var oldTheme = Settings.Current.Theme;
+        var oldLang = Settings.Current.Language;
+        _s.Language = _langEn.IsChecked == true ? "en" : "ar";
         _s.Theme = _themeGlass.IsChecked == true ? "glass" : _themeDark.IsChecked == true ? "dark" : _themeLight.IsChecked == true ? "light" : "auto";
         _s.Connections = (int)_conn.Value;
         _s.MaxParallel = (int)_parallel.Value;
@@ -560,6 +578,7 @@ public sealed class SettingsWindow : Window
             if (cat.Name != Settings.OtherCategory)
             {
                 var n = name.Text.Trim();
+                if (n == L.T(cat.Name)) n = cat.Name; // unchanged translated name: keep the stored one
                 if (n.Length > 0 && n != cat.Name && _s.Categories.All(c => c == cat || c.Name != n))
                 {
                     foreach (var i in _manager.Items.Where(i => i.Category == cat.Name)) i.Category = n;
@@ -576,8 +595,18 @@ public sealed class SettingsWindow : Window
         _manager.Save();
         Close();
 
+        if (_s.Language != oldLang)
+        {
+            // Asked in the newly chosen language.
+            var en = _s.Language == "en";
+            if (Ui.Ask(Owner, en ? "Language" : "اللغة",
+                    en ? "Restart IBDM Pro now to switch to English? (Downloads continue after restarting)" : "إعادة تشغيل IBDM Pro الآن للتحويل إلى العربية؟ (التحميلات تكمل بعد التشغيل)",
+                    en ? "Restart now" : "إعادة التشغيل الآن", en ? "Later" : "لاحقاً") == 0)
+                IbdmApp.Instance.Restart();
+            return;
+        }
         if (_s.Theme != oldTheme
-            && Ui.Ask(Owner, "تغيير المظهر", "إعادة تشغيل IBDM Pro الآن لتطبيق الألوان الجديدة؟ (التحميلات تكمل بعد التشغيل)", "إعادة التشغيل الآن", "لاحقاً") == 0)
+            && Ui.Ask(Owner, L.T("تغيير المظهر"), L.T("إعادة تشغيل IBDM Pro الآن لتطبيق الألوان الجديدة؟ (التحميلات تكمل بعد التشغيل)"), L.T("إعادة التشغيل الآن"), L.T("لاحقاً")) == 0)
             IbdmApp.Instance.Restart();
     }
 

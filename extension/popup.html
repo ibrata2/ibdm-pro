@@ -15,7 +15,7 @@
   body { margin:0; width:340px; background:var(--bg); min-height:100%; color:var(--ink); font:13px "Segoe UI", Tahoma, sans-serif; }
   header { display:flex; align-items:center; gap:10px; padding:14px 14px 10px; border-bottom:1px solid var(--line); }
   header img { width:34px; height:34px; }
-  h1 { margin:0; font-size:17px; direction:ltr; text-align:right; }
+  h1 { margin:0; font-size:17px; direction:ltr; text-align:start; }
   h1 b { color:var(--gold); }
   .sub { color:var(--muted); font-size:11px; }
   .status { margin:12px 14px 0; padding:10px 12px; border-radius:8px; background:var(--card); border:1px solid var(--line); display:flex; gap:8px; align-items:center; }
@@ -25,14 +25,15 @@
   .switch { position:relative; width:40px; height:22px; flex:none; }
   .switch input { opacity:0; width:0; height:0; }
   .slider { position:absolute; inset:0; background:var(--track); border-radius:22px; cursor:pointer; transition:.2s; }
-  .slider:before { content:""; position:absolute; width:16px; height:16px; right:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+  .slider:before { content:""; position:absolute; width:16px; height:16px; inset-inline-start:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
   input:checked + .slider { background:var(--face); }
   input:checked + .slider:before { transform:translateX(-18px); }
+  html[dir=ltr] input:checked + .slider:before { transform:translateX(18px); }
   h2 { font-size:12px; color:var(--muted); font-weight:400; margin:16px 14px 6px; }
   .media { margin:0 14px; max-height:230px; overflow:auto; }
   .item { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--line); background:var(--card); border-radius:8px; margin-bottom:6px; }
   .item .n { flex:1; min-width:0; }
-  .item .n div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; direction:ltr; text-align:right; }
+  .item .n div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; direction:ltr; text-align:start; }
   .item .n small { color:var(--muted); }
   button { font:600 12px "Segoe UI", Tahoma, sans-serif; border-radius:7px; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:7px 12px; cursor:pointer; }
   button:hover { background:var(--hover); }
@@ -48,17 +49,18 @@
 <body>
   <header>
     <img src="icons/icon48.png" alt="">
-    <div><h1>IBDM <b>Pro</b></h1><div class="sub">مدير التحميل</div></div>
+    <div><h1>IBDM <b>Pro</b></h1><div class="sub" data-t="مدير التحميل">مدير التحميل</div></div>
   </header>
-  <div id="status" class="status"><span class="dot"></span><span id="statusText">جاري الاتصال بالبرنامج…</span></div>
-  <div class="row"><span>التقاط التحميلات من المتصفح</span>
+  <div id="status" class="status"><span class="dot"></span><span id="statusText" data-t="جاري الاتصال بالبرنامج…">جاري الاتصال بالبرنامج…</span></div>
+  <div class="row"><span data-t="التقاط التحميلات من المتصفح">التقاط التحميلات من المتصفح</span>
     <label class="switch"><input type="checkbox" id="capture"><span class="slider"></span></label></div>
-  <h2>الفيديوهات في هذه الصفحة</h2>
+  <h2 data-t="الفيديوهات في هذه الصفحة">الفيديوهات في هذه الصفحة</h2>
   <div id="media" class="media"></div>
   <div class="actions">
-    <button class="gold" id="pageVideo">تحميل فيديو هذه الصفحة</button>
+    <button class="gold" id="pageVideo" data-t="تحميل فيديو هذه الصفحة">تحميل فيديو هذه الصفحة</button>
   </div>
-  <footer><span>من تصميم و تطوير و تعريب <b>ابراهيم الخزرجي</b></span><span id="ver"></span></footer>
+  <footer><span><span data-t="من تصميم و تطوير و تعريب">من تصميم و تطوير و تعريب</span> <b data-t="ابراهيم الخزرجي">ابراهيم الخزرجي</b></span><span id="ver"></span></footer>
+  <script src="i18n.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

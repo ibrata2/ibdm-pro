@@ -2,6 +2,7 @@
 // Hands browser downloads to the IBDM Pro app (running on this computer) instead of letting the browser download them,
 // and finds videos on pages so they can be downloaded at a chosen quality.
 
+importScripts('i18n.js');
 const APP = 'http://127.0.0.1:39401';
 const HEADERS = { 'Content-Type': 'application/json', 'X-IBDM-Pro': '1' };
 
@@ -23,6 +24,12 @@ async function ping(force = false) {
   }
   appCheckedAt = Date.now();
   if (appConfig && appConfig.version) selfUpdate(appConfig.version);
+  if (appConfig && appConfig.lang && appConfig.lang !== IBDM_LANG) {
+    // The app's language changed: menus and titles follow it.
+    IBDM_LANG = appConfig.lang;
+    chrome.storage.local.set({ lang: IBDM_LANG });
+    buildMenus();
+  }
   return appConfig;
 }
 
@@ -159,9 +166,9 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
 
 function buildMenus() {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: 'ibdm-link', title: 'تحميل بواسطة IBDM Pro', contexts: ['link', 'image', 'audio'] });
-    chrome.contextMenus.create({ id: 'ibdm-video', title: 'تحميل هذا الفيديو بواسطة IBDM Pro', contexts: ['video'] });
-    chrome.contextMenus.create({ id: 'ibdm-page', title: 'تحميل فيديو هذه الصفحة بواسطة IBDM Pro', contexts: ['page', 'frame'] });
+    chrome.contextMenus.create({ id: 'ibdm-link', title: t('تحميل بواسطة IBDM Pro'), contexts: ['link', 'image', 'audio'] });
+    chrome.contextMenus.create({ id: 'ibdm-video', title: t('تحميل هذا الفيديو بواسطة IBDM Pro'), contexts: ['video'] });
+    chrome.contextMenus.create({ id: 'ibdm-page', title: t('تحميل فيديو هذه الصفحة بواسطة IBDM Pro'), contexts: ['page', 'frame'] });
   });
 }
 chrome.runtime.onInstalled.addListener(() => { buildMenus(); ping(true); });
@@ -182,7 +189,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!payload.url || !/^https?:/i.test(payload.url)) return;
   payload.cookies = await cookiesFor(payload.url);
   payload.userAgent = navigator.userAgent;
-  if (!(await sendToApp(payload))) notify('IBDM Pro غير مشغّل', 'شغّل برنامج IBDM Pro ثم حاول مرة ثانية');
+  if (!(await sendToApp(payload))) notify(t('IBDM Pro غير مشغّل'), t('شغّل برنامج IBDM Pro ثم حاول مرة ثانية'));
 });
 
 // ---------- videos found on each tab ----------
@@ -228,7 +235,7 @@ async function refreshBadge(tabId) {
     tabId = t ? t.id : -1;
   }
   const count = tabMedia.has(tabId) ? tabMedia.get(tabId).size : 0;
-  chrome.action.setTitle({ title: cfg ? (paused ? 'IBDM Pro — الالتقاط متوقف مؤقتاً' : 'IBDM Pro — متصل') : 'IBDM Pro — البرنامج غير مشغّل' });
+  chrome.action.setTitle({ title: cfg ? (paused ? t('IBDM Pro — الالتقاط متوقف مؤقتاً') : t('IBDM Pro — متصل')) : t('IBDM Pro — البرنامج غير مشغّل') });
   if (!cfg) {
     chrome.action.setBadgeBackgroundColor({ color: '#6B6B73' });
     chrome.action.setBadgeText({ text: 'off' });
@@ -282,4 +289,4 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 
 setInterval(() => refreshBadge(), 15000);
 refreshBadge();
-buildMenus();
+chrome.storage.local.get({ lang: 'ar' }, v => { IBDM_LANG = v.lang; buildMenus(); refreshBadge(); });

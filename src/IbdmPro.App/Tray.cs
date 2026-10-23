@@ -11,18 +11,18 @@ public sealed class Tray : IDisposable
 
     public Tray(IbdmApp app)
     {
-        var menu = new WF.ContextMenuStrip { RightToLeft = WF.RightToLeft.Yes };
-        menu.Items.Add("فتح IBDM Pro", null, (_, _) => app.ShowMain());
-        menu.Items.Add("إضافة رابط…", null, (_, _) => { app.ShowMain(); app.Main.AddUrl(); });
+        var menu = new WF.ContextMenuStrip { RightToLeft = L.Rtl ? WF.RightToLeft.Yes : WF.RightToLeft.No };
+        menu.Items.Add(L.T("فتح IBDM Pro"), null, (_, _) => app.ShowMain());
+        menu.Items.Add(L.T("إضافة رابط…"), null, (_, _) => { app.ShowMain(); app.Main.AddUrl(); });
         menu.Items.Add(new WF.ToolStripSeparator());
-        menu.Items.Add("استئناف الكل", null, (_, _) => app.Manager.ResumeAll());
-        menu.Items.Add("إيقاف الكل", null, (_, _) => app.Manager.PauseAll());
+        menu.Items.Add(L.T("استئناف الكل"), null, (_, _) => app.Manager.ResumeAll());
+        menu.Items.Add(L.T("إيقاف الكل"), null, (_, _) => app.Manager.PauseAll());
         menu.Items.Add(new WF.ToolStripSeparator());
-        menu.Items.Add("فتح مجلد التحميلات", null, (_, _) => { Directory.CreateDirectory(Settings.Current.DownloadRoot); Ui.Open(Settings.Current.DownloadRoot); });
-        menu.Items.Add("الإعدادات", null, (_, _) => { app.ShowMain(); app.Main.OpenSettings(); });
-        menu.Items.Add("البحث عن تحديث…", null, (_, _) => { app.ShowMain(); Updater.ShowWindow(app.Main); });
+        menu.Items.Add(L.T("فتح مجلد التحميلات"), null, (_, _) => { Directory.CreateDirectory(Settings.Current.DownloadRoot); Ui.Open(Settings.Current.DownloadRoot); });
+        menu.Items.Add(L.T("الإعدادات"), null, (_, _) => { app.ShowMain(); app.Main.OpenSettings(); });
+        menu.Items.Add(L.T("البحث عن تحديث…"), null, (_, _) => { app.ShowMain(); Updater.ShowWindow(app.Main); });
         menu.Items.Add(new WF.ToolStripSeparator());
-        menu.Items.Add("خروج", null, (_, _) => app.Quit());
+        menu.Items.Add(L.T("خروج"), null, (_, _) => app.Quit());
 
         System.Drawing.Icon? icon = null;
         try { if (Environment.ProcessPath is { } exe) icon = System.Drawing.Icon.ExtractAssociatedIcon(exe); } catch (Exception) { }

@@ -89,8 +89,8 @@ public sealed class ProgressWindow : Window
         facts.ColumnDefinitions.Add(new ColumnDefinition());
         var rows = new (string, UIElement)[]
         {
-            ("الحالة", _status), ("حجم الملف", _size), ("المحمَّل", _done), ("معدل النقل", _speed),
-            ("الوقت المتبقي", _eta), ("إمكانية الاستئناف", _resume), ("الاتصالات", _conns),
+            (L.T("الحالة"), _status), (L.T("حجم الملف"), _size), (L.T("المحمَّل"), _done), (L.T("معدل النقل"), _speed),
+            (L.T("الوقت المتبقي"), _eta), (L.T("إمكانية الاستئناف"), _resume), (L.T("الاتصالات"), _conns),
         };
         for (var i = 0; i < rows.Length; i++)
         {
@@ -116,16 +116,16 @@ public sealed class ProgressWindow : Window
         progress.Children.Add(_bar);
 
         // buttons
-        _pause = Ui.Button("إيقاف مؤقت", "", Theme.Button, TogglePause);
-        _cancel = Ui.Button("إلغاء التحميل", "", Theme.DangerButton, Cancel);
-        _toggleDetails = Ui.Button("إخفاء التفاصيل", "", Theme.Button, ToggleDetails);
-        _toApp = Ui.Button("للبرنامج", "", Theme.Button, SendToApp);
-        _toApp.ToolTip = "إغلاق هذه النافذة ومتابعة التحميل داخل نافذة البرنامج";
+        _pause = Ui.Button(L.T("إيقاف مؤقت"), "", Theme.Button, TogglePause);
+        _cancel = Ui.Button(L.T("إلغاء التحميل"), "", Theme.DangerButton, Cancel);
+        _toggleDetails = Ui.Button(L.T("إخفاء التفاصيل"), "", Theme.Button, ToggleDetails);
+        _toApp = Ui.Button(L.T("للبرنامج"), "", Theme.Button, SendToApp);
+        _toApp.ToolTip = L.T("إغلاق هذه النافذة ومتابعة التحميل داخل نافذة البرنامج");
         foreach (var b in new[] { _pause, _cancel, _toggleDetails, _toApp }) { b.Margin = new Thickness(0, 0, 8, 0); _runningButtons.Children.Add(b); }
 
-        var openFile = Ui.Button("فتح الملف", "", Theme.PrimaryButton, () => { OpenFileNow(); Close(); });
-        var openFolder = Ui.Button("فتح المجلد", "", Theme.Button, () => { Ui.ShowInFolder(_item.FullPath); Close(); });
-        var close = Ui.Button("إغلاق", style: Theme.Button, click: Close);
+        var openFile = Ui.Button(L.T("فتح الملف"), "", Theme.PrimaryButton, () => { OpenFileNow(); Close(); });
+        var openFolder = Ui.Button(L.T("فتح المجلد"), "", Theme.Button, () => { Ui.ShowInFolder(_item.FullPath); Close(); });
+        var close = Ui.Button(L.T("إغلاق"), style: Theme.Button, click: Close);
         foreach (var b in new[] { openFile, openFolder, close }) { b.Margin = new Thickness(0, 0, 8, 0); _doneButtons.Children.Add(b); }
         var buttonRow = new Grid { Margin = new Thickness(0, 16, 0, 0) };
         buttonRow.Children.Add(_runningButtons);
@@ -133,20 +133,20 @@ public sealed class ProgressWindow : Window
 
         // per-connection details
         _details.Margin = new Thickness(0, 14, 0, 0);
-        _details.Children.Add(Ui.Text("نقاط البداية لكل اتصال وحالة تقدّمه", 12, Theme.Muted));
+        _details.Children.Add(Ui.Text(L.T("نقاط البداية لكل اتصال وحالة تقدّمه"), 12, Theme.Muted));
         _segments.Margin = new Thickness(0, 6, 0, 8);
         _details.Children.Add(_segments);
-        var listHead = ConnRow("N.", "المحمَّل", "المعلومات", header: true);
+        var listHead = ConnRow("N.", L.T("المحمَّل"), L.T("المعلومات"), header: true);
         var list = new StackPanel();
         list.Children.Add(listHead);
         list.Children.Add(new ScrollViewer { Content = _connRows, MaxHeight = 150, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         _details.Children.Add(Ui.Card(list, new Thickness(0, 4, 0, 4)));
 
         // when it finishes
-        _autoClose = Ui.Check("إغلاق هذه النافذة تلقائياً بعد انتهاء التحميل", s.ProgressAutoClose);
-        _openFile = Ui.Check("فتح الملف بعد انتهاء التحميل", s.ProgressOpenFile);
-        _openFolder = Ui.Check("فتح المجلد بعد انتهاء التحميل", s.ProgressOpenFolder);
-        _dontShow = Ui.Check("عدم إظهار هذه النافذة عند التحميل (تقدر ترجعها من الإعدادات)", !s.ShowProgressWindow);
+        _autoClose = Ui.Check(L.T("إغلاق هذه النافذة تلقائياً بعد انتهاء التحميل"), s.ProgressAutoClose);
+        _openFile = Ui.Check(L.T("فتح الملف بعد انتهاء التحميل"), s.ProgressOpenFile);
+        _openFolder = Ui.Check(L.T("فتح المجلد بعد انتهاء التحميل"), s.ProgressOpenFolder);
+        _dontShow = Ui.Check(L.T("عدم إظهار هذه النافذة عند التحميل (تقدر ترجعها من الإعدادات)"), !s.ShowProgressWindow);
         void Persist()
         {
             var st = Settings.Current;
@@ -166,7 +166,7 @@ public sealed class ProgressWindow : Window
         _error.Margin = new Thickness(0, 8, 0, 0);
         _error.Visibility = Visibility.Collapsed;
 
-        var credit = Ui.Text("IBDM Pro — من تصميم و تطوير و تعريب ابراهيم الخزرجي", 11, Theme.Muted);
+        var credit = Ui.Text(L.T("IBDM Pro — من تصميم و تطوير و تعريب ابراهيم الخزرجي"), 11, Theme.Muted);
         credit.Margin = new Thickness(0, 12, 0, 0);
         credit.Opacity = 0.75;
 
@@ -224,23 +224,23 @@ public sealed class ProgressWindow : Window
 
         _status.Text = i.Status switch
         {
-            DownloadStatus.Downloading => i.Kind == DownloadKind.Media && i.Quality is not null ? $"جاري التحميل — {i.Quality.TrimStart('‎')}" : "جاري التحميل",
-            DownloadStatus.Queued => "بالانتظار (يبدأ بعد انتهاء تحميل آخر)",
+            DownloadStatus.Downloading => i.Kind == DownloadKind.Media && i.Quality is not null ? L.F("جاري التحميل — {0}", i.Quality.TrimStart('‎')) : L.T("جاري التحميل"),
+            DownloadStatus.Queued => L.T("بالانتظار (يبدأ بعد انتهاء تحميل آخر)"),
             _ => i.StatusText,
         };
         _status.Foreground = i.Status switch { DownloadStatus.Completed => Theme.Green, DownloadStatus.Error => Theme.Red, DownloadStatus.Paused => Theme.Muted, _ => Theme.Gold };
-        _size.Text = i.TotalBytes > 0 ? Fmt.Size(i.TotalBytes) : "غير معروف";
+        _size.Text = i.TotalBytes > 0 ? Fmt.Size(i.TotalBytes) : L.T("غير معروف");
         _done.Text = i.TotalBytes > 0 ? $"{Fmt.Size(i.Downloaded).TrimStart('‎')}  ({i.Percent:0.##}%)" : Fmt.Size(i.Downloaded);
         _speed.Text = i.Status == DownloadStatus.Downloading ? (i.Speed > 0 ? Fmt.Speed(i.Speed) : "…") : "—";
         _eta.Text = i.Status == DownloadStatus.Downloading && i.TotalBytes > 0 ? (Fmt.Eta(i.TotalBytes - i.Downloaded, i.Speed) is { Length: > 0 } e ? e : "…") : "—";
-        _resume.Text = i.Kind == DownloadKind.Media ? "نعم" : i.Resumable ? "نعم ✓" : "لا (الخادم لا يدعمها)";
+        _resume.Text = i.Kind == DownloadKind.Media ? L.T("نعم") : i.Resumable ? L.T("نعم ✓") : L.T("لا (الخادم لا يدعمها)");
         _resume.Foreground = i.Kind == DownloadKind.Media || i.Resumable ? Theme.Green : Theme.Red;
 
         List<Segment> segs;
         lock (i.Gate) segs = i.Segments.Select(x => new Segment { Start = x.Start, End = x.End, Done = x.Done }).OrderBy(x => x.Start).ToList();
         var active = segs.Count(x => !x.Finished);
-        _conns.Text = i.Kind == DownloadKind.Media ? $"{Settings.Current.Connections} (أجزاء الفيديو)"
-            : i.Resumable ? (i.Status == DownloadStatus.Downloading ? $"{active} نشط من {segs.Count}" : $"{segs.Count}") : "1";
+        _conns.Text = i.Kind == DownloadKind.Media ? L.F("{0} (أجزاء الفيديو)", Settings.Current.Connections)
+            : i.Resumable ? (i.Status == DownloadStatus.Downloading ? L.F("{0} نشط من {1}", active, segs.Count) : $"{segs.Count}") : "1";
 
         _bar.IsIndeterminate = i.Status == DownloadStatus.Processing || (i.Status == DownloadStatus.Downloading && i.TotalBytes <= 0);
         _bar.Value = i.Status == DownloadStatus.Completed ? 100 : i.Percent;
@@ -254,15 +254,15 @@ public sealed class ProgressWindow : Window
             for (var n = 0; n < segs.Count; n++)
             {
                 var sg = segs[n];
-                var info = sg.Finished ? "اكتمل" : i.Status == DownloadStatus.Downloading ? "يستقبل البيانات…" : i.Status == DownloadStatus.Paused ? "متوقف" : "بالانتظار";
+                var info = sg.Finished ? L.T("اكتمل") : i.Status == DownloadStatus.Downloading ? L.T("يستقبل البيانات…") : i.Status == DownloadStatus.Paused ? L.T("متوقف") : L.T("بالانتظار");
                 _connRows.Children.Add(ConnRow((n + 1).ToString(), Fmt.Size(Math.Min(sg.Done, sg.End - sg.Start + 1)).TrimStart('‎'), info));
             }
         }
         else _connRows.Children.Add(ConnRow("1", Fmt.Size(i.Downloaded).TrimStart('‎'),
-            i.Kind == DownloadKind.Media ? (i.Phase ?? "تحميل الفيديو بعدة أجزاء") : i.Status == DownloadStatus.Downloading ? "يستقبل البيانات…" : i.StatusText));
+            i.Kind == DownloadKind.Media ? (i.Phase ?? L.T("تحميل الفيديو بعدة أجزاء")) : i.Status == DownloadStatus.Downloading ? L.T("يستقبل البيانات…") : i.StatusText));
 
         _pause.IsEnabled = i.Status != DownloadStatus.Processing;
-        SetButton(_pause, i.Status is DownloadStatus.Paused or DownloadStatus.Error ? ("استئناف", "") : ("إيقاف مؤقت", ""));
+        SetButton(_pause, i.Status is DownloadStatus.Paused or DownloadStatus.Error ? (L.T("استئناف"), "") : (L.T("إيقاف مؤقت"), ""));
         _error.Text = i.Status == DownloadStatus.Error ? "⚠ " + i.Error : "";
         _error.Visibility = i.Status == DownloadStatus.Error ? Visibility.Visible : Visibility.Collapsed;
 
@@ -278,7 +278,7 @@ public sealed class ProgressWindow : Window
     {
         _runningButtons.Visibility = Visibility.Collapsed;
         _doneButtons.Visibility = Visibility.Visible;
-        _status.Text = "✓ اكتمل التحميل";
+        _status.Text = L.T("✓ اكتمل التحميل");
         if (_openFile.IsChecked == true) OpenFileNow();
         if (_openFolder.IsChecked == true) Ui.ShowInFolder(_item.FullPath);
         if (_autoClose.IsChecked == true) { Close(); return; }
@@ -288,7 +288,7 @@ public sealed class ProgressWindow : Window
     private void OpenFileNow()
     {
         if (File.Exists(_item.FullPath)) Ui.Open(_item.FullPath);
-        else Ui.Message(this, "الملف غير موجود", _item.FullPath);
+        else Ui.Message(this, L.T("الملف غير موجود"), _item.FullPath);
     }
 
     private static void SetButton(Button b, (string Text, string Glyph) v)
@@ -309,7 +309,7 @@ public sealed class ProgressWindow : Window
 
     private async void Cancel()
     {
-        if (Ui.Ask(this, "إلغاء التحميل", $"إلغاء تحميل «{_item.FileName}» وحذف الجزء المحمَّل؟", "نعم، إلغاء", "لا") != 0) return;
+        if (Ui.Ask(this, L.T("إلغاء التحميل"), L.F("إلغاء تحميل «{0}» وحذف الجزء المحمَّل؟", _item.FileName), L.T("نعم، إلغاء"), L.T("لا")) != 0) return;
         Close();
         await _manager.RemoveAsync(_item, deleteFile: false);
     }
@@ -318,7 +318,7 @@ public sealed class ProgressWindow : Window
     {
         var show = _details.Visibility != Visibility.Visible;
         _details.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        SetButton(_toggleDetails, show ? ("إخفاء التفاصيل", "") : ("عرض التفاصيل", ""));
+        SetButton(_toggleDetails, show ? (L.T("إخفاء التفاصيل"), "") : (L.T("عرض التفاصيل"), ""));
     }
 
     /// <summary>"Into the app": the download keeps going in the main window's list.</summary>

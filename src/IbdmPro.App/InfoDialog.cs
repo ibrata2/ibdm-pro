@@ -31,7 +31,7 @@ public static class Capture
             FileName = name, TotalBytes = probe.Size, Resumable = probe.Resumable, Category = cat.Name, Folder = s.FolderFor(cat),
         };
         IbdmApp.Instance.Manager.Add(item, start: true);
-        IbdmApp.Instance.Tray?.Notify("بدأ التحميل", $"{name} — {Fmt.Size(probe.Size)}", null);
+        IbdmApp.Instance.Tray?.Notify(L.T("بدأ التحميل"), $"{name} — {Fmt.Size(probe.Size)}", null);
     }
 }
 
@@ -47,13 +47,13 @@ public sealed class InfoDialog : Window
     private readonly StackPanel _body = new();
     private readonly TextBlock _headIcon = Ui.Glyph("", 26, Theme.Gold);
     private readonly Border _headTile = new() { Width = 52, Height = 52, CornerRadius = new CornerRadius(12), Background = Theme.GoldSoft };
-    private readonly TextBlock _headTitle = Ui.Text("جاري فحص الرابط…", 16, Theme.Ink, bold: true);
+    private readonly TextBlock _headTitle = Ui.Text(L.T("جاري فحص الرابط…"), 16, Theme.Ink, bold: true);
     private readonly TextBlock _headSub = Ui.Text("", 12, Theme.Muted);
     private readonly Button _start, _later;
 
     private readonly TextBox _name = Ui.Input();
     private readonly TextBox _folder = Ui.Input();
-    private readonly CheckBox _remember = Ui.Check("تذكر هذا المجلد لهذا النوع من الملفات", false);
+    private readonly CheckBox _remember = Ui.Check(L.T("تذكر هذا المجلد لهذا النوع من الملفات"), false);
     private readonly TextBlock _space = Ui.Text("", 12, Theme.Muted, wrap: TextWrapping.Wrap);
     private readonly TextBlock _sizeValue = Ui.Ltr("", 13, Theme.Ink, bold: true);
     private readonly TextBlock _freeValue = Ui.Ltr("", 12, Theme.Muted);
@@ -70,7 +70,7 @@ public sealed class InfoDialog : Window
     private InfoDialog(CaptureRequest req)
     {
         _req = req;
-        Ui.Setup(this, "IBDM Pro — معلومات الملف", 640, 640);
+        Ui.Setup(this, L.T("IBDM Pro — معلومات الملف"), 640, 640);
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         MinHeight = 360;
         MaxHeight = SystemParameters.WorkArea.Height - 40;
@@ -78,11 +78,11 @@ public sealed class InfoDialog : Window
         ResizeMode = ResizeMode.CanMinimize;
         _category = _s.CategoryFor(req.FileName ?? FileNames.FromUrl(req.Url) ?? "");
 
-        _start = Ui.Button("بدء التحميل", "", Theme.PrimaryButton, () => Finish(true));
-        _later = Ui.Button("تحميل لاحقاً", "", Theme.Button, () => Finish(false));
+        _start = Ui.Button(L.T("بدء التحميل"), "", Theme.PrimaryButton, () => Finish(true));
+        _later = Ui.Button(L.T("تحميل لاحقاً"), "", Theme.Button, () => Finish(false));
         _start.IsEnabled = _later.IsEnabled = false;
         _start.IsDefault = true;
-        var cancel = Ui.Button("إلغاء", style: Theme.Button, click: Close);
+        var cancel = Ui.Button(L.T("إلغاء"), style: Theme.Button, click: Close);
         cancel.IsCancel = true;
 
         // header
@@ -135,7 +135,7 @@ public sealed class InfoDialog : Window
 
     private static UIElement Credit()
     {
-        var t = Ui.Text("IBDM Pro — من تصميم و تطوير و تعريب ابراهيم الخزرجي", 11, Theme.Muted);
+        var t = Ui.Text(L.T("IBDM Pro — من تصميم و تطوير و تعريب ابراهيم الخزرجي"), 11, Theme.Muted);
         t.Margin = new Thickness(0, 14, 0, 0);
         t.Opacity = 0.7;
         return t;
@@ -157,7 +157,7 @@ public sealed class InfoDialog : Window
                 var sources = new[] { _req.PageUrl, _req.Url }.Where(u => !string.IsNullOrEmpty(u) && !u!.StartsWith("blob:")).Distinct().ToList();
                 foreach (var src in sources)
                 {
-                    _headTitle.Text = "جاري البحث عن الجودات المتوفرة…";
+                    _headTitle.Text = L.T("جاري البحث عن الجودات المتوفرة…");
                     _headSub.Text = Host(src!);
                     try { _media = await YtDlp.GetInfoAsync(src!, info, ct); break; }
                     catch (InvalidOperationException e) { Log.Write($"media {src}: {e.Message}"); lastError ??= e.Message; }
@@ -170,7 +170,7 @@ public sealed class InfoDialog : Window
                     _probe = await Http.ProbeAsync(_req.Url, info, ct);
                     if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
                 }
-                ShowError(lastError ?? "لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة.");
+                ShowError(lastError ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
                 return;
             }
 
@@ -178,7 +178,7 @@ public sealed class InfoDialog : Window
             if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
 
             // A page address (YouTube, Instagram…) pasted as a link: look for a video in it.
-            _headTitle.Text = "جاري البحث عن فيديو في الصفحة…";
+            _headTitle.Text = L.T("جاري البحث عن فيديو في الصفحة…");
             string? mediaError = null;
             try
             {
@@ -187,7 +187,7 @@ public sealed class InfoDialog : Window
             }
             catch (InvalidOperationException e) { Log.Write($"media {_req.Url}: {e.Message}"); mediaError = e.Message; }
 
-            if (YtDlp.IsYoutube(_req.Url)) ShowError(mediaError ?? "لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة.");
+            if (YtDlp.IsYoutube(_req.Url)) ShowError(mediaError ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
             else if (_probe.Error is null) ShowFile(); // a web page with no video: download the page itself
             else ShowError(mediaError ?? _probe.Error);
         }
@@ -197,7 +197,7 @@ public sealed class InfoDialog : Window
 
     private void ShowError(string message)
     {
-        _headTitle.Text = "تعذر تحميل هذا الرابط";
+        _headTitle.Text = L.T("تعذر تحميل هذا الرابط");
         _headIcon.Text = "";
         _headIcon.Foreground = Theme.Red;
         _headTile.Background = Theme.RedSoft;
@@ -208,7 +208,7 @@ public sealed class InfoDialog : Window
         url.FlowDirection = FlowDirection.LeftToRight;
         url.Margin = new Thickness(0, 10, 0, 0);
         _body.Children.Add(url);
-        var retry = Ui.Button("إعادة المحاولة", "", Theme.Button, async () => { Reset(); await LoadAsync(); });
+        var retry = Ui.Button(L.T("إعادة المحاولة"), "", Theme.Button, async () => { Reset(); await LoadAsync(); });
         retry.Margin = new Thickness(0, 10, 0, 0);
         retry.HorizontalAlignment = HorizontalAlignment.Left;
         _body.Children.Add(retry);
@@ -219,7 +219,7 @@ public sealed class InfoDialog : Window
         _headIcon.Text = "";
         _headIcon.Foreground = Theme.Gold;
         _headTile.Background = Theme.GoldSoft;
-        _headTitle.Text = "جاري فحص الرابط…";
+        _headTitle.Text = L.T("جاري فحص الرابط…");
         _body.Children.Clear();
         _body.Children.Add(new ProgressBar { Style = Theme.Progress, IsIndeterminate = true, Margin = new Thickness(0, 10, 0, 10) });
     }
@@ -233,25 +233,25 @@ public sealed class InfoDialog : Window
         if (Path.GetExtension(name).Length == 0 && Path.GetExtension(p.FileName).Length > 0) name += Path.GetExtension(p.FileName);
         var size = p.Size > 0 ? p.Size : _req.Size;
         _category = _s.CategoryFor(name);
-        SetHead(_category, "معلومات الملف", Host(p.FinalUrl));
+        SetHead(_category, L.T("معلومات الملف"), Host(p.FinalUrl));
 
         _body.Children.Clear();
-        _body.Children.Add(Ui.Label("اسم الملف"));
+        _body.Children.Add(Ui.Label(L.T("اسم الملف")));
         _name.Text = name;
         _body.Children.Add(_name);
 
         var facts = new UniformGrid3();
         _sizeValue.Text = Fmt.Size(size);
-        facts.Add("الحجم", _sizeValue);
+        facts.Add(L.T("الحجم"), _sizeValue);
         _typeValue.Text = TypeName(name, p.ContentType);
-        facts.Add("النوع", _typeValue);
-        facts.Add("التحميل المجزأ", Ui.Text(p.Resumable ? $"مدعوم ✓ ({_s.Connections} اتصالات)" : "غير مدعوم (اتصال واحد)", 13, p.Resumable ? Theme.Green : Theme.Muted));
+        facts.Add(L.T("النوع"), _typeValue);
+        facts.Add(L.T("التحميل المجزأ"), Ui.Text(p.Resumable ? L.F("مدعوم ✓ ({0} اتصالات)", _s.Connections) : L.T("غير مدعوم (اتصال واحد)"), 13, p.Resumable ? Theme.Green : Theme.Muted));
         var card = Ui.Card(facts.Panel);
         card.Margin = new Thickness(0, 12, 0, 0);
         _body.Children.Add(card);
 
         AddWhere();
-        _body.Children.Add(Ui.Label("الرابط"));
+        _body.Children.Add(Ui.Label(L.T("الرابط")));
         string shown;
         try { shown = Uri.UnescapeDataString(p.FinalUrl); } catch (Exception) { shown = p.FinalUrl; }
         var url = Ui.Input(shown);
@@ -271,7 +271,7 @@ public sealed class InfoDialog : Window
     {
         var m = _media!;
         _body.Children.Clear();
-        SetHead(_s.CategoryNamed("فيديو") ?? _category, "تحميل فيديو", (m.Site is { Length: > 0 } site && site != "Generic" ? site + " — " : "") + Host(m.Url));
+        SetHead(_s.CategoryNamed("فيديو") ?? _category, L.T("تحميل فيديو"), (m.Site is { Length: > 0 } site && site != "Generic" ? site + " — " : "") + Host(m.Url));
 
         // thumbnail + title
         var top = new DockPanel();
@@ -288,12 +288,12 @@ public sealed class InfoDialog : Window
         }
         var titleBox = new StackPanel();
         titleBox.Children.Add(Ui.Text(m.Title, 14, Theme.Ink, bold: true, wrap: TextWrapping.Wrap));
-        if (m.Duration > 0) titleBox.Children.Add(Ui.Text("المدة: " + Fmt.Duration(m.Duration), 12, Theme.Muted));
+        if (m.Duration > 0) titleBox.Children.Add(Ui.Text(L.T("المدة: ") + Fmt.Duration(m.Duration), 12, Theme.Muted));
         top.Children.Add(titleBox);
         _body.Children.Add(top);
 
         // qualities: one drop-down — the chosen quality shows, the rest open in a list under it
-        _body.Children.Add(Ui.Label("الجودة"));
+        _body.Children.Add(Ui.Label(L.T("الجودة")));
         var defaultOption = m.Options.FirstOrDefault(o => !o.AudioOnly && o.Height is > 0 and <= 1080 && o.Ext == "mp4")
             ?? m.Options.FirstOrDefault(o => !o.AudioOnly) ?? m.Options[0];
 
@@ -327,7 +327,7 @@ public sealed class InfoDialog : Window
         var popup = new Popup
         {
             PlacementTarget = picker, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true,
-            PopupAnimation = PopupAnimation.Fade, FlowDirection = FlowDirection.RightToLeft,
+            PopupAnimation = PopupAnimation.Fade, FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
             Child = new Border
             {
                 Background = Theme.Card, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10),
@@ -356,14 +356,14 @@ public sealed class InfoDialog : Window
             if (!o.AudioOnly && !addedVideoHeader)
             {
                 addedVideoHeader = true;
-                var vh = Ui.Text("فيديو", 11.5, Theme.Muted);
+                var vh = Ui.Text(L.T("فيديو"), 11.5, Theme.Muted);
                 vh.Margin = new Thickness(8, 4, 8, 4);
                 popupList.Children.Add(vh);
             }
             if (o.AudioOnly && !addedAudioHeader)
             {
                 addedAudioHeader = true;
-                var ah = Ui.Text("صوت فقط", 11.5, Theme.Muted);
+                var ah = Ui.Text(L.T("صوت فقط"), 11.5, Theme.Muted);
                 ah.Margin = new Thickness(8, 8, 8, 4);
                 popupList.Children.Add(ah);
             }
@@ -379,7 +379,7 @@ public sealed class InfoDialog : Window
         _body.Children.Add(picker);
         Choose(defaultOption);
 
-        _body.Children.Add(Ui.Label("اسم الملف"));
+        _body.Children.Add(Ui.Label(L.T("اسم الملف")));
         _body.Children.Add(_name);
         AddWhere();
 
@@ -402,13 +402,13 @@ public sealed class InfoDialog : Window
 
     private void AddWhere()
     {
-        _body.Children.Add(Ui.Label("النوع (يحدد المجلد)"));
+        _body.Children.Add(Ui.Label(L.T("النوع (يحدد المجلد)")));
         _categories.Children.Clear();
         foreach (var c in _s.Categories)
         {
             var sp = new StackPanel { Orientation = Orientation.Horizontal };
             sp.Children.Add(Ui.Glyph(c.Icon, 13, Theme.Br(c.Color)));
-            var t = Ui.Text(c.Name, 12.5);
+            var t = Ui.Text(L.T(c.Name), 12.5);
             t.Margin = new Thickness(6, 0, 0, 0);
             sp.Children.Add(t);
             var chip = new RadioButton { Style = Theme.Choice, Content = sp, GroupName = "c" + GetHashCode(), Tag = c, Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 0, 6, 6) };
@@ -417,8 +417,8 @@ public sealed class InfoDialog : Window
         }
         _body.Children.Add(_categories);
 
-        _body.Children.Add(Ui.Label("حفظ في"));
-        var browse = Ui.Button("تغيير…", "", Theme.Button, Browse);
+        _body.Children.Add(Ui.Label(L.T("حفظ في")));
+        var browse = Ui.Button(L.T("تغيير…"), "", Theme.Button, Browse);
         browse.Margin = new Thickness(8, 0, 0, 0);
         var row = new DockPanel();
         DockPanel.SetDock(browse, Dock.Right);
@@ -451,7 +451,7 @@ public sealed class InfoDialog : Window
 
     private void Browse()
     {
-        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "اختر مجلد الحفظ" };
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = L.T("اختر مجلد الحفظ") };
         try { Directory.CreateDirectory(_folder.Text); dlg.InitialDirectory = _folder.Text; } catch (Exception) { }
         if (dlg.ShowDialog(this) == true)
         {
@@ -469,9 +469,9 @@ public sealed class InfoDialog : Window
             var free = root is null ? -1 : new DriveInfo(root).AvailableFreeSpace;
             var need = _option?.Size ?? (_probe?.Size > 0 ? _probe.Size : _req.Size);
             var path = Path.Combine(_folder.Text, FileNames.Clean(_name.Text));
-            var exists = File.Exists(path) ? $"\nيوجد ملف بنفس الاسم — سيتم الحفظ باسم «{Path.GetFileName(FileNames.Unique(path))}»" : "";
+            var exists = File.Exists(path) ? L.F("\nيوجد ملف بنفس الاسم — سيتم الحفظ باسم «{0}»", Path.GetFileName(FileNames.Unique(path))) : "";
             var low = free >= 0 && need > 0 && free < need;
-            _freeLabel.Text = free < 0 ? "" : low ? "⚠ المساحة غير كافية — المتوفر:" : "المساحة المتوفرة على القرص:";
+            _freeLabel.Text = free < 0 ? "" : low ? L.T("⚠ المساحة غير كافية — المتوفر:") : L.T("المساحة المتوفرة على القرص:");
             _freeValue.Text = free < 0 ? "" : Fmt.Size(free) + (low ? "  /  " + Fmt.Size(need).TrimStart('\u200E') : "");
             _freeLabel.Foreground = _freeValue.Foreground = low ? Theme.Red : Theme.Muted;
             _space.Text = exists.Trim();
@@ -493,7 +493,7 @@ public sealed class InfoDialog : Window
             folder = Path.GetFullPath(folder);
             Directory.CreateDirectory(folder);
         }
-        catch (Exception e) { Ui.Message(this, "المجلد غير صالح", e.Message); return; }
+        catch (Exception e) { Ui.Message(this, L.T("المجلد غير صالح"), e.Message); return; }
 
         if (_remember.IsChecked == true)
         {

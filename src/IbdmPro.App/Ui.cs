@@ -356,7 +356,7 @@ public static class Ui
             if (c is >= '\u0590' and <= '\u08FF' or >= '\uFB1D' and <= '\uFEFC') return FlowDirection.RightToLeft;
             if (char.IsLetter(c)) return FlowDirection.LeftToRight;
         }
-        return FlowDirection.RightToLeft;
+        return L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
     }
 
     public static TextBlock Glyph(string g, double size = 16, Brush? fg = null) => new()
@@ -464,7 +464,7 @@ public static class Ui
         w.Foreground = Theme.Ink;
         w.FontFamily = Theme.Font;
         w.FontSize = 13;
-        w.FlowDirection = FlowDirection.RightToLeft;
+        w.FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         w.Icon = AppIcon(32);
         w.UseLayoutRounding = true;
         TextOptions.SetTextFormattingMode(w, TextFormattingMode.Display);
@@ -502,7 +502,7 @@ public static class Ui
     public static void Open(string target)
     {
         try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); }
-        catch (Exception e) { Message(null, "تعذر الفتح", e.Message); }
+        catch (Exception e) { Message(null, L.T("تعذر الفتح"), e.Message); }
     }
 
     public static void ShowInFolder(string file)
@@ -511,9 +511,9 @@ public static class Ui
         {
             if (File.Exists(file)) Process.Start("explorer.exe", $"/select,\"{file}\"");
             else if (Directory.Exists(Path.GetDirectoryName(file))) Process.Start("explorer.exe", $"\"{Path.GetDirectoryName(file)}\"");
-            else Message(null, "المجلد غير موجود", Path.GetDirectoryName(file) ?? file);
+            else Message(null, L.T("المجلد غير موجود"), Path.GetDirectoryName(file) ?? file);
         }
-        catch (Exception e) { Message(null, "تعذر فتح المجلد", e.Message); }
+        catch (Exception e) { Message(null, L.T("تعذر فتح المجلد"), e.Message); }
     }
 
     /// <summary>A dark question box. Returns the index of the button pressed, or -1 if closed.</summary>
@@ -545,5 +545,5 @@ public static class Ui
         return result;
     }
 
-    public static void Message(Window? owner, string title, string message) => Ask(owner, title, message, "حسناً");
+    public static void Message(Window? owner, string title, string message) => Ask(owner, title, message, L.T("حسناً"));
 }

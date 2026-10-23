@@ -26,13 +26,19 @@ async function load() {
   if (st.app && st.app.theme) { theme = st.app.theme; chrome.storage.local.set({ theme }); }
   document.body.classList.toggle('dark', theme === 'dark');
   document.body.classList.toggle('light', theme === 'light');
+  // …and the same language.
+  IBDM_LANG = (st.app && st.app.lang) || (await chrome.storage.local.get({ lang: 'ar' })).lang;
+  if (st.app && st.app.lang) chrome.storage.local.set({ lang: IBDM_LANG });
+  document.documentElement.lang = IBDM_LANG;
+  document.documentElement.dir = IBDM_LANG === 'en' ? 'ltr' : 'rtl';
+  for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
   const box = $('status');
   if (st.app) {
     box.className = 'status on';
-    $('statusText').textContent = `متصل ببرنامج IBDM Pro ${st.app.version}` + (st.app.version !== st.version ? ' (حدّث الإضافة من صفحة الإضافات ⟳)' : '');
+    $('statusText').textContent = `${t('متصل ببرنامج IBDM Pro')} ${st.app.version}` + (st.app.version !== st.version ? t(' (حدّث الإضافة من صفحة الإضافات ⟳)') : '');
   } else {
     box.className = 'status off';
-    $('statusText').textContent = 'برنامج IBDM Pro غير مشغّل — شغّله من قائمة ابدأ';
+    $('statusText').textContent = t('برنامج IBDM Pro غير مشغّل — شغّله من قائمة ابدأ');
   }
   $('capture').checked = !st.paused && !!(st.app && st.app.capture);
   $('capture').disabled = !st.app;
@@ -42,7 +48,7 @@ async function load() {
   if (!st.media.length) {
     const p = document.createElement('div');
     p.className = 'empty';
-    p.textContent = 'لم يتم رصد ملفات فيديو بعد — شغّل الفيديو أو استخدم زر «تحميل فيديو هذه الصفحة».';
+    p.textContent = t('لم يتم رصد ملفات فيديو بعد — شغّل الفيديو أو استخدم زر «تحميل فيديو هذه الصفحة».');
     list.appendChild(p);
   }
   for (const m of st.media.slice().reverse()) {
@@ -54,10 +60,10 @@ async function load() {
     name.textContent = shortName(m.url);
     name.title = m.url;
     const meta = document.createElement('small');
-    meta.textContent = (m.type === 'stream' ? 'بث (m3u8)' : m.type === 'audio' ? 'صوت' : 'فيديو') + (m.size > 0 ? ' — ' + fmtSize(m.size) : '');
+    meta.textContent = (m.type === 'stream' ? t('بث (m3u8)') : m.type === 'audio' ? t('صوت') : t('فيديو')) + (m.size > 0 ? ' — ' + fmtSize(m.size) : '');
     n.append(name, meta);
     const b = document.createElement('button');
-    b.textContent = 'تحميل';
+    b.textContent = t('تحميل');
     b.onclick = () => send({ src: m.url, kind: 'media' }, tab, b);
     row.append(n, b);
     list.appendChild(row);
@@ -67,7 +73,7 @@ async function load() {
 
 function send(opts, tab, btn) {
   chrome.runtime.sendMessage({ cmd: 'media', src: opts.src, kind: opts.kind, pageUrl: tab.url, tabUrl: tab.url, title: tab.title }, res => {
-    btn.textContent = res && res.ok ? '✓ تم' : 'البرنامج غير مشغّل';
+    btn.textContent = res && res.ok ? t('✓ تم') : t('البرنامج غير مشغّل');
     if (res && res.ok) setTimeout(() => window.close(), 700);
   });
 }

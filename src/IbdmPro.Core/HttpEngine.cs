@@ -57,7 +57,7 @@ public static class Http
             result.FinalUrl = resp.RequestMessage?.RequestUri?.ToString() ?? url;
             if (!resp.IsSuccessStatusCode)
             {
-                result.Error = $"الخادم رفض الطلب ({(int)resp.StatusCode} {resp.ReasonPhrase})";
+                result.Error = L.F("الخادم رفض الطلب ({0} {1})", (int)resp.StatusCode, resp.ReasonPhrase);
                 return result;
             }
             var headers = resp.Content.Headers;
@@ -76,11 +76,11 @@ public static class Http
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            result.Error = "انتهت مهلة الاتصال بالخادم";
+            result.Error = L.T("انتهت مهلة الاتصال بالخادم");
         }
         catch (HttpRequestException e)
         {
-            result.Error = "تعذر الاتصال: " + (e.InnerException?.Message ?? e.Message);
+            result.Error = L.T("تعذر الاتصال: ") + (e.InnerException?.Message ?? e.Message);
         }
         if (string.IsNullOrEmpty(result.FileName)) result.FileName = NameFrom(null, result.FinalUrl, url, result.ContentType);
         return result;
@@ -142,7 +142,7 @@ public sealed class SpeedLimiter
     }
 }
 
-public sealed class NotResumableException() : Exception("الخادم لا يدعم التحميل المجزأ");
+public sealed class NotResumableException() : Exception(L.T("الخادم لا يدعم التحميل المجزأ"));
 
 /// <summary>Downloads one file over several connections at once, each fetching its own byte range into the same
 /// part file. When a connection finishes early it takes half of the biggest range still left (like IDM), so all
@@ -195,7 +195,7 @@ public static class HttpDownloader
                     await dst.WriteAsync(buf.AsMemory(0, n), ct);
                     item.AddDownloaded(n);
                 }
-                if (item.TotalBytes > 0 && item.Downloaded < item.TotalBytes) throw new IOException("انقطع الاتصال قبل اكتمال الملف");
+                if (item.TotalBytes > 0 && item.Downloaded < item.TotalBytes) throw new IOException(L.T("انقطع الاتصال قبل اكتمال الملف"));
                 if (item.TotalBytes <= 0) item.TotalBytes = item.Downloaded;
                 return;
             }
@@ -277,7 +277,7 @@ public static class HttpDownloader
 
         lock (item.Gate)
         {
-            if (item.Segments.Any(s => !s.Finished)) throw new IOException("لم تكتمل كل أجزاء الملف");
+            if (item.Segments.Any(s => !s.Finished)) throw new IOException(L.T("لم تكتمل كل أجزاء الملف"));
             item.Downloaded = total;
         }
     }
@@ -302,7 +302,7 @@ public static class HttpDownloader
                 if (resp.StatusCode == HttpStatusCode.OK) throw new NotResumableException();
                 if ((int)resp.StatusCode is 429 or >= 500) throw new HttpRequestException($"HTTP {(int)resp.StatusCode}");
                 if (resp.StatusCode != HttpStatusCode.PartialContent)
-                    throw new HttpRequestException($"الخادم رفض الطلب ({(int)resp.StatusCode} {resp.ReasonPhrase})", null, resp.StatusCode);
+                    throw new HttpRequestException(L.F("الخادم رفض الطلب ({0} {1})", (int)resp.StatusCode, resp.ReasonPhrase), null, resp.StatusCode);
                 if (resp.Content.Headers.ContentRange?.From is long realFrom && realFrom != from) throw new NotResumableException();
 
                 await using var src = await resp.Content.ReadAsStreamAsync(ct);
@@ -329,7 +329,7 @@ public static class HttpDownloader
                     if (take < n) break;
                 }
                 lock (item.Gate) if (seg.Finished) return;
-                throw new IOException("انقطع الاتصال");
+                throw new IOException(L.T("انقطع الاتصال"));
             }
             catch (Exception e) when (IsTransient(e) && attempt < Retries && !ct.IsCancellationRequested)
             {

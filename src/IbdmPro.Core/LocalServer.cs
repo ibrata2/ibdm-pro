@@ -129,7 +129,8 @@ public sealed class LocalServer : IDisposable
             extensions = s.CaptureExtensions,
             minSizeKB = s.MinCaptureSizeKB,
             excluded = s.ExcludedSites,
-            theme = s.ResolvedTheme, // the extension's button and window follow the app's style
+            theme = s.ResolvedTheme,
+            lang = s.Language == "en" ? "en" : "ar", // and its language // the extension's button and window follow the app's style
         }, Json.Web);
     }
 

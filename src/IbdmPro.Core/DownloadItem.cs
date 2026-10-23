@@ -71,12 +71,12 @@ public sealed class DownloadItem
 
     public string StatusText => Status switch
     {
-        DownloadStatus.Queued => "بالانتظار",
-        DownloadStatus.Downloading => "جاري التحميل",
-        DownloadStatus.Processing => Phase ?? "جاري المعالجة",
-        DownloadStatus.Paused => "متوقف",
-        DownloadStatus.Completed => "مكتمل",
-        DownloadStatus.Error => "خطأ",
+        DownloadStatus.Queued => L.T("بالانتظار"),
+        DownloadStatus.Downloading => L.T("جاري التحميل"),
+        DownloadStatus.Processing => Phase ?? L.T("جاري المعالجة"),
+        DownloadStatus.Paused => L.T("متوقف"),
+        DownloadStatus.Completed => L.T("مكتمل"),
+        DownloadStatus.Error => L.T("خطأ"),
         _ => "",
     };
 }

@@ -14,11 +14,13 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        _ = Settings.Current; // loads the settings, which also sets the language (L.Lang) before any window exists
         if (args.Length > 1 && args[0] == "--snapshot")
         {
             // Render the windows to pictures with sample data, without touching the real settings or list.
             Paths.AppDataOverride = Path.Combine(Path.GetTempPath(), "IBDM Pro snapshot " + Guid.NewGuid().ToString("N")[..6]);
             if (args.Length > 3 && args[2] == "--theme") Settings.Current.Theme = args[3];
+            if (args.Length > 5 && args[4] == "--lang") { Settings.Current.Language = args[5]; L.Lang = args[5]; }
             var snap = new IbdmApp(background: true) { SnapshotDir = Path.GetFullPath(args[1]) };
             return snap.Run();
         }
@@ -102,10 +104,10 @@ public sealed class IbdmApp : Application
         {
             Log.Write($"unhandled: {e.Exception}");
             e.Handled = true;
-            try { Ui.Message(null, "حدث خطأ", e.Exception.Message); } catch (Exception) { }
+            try { Ui.Message(null, L.T("حدث خطأ"), e.Exception.Message); } catch (Exception) { }
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Write($"fatal: {e.ExceptionObject}");
-        FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(XmlLanguage.GetLanguage("ar")));
+        FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(L.En ? "en-US" : "ar")));
     }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -128,13 +130,13 @@ public sealed class IbdmApp : Application
         Manager.Limiter.BytesPerSecond = settings.SpeedLimitKBps * 1024L;
         Manager.ItemCompleted += item => Dispatcher.BeginInvoke(() =>
         {
-            if (Settings.Current.NotifyOnComplete) Tray?.Notify("اكتمل التحميل", item.FileName, item.FullPath);
+            if (Settings.Current.NotifyOnComplete) Tray?.Notify(L.T("اكتمل التحميل"), item.FileName, item.FullPath);
         });
         Manager.UserStarted += item => Dispatcher.BeginInvoke(() =>
         {
             if (Settings.Current.ShowProgressWindow) ProgressWindow.Open(item, Manager);
         });
-        Manager.ItemFailed += item => Dispatcher.BeginInvoke(() => Tray?.Notify("فشل التحميل", $"{item.FileName}\n{item.Error}", null));
+        Manager.ItemFailed += item => Dispatcher.BeginInvoke(() => Tray?.Notify(L.T("فشل التحميل"), $"{item.FileName}\n{item.Error}", null));
 
         Main = new MainWindow(Manager);
         Tray = new Tray(this);
@@ -163,7 +165,7 @@ public sealed class IbdmApp : Application
             settings.Save();
             Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => ExtensionGuide.Show(Main));
         }
-        if (Server is null) Ui.Message(Main, "تنبيه", $"المنفذ {Settings.Port} مستخدم من برنامج آخر، لذلك لن تصل التحميلات من المتصفح. أغلق البرنامج الآخر ثم أعد تشغيل IBDM Pro.");
+        if (Server is null) Ui.Message(Main, L.T("تنبيه"), L.F("المنفذ {0} مستخدم من برنامج آخر، لذلك لن تصل التحميلات من المتصفح. أغلق البرنامج الآخر ثم أعد تشغيل IBDM Pro.", Settings.Port));
     }
 
     public void ShowMain() => Ui.ForceFront(Main);
@@ -187,9 +189,9 @@ public sealed class IbdmApp : Application
             asked = true;
             Dispatcher.BeginInvoke(() =>
             {
-                var choice = Ui.Ask(Main.IsVisible ? Main : null, "تغيّر مظهر Windows",
-                    $"تم تغيير Windows إلى الوضع {(Theme.WindowsIsDark() ? "الليلي" : "النهاري")}. إعادة تشغيل IBDM Pro لتطبيق الألوان الجديدة؟ (التحميلات تكمل بعد التشغيل)",
-                    "إعادة التشغيل الآن", "لاحقاً");
+                var choice = Ui.Ask(Main.IsVisible ? Main : null, L.T("تغيّر مظهر Windows"),
+                    L.F("تم تغيير Windows إلى الوضع {0}. إعادة تشغيل IBDM Pro لتطبيق الألوان الجديدة؟ (التحميلات تكمل بعد التشغيل)", (Theme.WindowsIsDark() ? L.T("الليلي") : L.T("النهاري"))),
+                    L.T("إعادة التشغيل الآن"), L.T("لاحقاً"));
                 if (choice == 0) Restart();
             });
         };
