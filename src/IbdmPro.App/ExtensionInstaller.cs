@@ -154,9 +154,15 @@ public static class ExtensionInstaller
             catch (Exception) { }
 
             Say(L.T("تفعيل «وضع المطوّر»…"));
-            if (devToggle.GetCurrentPattern(TogglePattern.Pattern) is TogglePattern tp && tp.Current.ToggleState != ToggleState.On)
+            if (devToggle.TryGetCurrentPattern(TogglePattern.Pattern, out var tpo) && tpo is TogglePattern tp)
             {
-                tp.Toggle();
+                if (tp.Current.ToggleState != ToggleState.On) { tp.Toggle(); Thread.Sleep(900); }
+            }
+            else if (FindLoadUnpacked(window) is null && devToggle.TryGetCurrentPattern(InvokePattern.Pattern, out var ipo))
+            {
+                // Brave shows the switch as a clickable item without an on/off state: it is off while
+                // "Load unpacked" is hidden, so click it once.
+                ((InvokePattern)ipo).Invoke();
                 Thread.Sleep(900);
             }
             if (sideMenu)
@@ -339,6 +345,13 @@ public static class ExtensionInstaller
                 var name = Norm(e.Current.Name);
                 if (id.Contains("devmode") || id.Contains("developer")) return e;
                 if (DevNames.Any(n => name.Contains(Norm(n)))) return e;
+            }
+            // Brave: the switch (id "devMode") is exposed as a clickable group, not as an on/off switch.
+            var inv = new PropertyCondition(AutomationElement.IsInvokePatternAvailableProperty, true);
+            foreach (AutomationElement e in window.FindAll(TreeScope.Descendants, inv))
+            {
+                var id = Norm(e.Current.AutomationId);
+                if (id.Contains("devmode")) return e;
             }
         }
         catch (Exception) { }
