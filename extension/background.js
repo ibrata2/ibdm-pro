@@ -210,7 +210,7 @@ async function refreshBadge(tabId) {
     chrome.action.setBadgeBackgroundColor({ color: '#6B6B73' });
     chrome.action.setBadgeText({ text: 'off' });
   } else if (count > 0) {
-    chrome.action.setBadgeBackgroundColor({ color: '#D4AF37' });
+    chrome.action.setBadgeBackgroundColor({ color: cfg.theme === 'dark' ? '#D4AF37' : cfg.theme === 'light' ? '#A87F0A' : '#D7141F' });
     if (tabId >= 0) chrome.action.setBadgeText({ tabId, text: String(count) });
     chrome.action.setBadgeText({ text: '' });
   } else {

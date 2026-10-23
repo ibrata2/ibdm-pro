@@ -21,6 +21,11 @@ async function load() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const st = await chrome.runtime.sendMessage({ cmd: 'status', tabId: tab ? tab.id : -1 });
   $('ver').textContent = 'v' + st.version;
+  // Same style as the app (remembered for when the app is not running).
+  let theme = (await chrome.storage.local.get({ theme: 'glass' })).theme;
+  if (st.app && st.app.theme) { theme = st.app.theme; chrome.storage.local.set({ theme }); }
+  document.body.classList.toggle('dark', theme === 'dark');
+  document.body.classList.toggle('light', theme === 'light');
   const box = $('status');
   if (st.app) {
     box.className = 'status on';

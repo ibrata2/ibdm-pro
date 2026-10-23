@@ -3,9 +3,16 @@
 <head>
 <meta charset="utf-8">
 <style>
-  :root { --bg:#0F0F11; --card:#1E1E23; --line:#2C2C33; --gold:#D4AF37; --ink:#F2F2F4; --muted:#9C9CA6; --green:#4CC26B; --red:#E5533D; }
+  /* Red glass (default) — follows the app's style */
+  :root { --bg:linear-gradient(180deg,#FBFCFE,#E8EBF1); --card:linear-gradient(180deg,rgba(255,255,255,.97),rgba(247,248,251,.9)); --line:#D6DAE2;
+          --gold:#D7141F; --gold2:#F0434C; --on:#fff; --ink:#16161A; --muted:#6A6E78; --green:#1E8E46; --red:#C8121C; --hover:rgba(215,20,31,.08);
+          --face:linear-gradient(180deg,#F2363F,#B80D16); --track:#C9CED8; }
+  body.dark { --bg:#0F0F11; --card:#1E1E23; --line:#2C2C33; --gold:#D4AF37; --gold2:#E2C25A; --on:#111; --ink:#F2F2F4; --muted:#9C9CA6;
+          --green:#4CC26B; --red:#E5533D; --hover:#2A2A31; --face:#D4AF37; --track:#3a3a42; }
+  body.light { --bg:#F3F3F5; --card:#fff; --line:#DCDCE2; --gold:#A87F0A; --gold2:#B98E17; --on:#fff; --ink:#1B1B1F; --muted:#6B6B75;
+          --green:#23914A; --red:#C93B26; --hover:#ECECF0; --face:#A87F0A; --track:#C9C9D1; }
   * { box-sizing: border-box; }
-  body { margin:0; width:340px; background:var(--bg); color:var(--ink); font:13px "Segoe UI", Tahoma, sans-serif; }
+  body { margin:0; width:340px; background:var(--bg); min-height:100%; color:var(--ink); font:13px "Segoe UI", Tahoma, sans-serif; }
   header { display:flex; align-items:center; gap:10px; padding:14px 14px 10px; border-bottom:1px solid var(--line); }
   header img { width:34px; height:34px; }
   h1 { margin:0; font-size:17px; direction:ltr; text-align:right; }
@@ -17,9 +24,9 @@
   .row { display:flex; align-items:center; justify-content:space-between; margin:12px 14px 0; }
   .switch { position:relative; width:40px; height:22px; flex:none; }
   .switch input { opacity:0; width:0; height:0; }
-  .slider { position:absolute; inset:0; background:#3a3a42; border-radius:22px; cursor:pointer; transition:.2s; }
+  .slider { position:absolute; inset:0; background:var(--track); border-radius:22px; cursor:pointer; transition:.2s; }
   .slider:before { content:""; position:absolute; width:16px; height:16px; right:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
-  input:checked + .slider { background:var(--gold); }
+  input:checked + .slider { background:var(--face); }
   input:checked + .slider:before { transform:translateX(-18px); }
   h2 { font-size:12px; color:var(--muted); font-weight:400; margin:16px 14px 6px; }
   .media { margin:0 14px; max-height:230px; overflow:auto; }
@@ -28,9 +35,9 @@
   .item .n div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; direction:ltr; text-align:right; }
   .item .n small { color:var(--muted); }
   button { font:600 12px "Segoe UI", Tahoma, sans-serif; border-radius:7px; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:7px 12px; cursor:pointer; }
-  button:hover { background:#2A2A31; }
-  button.gold { background:var(--gold); color:#111; border-color:var(--gold); }
-  button.gold:hover { background:#E2C25A; }
+  button:hover { background:var(--hover); }
+  button.gold { background:var(--face); color:var(--on); border-color:var(--gold); }
+  button.gold:hover { background:var(--gold2); }
   .actions { margin:14px; display:flex; gap:8px; }
   .actions button { flex:1; }
   .empty { color:var(--muted); margin:0 14px; font-size:12px; }

@@ -14,21 +14,29 @@
     const root = host.attachShadow({ mode: 'closed' });
     root.innerHTML = `
       <style>
-        .b{display:flex;align-items:center;gap:7px;direction:rtl;font:600 13px/1 "Segoe UI",Tahoma,sans-serif;
-           background:linear-gradient(180deg,#1E1E23,#0F0F11);color:#F2F2F4;border:1.5px solid #D4AF37;border-radius:9px;
-           padding:7px 11px 7px 9px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.45);user-select:none;transition:transform .12s}
-        .b:hover{transform:translateY(-1px);background:linear-gradient(180deg,#2A2A31,#16161A)}
-        .i{width:18px;height:18px;flex:none}
-        .s{color:#D4AF37}
-        .x{margin-inline-start:4px;color:#9C9CA6;font-weight:400;padding:0 3px}
-        .x:hover{color:#fff}
+        /* The three IBDM Pro styles; the app tells which one is in use. */
+        .b{--bg:linear-gradient(180deg,#FFFFFF 0%,#EEF0F5 55%,#E2E5EC 100%);--bgh:linear-gradient(180deg,#FFFFFF,#E9ECF2);
+           --fg:#16161A;--ac:#D7141F;--bd:rgba(215,20,31,.85);--mu:#7A7F8A;--sh:0 6px 22px rgba(160,10,18,.28),inset 0 1px 0 #fff}
+        .b.dark{--bg:linear-gradient(180deg,#1E1E23,#0F0F11);--bgh:linear-gradient(180deg,#2A2A31,#16161A);
+           --fg:#F2F2F4;--ac:#D4AF37;--bd:#D4AF37;--mu:#9C9CA6;--sh:0 4px 18px rgba(0,0,0,.45)}
+        .b.light{--bg:linear-gradient(180deg,#FFFFFF,#F3F3F5);--bgh:linear-gradient(180deg,#FFFFFF,#ECECF0);
+           --fg:#1B1B1F;--ac:#A87F0A;--bd:#C49A1C;--mu:#6B6B75;--sh:0 4px 16px rgba(0,0,0,.18)}
+        .b{display:flex;align-items:center;gap:8px;direction:rtl;font:600 13px/1 "Segoe UI",Tahoma,sans-serif;
+           background:var(--bg);color:var(--fg);border:1.5px solid var(--bd);border-radius:10px;
+           padding:6px 11px 6px 8px;cursor:pointer;box-shadow:var(--sh);user-select:none;transition:transform .12s;
+           backdrop-filter:blur(8px)}
+        .b:hover{transform:translateY(-1px);background:var(--bgh)}
+        .i{width:22px;height:22px;flex:none;border-radius:5px;display:block}
+        .s{color:var(--ac);font-weight:700}
+        .x{margin-inline-start:4px;color:var(--mu);font-weight:400;padding:0 3px}
+        .x:hover{color:var(--ac)}
       </style>
       <div class="b" title="IBDM Pro — اختر الجودة وحمّل">
-        <svg class="i" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="6" fill="#111" stroke="#D4AF37" stroke-width="1.5"/>
-          <path d="M12 5v8m-4-3 4 4 4-4M7 17h10" stroke="#F0D06E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <img class="i" alt="" src="${chrome.runtime.getURL('icons/icon48.png')}">
         <span class="t">تحميل هذا الفيديو</span><span class="s">IBDM Pro</span><span class="x" title="إخفاء">✕</span>
       </div>`;
     button = root.querySelector('.b');
+    applyTheme();
     label = root.querySelector('.t');
     root.querySelector('.x').addEventListener('click', e => {
       e.stopPropagation();
@@ -44,6 +52,27 @@
     host.addEventListener('mouseleave', () => scheduleHide());
     (document.fullscreenElement || document.documentElement).appendChild(host);
   }
+
+  // Follow the app's style (red glass / dark / light); remembered so the button is right before the app answers.
+  let theme = 'glass';
+  function applyTheme() {
+    if (!button) return;
+    button.classList.toggle('dark', theme === 'dark');
+    button.classList.toggle('light', theme === 'light');
+  }
+  function loadTheme() {
+    try {
+      chrome.storage.local.get({ theme: 'glass' }, v => { theme = v.theme || 'glass'; applyTheme(); });
+      chrome.runtime.sendMessage({ cmd: 'ping' }, res => {
+        if (chrome.runtime.lastError || !res || !res.app || !res.app.theme) return;
+        theme = res.app.theme;
+        chrome.storage.local.set({ theme });
+        applyTheme();
+      });
+    } catch (e) { }
+  }
+  loadTheme();
+  setInterval(loadTheme, 60000);
 
   function videoAt(x, y) {
     for (const v of document.querySelectorAll('video')) {

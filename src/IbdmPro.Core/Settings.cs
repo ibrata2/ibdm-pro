@@ -45,8 +45,28 @@ public sealed class Settings
     public bool ResumeOnStart { get; set; } = true;
 
     // App
-    /// <summary>"auto" = light or dark like Windows, "dark", or "light".</summary>
-    public string Theme { get; set; } = "auto";
+    /// <summary>"glass" (red glass, the default), "auto" = light or dark like Windows, "dark", or "light".</summary>
+    public string Theme { get; set; } = "glass";
+    /// <summary>Set once the red glass style has been made the default for an existing install.</summary>
+    public bool GlassDefaultApplied { get; set; } = true;
+
+    /// <summary>The style actually in use: "glass", "dark" or "light" ("auto" resolved from Windows).</summary>
+    public string ResolvedTheme => Theme switch
+    {
+        "glass" or "dark" or "light" => Theme,
+        _ => WindowsIsDark() ? "dark" : "light",
+    };
+
+    public static bool WindowsIsDark()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is not int light || light == 0;
+        }
+        catch (Exception) { return true; }
+    }
     public bool CheckUpdatesOnStart { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;
     public bool MinimizeToTray { get; set; } = true;
@@ -127,10 +147,19 @@ public sealed class Settings
         {
             if (File.Exists(FilePath))
             {
-                var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath), Json.Options);
+                var text = File.ReadAllText(FilePath);
+                var s = JsonSerializer.Deserialize<Settings>(text, Json.Options);
+                if (s is not null && !text.Contains("\"GlassDefaultApplied\"")) s.GlassDefaultApplied = false;
                 if (s is not null)
                 {
                     if (s.Categories.Count == 0) s.Categories = DefaultCategories();
+                    if (!s.GlassDefaultApplied)
+                    {
+                        // Older settings files: switch once to the new default red glass style.
+                        s.Theme = "glass";
+                        s.GlassDefaultApplied = true;
+                        try { Json.SaveAtomic(FilePath, s); } catch (Exception) { }
+                    }
                     if (s.Categories.All(c => c.Name != OtherCategory)) s.Categories.Add(DefaultCategories().Last());
                     s.Connections = Math.Clamp(s.Connections, 1, 32);
                     s.MaxParallel = Math.Clamp(s.MaxParallel, 1, 10);
