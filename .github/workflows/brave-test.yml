@@ -56,11 +56,14 @@ jobs:
           Get-Process brave -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep 3
           # Like loading it by hand: start Brave with the folder and see whether it runs.
-          Start-Process "C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe" -ArgumentList "--no-first-run", "--load-extension=$ext", "brave://extensions"
+          $bexe = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe" -ErrorAction SilentlyContinue).'(default)'
+          if (-not $bexe) { $bexe = (Get-ItemProperty "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\brave.exe" -ErrorAction SilentlyContinue).'(default)' }
+          $bexe | Out-File shots/brave-exe.txt
+          Start-Process $bexe -ArgumentList "--no-first-run", "--load-extension=$ext", "brave://extensions"
           Start-Sleep 25
           Shot "shots/brave-load-extension.png"
           Invoke-RestMethod http://127.0.0.1:39401/status | ConvertTo-Json -Compress | Out-File shots/status-2.txt
-          Get-ChildItem "C:\Program Files\BraveSoftware\Brave-Browser\Application" | Out-File shots/brave-dir.txt
+          
           Get-Process brave -ErrorAction SilentlyContinue | Stop-Process -Force
           Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
       - name: Push results

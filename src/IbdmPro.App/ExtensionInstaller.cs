@@ -409,7 +409,7 @@ public static class ExtensionInstaller
             if (el is null) continue;
             try
             {
-                foreach (AutomationElement e in el.FindAll(TreeScope.Descendants, Condition.TrueCondition))
+                foreach (AutomationElement e in el.FindAll(TreeScope.Descendants, System.Windows.Automation.Condition.TrueCondition))
                 {
                     try
                     {
