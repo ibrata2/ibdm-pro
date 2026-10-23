@@ -77,7 +77,24 @@ jobs:
           Expand-Archive dl/ffmpeg.zip dl/ffmpeg
           Get-ChildItem dl/ffmpeg -Recurse -Include ffmpeg.exe, ffprobe.exe | Copy-Item -Destination $tools
           if (!(Test-Path "$tools/ffmpeg.exe")) { throw "ffmpeg.exe missing" }
+          # Deno: the JavaScript runtime yt-dlp needs for YouTube formats.
+          Invoke-WebRequest "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip" -OutFile dl/deno.zip
+          Expand-Archive dl/deno.zip dl/deno
+          Copy-Item dl/deno/deno.exe $tools
+          if (!(Test-Path "$tools/deno.exe")) { throw "deno.exe missing" }
           & "$tools/yt-dlp.exe" --version
+          & "$tools/deno.exe" --version
+
+      - name: Real YouTube check (formats listed with Deno)
+        continue-on-error: true
+        run: |
+          $tools = (Resolve-Path build/publish/tools).Path
+          $json = & "$tools/yt-dlp.exe" -J --no-playlist --no-warnings --ignore-no-formats-error --js-runtimes "deno:$tools\deno.exe" "https://www.youtube.com/watch?v=jNQXAC9IVRw" 2>&1
+          try {
+            $d = ($json | Where-Object { $_ -like '{*' }) | ConvertFrom-Json
+            $heights = $d.formats | Where-Object { $_.height } | ForEach-Object { $_.height } | Sort-Object -Unique
+            Write-Host "title: $($d.title) — video heights: $($heights -join ', ') — formats: $($d.formats.Count)"
+          } catch { Write-Host "YouTube answer: $json" }
 
       - name: Check the app starts and talks to the extension
         run: |

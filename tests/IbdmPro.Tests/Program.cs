@@ -40,6 +40,10 @@ Check(settings.CategoryFor("movie.MKV").Name == "فيديو" && settings.Categor
 Check(settings.ShouldCapture("a.zip", "https://site.com/a.zip", 5000) && !settings.ShouldCapture("a.html", "https://site.com/a.html", 5000)
       && !settings.ShouldCapture("a.zip", "https://mail.google.com/x", 5000), "capture rules: extensions and excluded sites");
 
+Check(YtDlp.CleanUrl("https://www.youtube.com/watch?v=u8AjfvHBCSI&list=RDu8AjfvHBCSI&start_radio=1") == "https://www.youtube.com/watch?v=u8AjfvHBCSI"
+      && YtDlp.CleanUrl("https://youtu.be/abc?si=x") == "https://youtu.be/abc" && YtDlp.CleanUrl("https://site.com/a?b=1") == "https://site.com/a?b=1",
+      "YouTube mix/playlist links reduced to the single video");
+
 // ---------- probing ----------
 var info = new RequestInfo();
 var p1 = await Http.ProbeAsync($"{baseUrl}/file.bin", info);

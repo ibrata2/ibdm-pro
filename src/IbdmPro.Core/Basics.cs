@@ -24,6 +24,8 @@ public static class Paths
     public static string ToolsDir => Environment.GetEnvironmentVariable("IBDM_TOOLS") is { Length: > 0 } t ? t : Path.Combine(AppContext.BaseDirectory, "tools");
     public static string YtDlp => Tool("yt-dlp");
     public static string Ffmpeg => Tool("ffmpeg");
+    /// <summary>JavaScript runtime yt-dlp needs for YouTube (without it YouTube gives "Requested format is not available").</summary>
+    public static string Deno => Tool("deno");
     public static string ExtensionDir => Path.Combine(AppContext.BaseDirectory, "extension");
 
     private static string Tool(string name)

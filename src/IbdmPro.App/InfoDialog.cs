@@ -152,13 +152,16 @@ public sealed class InfoDialog : Window
             {
                 // A video on a page: the page address gives yt-dlp every quality (YouTube, Facebook…);
                 // otherwise the stream itself (m3u8/mp4); otherwise download the file as it is.
+                string? lastError = null;
                 var sources = new[] { _req.PageUrl, _req.Url }.Where(u => !string.IsNullOrEmpty(u) && !u!.StartsWith("blob:")).Distinct().ToList();
                 foreach (var src in sources)
                 {
                     _headTitle.Text = "جاري البحث عن الجودات المتوفرة…";
                     _headSub.Text = Host(src!);
                     try { _media = await YtDlp.GetInfoAsync(src!, info, ct); break; }
-                    catch (InvalidOperationException e) { Log.Write($"media {src}: {e.Message}"); }
+                    catch (InvalidOperationException e) { Log.Write($"media {src}: {e.Message}"); lastError ??= e.Message; }
+                    // On YouTube the page address is the right one; a stream address after it would only hide its error.
+                    if (YtDlp.IsYoutube(src!)) break;
                 }
                 if (_media is not null && _media.Options.Count > 0) { ShowMedia(); return; }
                 if (_req.Url.StartsWith("http"))
@@ -166,7 +169,7 @@ public sealed class InfoDialog : Window
                     _probe = await Http.ProbeAsync(_req.Url, info, ct);
                     if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
                 }
-                ShowError("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة.");
+                ShowError(lastError ?? "لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة.");
                 return;
             }
 
@@ -175,15 +178,17 @@ public sealed class InfoDialog : Window
 
             // A page address (YouTube, Instagram…) pasted as a link: look for a video in it.
             _headTitle.Text = "جاري البحث عن فيديو في الصفحة…";
+            string? mediaError = null;
             try
             {
                 _media = await YtDlp.GetInfoAsync(_req.Url, info, ct);
                 if (_media.Options.Count > 0) { ShowMedia(); return; }
             }
-            catch (InvalidOperationException e) { Log.Write($"media {_req.Url}: {e.Message}"); }
+            catch (InvalidOperationException e) { Log.Write($"media {_req.Url}: {e.Message}"); mediaError = e.Message; }
 
-            if (_probe.Error is null) ShowFile(); // a web page with no video: download the page itself
-            else ShowError(_probe.Error);
+            if (YtDlp.IsYoutube(_req.Url)) ShowError(mediaError ?? "لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة.");
+            else if (_probe.Error is null) ShowFile(); // a web page with no video: download the page itself
+            else ShowError(mediaError ?? _probe.Error);
         }
         catch (OperationCanceledException) { }
         catch (Exception e) { ShowError(e.Message); }
@@ -197,8 +202,9 @@ public sealed class InfoDialog : Window
         _headTile.Background = Theme.RedSoft;
         _body.Children.Clear();
         _body.Children.Add(Ui.Card(Ui.Text(message, 13, Theme.Ink, wrap: TextWrapping.Wrap)));
-        var url = Ui.Input(_req.Url);
+        var url = Ui.Input(YtDlp.CleanUrl(_req.PageUrl ?? _req.Url));
         url.IsReadOnly = true;
+        url.FlowDirection = FlowDirection.LeftToRight;
         url.Margin = new Thickness(0, 10, 0, 0);
         _body.Children.Add(url);
         var retry = Ui.Button("إعادة المحاولة", "", Theme.Button, async () => { Reset(); await LoadAsync(); });

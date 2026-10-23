@@ -51,6 +51,13 @@ public static class YtDlp
         psi.ArgumentList.Add("--encoding");
         psi.ArgumentList.Add("utf-8");
         psi.ArgumentList.Add("--no-colors");
+        // YouTube only lists its real formats to clients that can run its JavaScript; the bundled Deno does that.
+        var deno = Paths.Deno;
+        if (Path.IsPathRooted(deno) && File.Exists(deno))
+        {
+            psi.ArgumentList.Add("--js-runtimes");
+            psi.ArgumentList.Add("deno:" + deno);
+        }
         foreach (var a in args) psi.ArgumentList.Add(a);
         return psi;
     }
@@ -62,9 +69,64 @@ public static class YtDlp
         if (!string.IsNullOrEmpty(info.Cookies)) { yield return "--add-headers"; yield return "Cookie:" + info.Cookies; }
     }
 
+    /// <summary>Other YouTube clients to try when the default one gives no usable formats.</summary>
+    private const string YoutubeFallbackClients = "youtube:player_client=tv,web_safari,mweb,android_vr";
+
+    public static bool IsYoutube(string url)
+    {
+        try { var h = new Uri(url).Host; return h.EndsWith("youtube.com") || h == "youtu.be" || h.EndsWith("youtube-nocookie.com"); }
+        catch (Exception) { return false; }
+    }
+
+    /// <summary>"watch?v=ID&amp;list=…&amp;start_radio=1" → "watch?v=ID" (only the video, never the mix/playlist).</summary>
+    public static string CleanUrl(string url)
+    {
+        try
+        {
+            var u = new Uri(url);
+            if (!IsYoutube(url)) return url;
+            if (u.Host == "youtu.be") return url.Split('?')[0];
+            var q = System.Web.HttpUtility.ParseQueryString(u.Query);
+            var v = q["v"];
+            if (u.AbsolutePath == "/watch" && !string.IsNullOrEmpty(v))
+            {
+                var t = q["t"];
+                return $"https://www.youtube.com/watch?v={v}" + (string.IsNullOrEmpty(t) ? "" : $"&t={t}");
+            }
+        }
+        catch (Exception) { }
+        return url;
+    }
+
     public static async Task<MediaInfo> GetInfoAsync(string url, RequestInfo info, CancellationToken ct = default)
     {
-        var args = new List<string> { "-J", "--no-playlist", "--no-warnings", "--ignore-config" };
+        url = CleanUrl(url);
+        MediaInfo? media = null;
+        string? error = null;
+        try { media = await GetInfoOnce(url, info, null, ct); }
+        catch (InvalidOperationException e) { error = e.Message; }
+        // YouTube sometimes refuses one client: ask again as other clients before giving up.
+        if (IsYoutube(url) && (media is null || !media.Options.Any(o => !o.AudioOnly)))
+        {
+            Log.Write($"youtube retry with other clients ({error ?? "no video formats"})");
+            try
+            {
+                var again = await GetInfoOnce(url, info, YoutubeFallbackClients, ct);
+                if (again.Options.Count > (media?.Options.Count ?? 0)) { media = again; error = null; }
+            }
+            catch (InvalidOperationException e) { error ??= e.Message; }
+        }
+        if (media is null || media.Options.Count == 0)
+            throw new InvalidOperationException(error ?? "لم يتم العثور على جودات متوفرة لهذا الفيديو");
+        return media;
+    }
+
+    private static async Task<MediaInfo> GetInfoOnce(string url, RequestInfo info, string? extractorArgs, CancellationToken ct)
+    {
+        // --ignore-no-formats-error: return the video's details even when no format can be picked yet,
+        // instead of failing with "Requested format is not available".
+        var args = new List<string> { "-J", "--no-playlist", "--no-warnings", "--ignore-config", "--ignore-no-formats-error" };
+        if (extractorArgs is not null) { args.Add("--extractor-args"); args.Add(extractorArgs); }
         args.AddRange(HeaderArgs(info));
         args.Add("--");
         args.Add(url);
@@ -75,7 +137,11 @@ public static class YtDlp
         await p.WaitForExitAsync(ct);
         var stdout = await outTask;
         var stderr = await errTask;
-        if (p.ExitCode != 0 || stdout.Length == 0) throw new InvalidOperationException(CleanError(stderr) ?? "لم يتم العثور على فيديو في هذه الصفحة");
+        if (p.ExitCode != 0 || stdout.Length == 0)
+        {
+            Log.Write($"yt-dlp -J {url}: {stderr.Trim()}");
+            throw new InvalidOperationException(CleanError(stderr) ?? "لم يتم العثور على فيديو في هذه الصفحة");
+        }
         var media = Parse(stdout, url);
         // Ask the server for the real size of plain files whose size yt-dlp did not report.
         await Task.WhenAll(media.Options.Where(o => o.DirectUrl is not null && (o.Size <= 0 || o.SizeIsEstimate)).Select(async o =>
@@ -209,6 +275,17 @@ public static class YtDlp
     /// Returns the final file path as yt-dlp reports it after merging/converting.</summary>
     public static async Task<string> DownloadAsync(DownloadItem item, int connections, long speedLimit, Action<Progress> progress, CancellationToken ct)
     {
+        try { return await DownloadOnce(item, connections, speedLimit, progress, false, ct); }
+        catch (InvalidOperationException e) when (IsYoutube(item.Url) && !ct.IsCancellationRequested)
+        {
+            // Continue from the same .part files, asking YouTube as other clients.
+            Log.Write($"youtube download retry with other clients: {e.Message}");
+            return await DownloadOnce(item, connections, speedLimit, progress, true, ct);
+        }
+    }
+
+    private static async Task<string> DownloadOnce(DownloadItem item, int connections, long speedLimit, Action<Progress> progress, bool useFallbackClients, CancellationToken ct)
+    {
         Directory.CreateDirectory(item.Folder);
         var stem = Path.GetFileNameWithoutExtension(item.FileName);
         var pathFile = Path.Combine(Paths.AppData, $"ytdlp-{item.Id}.txt");
@@ -236,8 +313,9 @@ public static class YtDlp
             args.AddRange(["--merge-output-format", "mp4"]);
         }
         args.AddRange(HeaderArgs(item.Request));
+        if (useFallbackClients && IsYoutube(item.Url)) { args.Add("--extractor-args"); args.Add(YoutubeFallbackClients); }
         args.Add("--");
-        args.Add(item.Url);
+        args.Add(CleanUrl(item.Url));
 
         var errors = new List<string>();
         long phaseBase = 0, lastDone = 0, lastTotal = 0;
@@ -307,6 +385,10 @@ public static class YtDlp
         var line = stderr.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.StartsWith("ERROR:")) ?? stderr.Split('\n').Select(l => l.Trim()).LastOrDefault(l => l.Length > 0);
         if (string.IsNullOrEmpty(line)) return null;
         if (line.Contains("Unsupported URL")) return "هذا الرابط لا يحتوي على فيديو يمكن تحميله";
+        if (line.Contains("Requested format is not available") || line.Contains("No video formats found"))
+            return "يوتيوب لم يعطِ جودات لهذا الفيديو. اضغط «إعادة المحاولة»، وإذا تكرر حدّث محرك الفيديو من الإعدادات ← الإضافة ومحرك الفيديو.";
+        if (line.Contains("not a bot") || line.Contains("confirm you"))
+            return "يوتيوب طلب التحقق بأنك لست روبوت (بسبب كثرة الطلبات من نفس الإنترنت). انتظر قليلاً ثم أعد المحاولة.";
         if (line.Contains("HTTP Error 403")) return "الموقع رفض التحميل (403) — جرّب مرة ثانية أو حدّث محرك الفيديو من الإعدادات";
         if (line.Contains("Sign in") || line.Contains("login")) return "هذا الفيديو يحتاج تسجيل دخول";
         if (line.Contains("Private video")) return "هذا الفيديو خاص";
