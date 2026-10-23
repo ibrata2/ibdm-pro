@@ -129,6 +129,11 @@ jobs:
             $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
             $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
           }
+          # A fresh CI machine: skip the browsers' one-time welcome/sign-in screens (a normal PC is already past them).
+          foreach ($k in "HKLM:\SOFTWARE\Policies\Google\Chrome", "HKLM:\SOFTWARE\Policies\Microsoft\Edge") { New-Item -Path $k -Force | Out-Null }
+          Set-ItemProperty "HKLM:\SOFTWARE\Policies\Google\Chrome" BrowserSignin 0 -Type DWord
+          Set-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Edge" HideFirstRunExperience 1 -Type DWord
+          Set-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Edge" BrowserSignin 0 -Type DWord
           $ext = (Resolve-Path build/publish/extension).Path
           $app = Start-Process build/publish/IBDMPro.exe -ArgumentList "--background" -PassThru
           Start-Sleep 6

@@ -90,7 +90,7 @@ public static class ExtensionInstaller
 
             Say($"فتح {browser.Name} على صفحة الإضافات…");
             var before = BrowserWindows(browser.ProcessName).Select(w => w.Handle).ToHashSet();
-            Process.Start(new ProcessStartInfo(browser.Exe) { UseShellExecute = false, ArgumentList = { "--new-window", browser.ExtensionsPage } });
+            Process.Start(new ProcessStartInfo(browser.Exe) { UseShellExecute = false, ArgumentList = { "--no-first-run", "--no-default-browser-check", "--new-window", browser.ExtensionsPage } });
 
             // The extensions page: a browser window in which the developer-mode switch can be found.
             AutomationElement? window = null, devToggle = null;
