@@ -8,6 +8,17 @@
   let hideTimer = 0;
   let host, button, label;
   let sending = false;
+  // Where the user put the button on the video (fractions of the free space, 1,0 = top-right) and its size.
+  let pos = { fx: 1, fy: 0 }, scale = 1, dragging = false;
+  try {
+    api.storage.local.get({ btnPos: null, btnScale: 1 }).then(v => {
+      if (v.btnPos && isFinite(v.btnPos.fx) && isFinite(v.btnPos.fy)) pos = v.btnPos;
+      scale = Math.min(1.8, Math.max(0.6, +v.btnScale || 1));
+      applyScale(); place();
+    });
+  } catch (e) { }
+  function savePlace() { try { api.storage.local.set({ btnPos: pos, btnScale: scale }); } catch (e) { } }
+  function applyScale() { if (button) button.style.zoom = scale; }
 
   function makeButton() {
     host = document.createElement('div');
@@ -31,10 +42,18 @@
         .s{color:var(--ac);font-weight:700}
         .x{margin-inline-start:4px;color:var(--mu);font-weight:400;padding:0 3px}
         .x:hover{color:var(--ac)}
+        .b{position:relative}
+        .g{color:var(--mu);cursor:grab;padding:0 2px;font-size:15px;letter-spacing:-2px;touch-action:none}
+        .g:hover{color:var(--ac)} .g:active{cursor:grabbing}
+        .r{position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;cursor:nwse-resize;touch-action:none;
+           background:linear-gradient(135deg,transparent 58%,var(--bd) 58%,var(--bd) 70%,transparent 70%);opacity:.8}
+        .r:hover{opacity:1}
       </style>
       <div class="b" title="${t('IBDM Pro — اختر الجودة وحمّل')}">
+        <span class="g" title="${t('اسحب لتغيير المكان — نقرتين للرجوع للمكان الأصلي')}">⠿</span>
         <img class="i" alt="" src="${api.runtime.getURL('icons/icon48.png')}">
         <span class="t">${t('تحميل هذا الفيديو')}</span><span class="s">IBDM Pro</span><span class="x" title="${t('إخفاء')}">✕</span>
+        <span class="r" title="${t('اسحب لتكبير أو تصغير الزر')}"></span>
       </div>`;
     button = root.querySelector('.b');
     applyTheme();
@@ -47,7 +66,48 @@
     button.addEventListener('click', e => {
       e.stopPropagation();
       e.preventDefault();
+      if (e.target.closest('.g,.r')) return;
       download();
+    });
+    applyScale();
+    // Move: drag the ⠿ grip anywhere over the video.
+    const grip = root.querySelector('.g');
+    grip.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      if (!current) return;
+      grip.setPointerCapture(e.pointerId);
+      dragging = true;
+      const hr = host.getBoundingClientRect();
+      const ox = e.clientX - hr.left, oy = e.clientY - hr.top;
+      const move = ev => {
+        if (!current) return;
+        const r = current.getBoundingClientRect(), b = button.getBoundingClientRect();
+        const freeX = Math.max(1, r.width - b.width - 20), freeY = Math.max(1, r.height - b.height - 20);
+        pos = { fx: Math.min(1, Math.max(0, (ev.clientX - ox - r.left - 10) / freeX)), fy: Math.min(1, Math.max(0, (ev.clientY - oy - r.top - 10) / freeY)) };
+        place();
+      };
+      const up = () => { dragging = false; grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); savePlace(); };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    });
+    grip.addEventListener('dblclick', e => { e.stopPropagation(); e.preventDefault(); pos = { fx: 1, fy: 0 }; scale = 1; applyScale(); place(); savePlace(); });
+    // Resize: drag the corner.
+    const grow = root.querySelector('.r');
+    grow.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      grow.setPointerCapture(e.pointerId);
+      dragging = true;
+      const sx = e.clientX, sy = e.clientY, s0 = scale, w0 = button.getBoundingClientRect().width || 200;
+      const move = ev => {
+        const d = ((ev.clientX - sx) + (ev.clientY - sy) * 2) / 2;
+        scale = Math.min(1.8, Math.max(0.6, s0 * (w0 + d) / w0));
+        applyScale(); place();
+      };
+      const up = () => { dragging = false; grow.removeEventListener('pointermove', move); grow.removeEventListener('pointerup', up); grow.removeEventListener('pointercancel', up); savePlace(); };
+      grow.addEventListener('pointermove', move);
+      grow.addEventListener('pointerup', up);
+      grow.addEventListener('pointercancel', up);
     });
     host.addEventListener('mouseenter', () => clearTimeout(hideTimer));
     host.addEventListener('mouseleave', () => scheduleHide());
@@ -93,10 +153,11 @@
     if (!current || !host) return;
     const r = current.getBoundingClientRect();
     if (r.width < MIN_W || r.height < MIN_H || r.bottom < 0 || r.top > innerHeight) { hide(); return; }
-    // top-right corner of the video, kept on screen
-    const w = button.offsetWidth || 220;
-    const left = Math.max(6, Math.min(innerWidth - w - 6, r.right - w - 10));
-    const top = Math.max(6, r.top + 10);
+    // where the user put it on the video (top-right by default), kept on screen
+    const b = button.getBoundingClientRect();
+    const w = b.width || 220, h = b.height || 36;
+    const left = Math.max(6, Math.min(innerWidth - w - 6, r.left + 10 + pos.fx * Math.max(0, r.width - w - 20)));
+    const top = Math.max(6, Math.min(innerHeight - h - 6, r.top + 10 + pos.fy * Math.max(0, r.height - h - 20)));
     host.style.left = left + 'px';
     host.style.top = top + 'px';
   }
@@ -119,6 +180,7 @@
 
   function scheduleHide() {
     clearTimeout(hideTimer);
+    if (dragging) return;
     hideTimer = setTimeout(hide, 2500);
   }
 
@@ -143,6 +205,7 @@
     if (now - lastMove < 120) return;
     lastMove = now;
     const v = videoAt(e.clientX, e.clientY);
+    if (dragging) return;
     if (v) { if (v !== current) show(v); else clearTimeout(hideTimer); }
     else if (current && host && !host.matches(':hover')) scheduleHide();
   }, { passive: true });
