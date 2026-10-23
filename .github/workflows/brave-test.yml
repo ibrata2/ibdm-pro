@@ -47,6 +47,12 @@ jobs:
           for ($i = 1; $i -le 14; $i++) { Start-Sleep 8; Shot "shots/brave-$i.png"; if ($p.HasExited) { break } }
           $p.WaitForExit(60000) | Out-Null
           Shot "shots/brave-final.png"
+          # Open the extension's "Errors" page and photograph it.
+          Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Errors")
+          $btn = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+          if ($btn) { $btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke(); Start-Sleep 3; Shot "shots/brave-errors.png" } else { "no errors button" | Out-File shots/no-errors.txt }
           Start-Process $exe -ArgumentList "--dump-uia", "brave", "$PWD/shots/uia-1.txt" -Wait
           Start-Sleep 5
           Start-Process $exe -ArgumentList "--dump-uia", "brave", "$PWD/shots/uia-2.txt" -Wait
