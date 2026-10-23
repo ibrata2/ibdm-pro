@@ -100,6 +100,8 @@ public static class ExtensionInstaller
             var until = DateTime.Now.AddSeconds(45);
             var navigatedAt = DateTime.MinValue;
             var maximized = false;
+            var sideMenu = false;
+            var windowHandle = IntPtr.Zero;
             var tries = 0;
             while (DateTime.Now < until && devToggle is null)
             {
@@ -118,8 +120,8 @@ public static class ExtensionInstaller
                     if (el is null) continue;
                     var t = FindToggle(el);
                     // Edge hides developer mode inside the ☰ side menu when the window is narrow.
-                    if (t is null && OpenSideMenu(el)) { Thread.Sleep(900); t = FindToggle(el); }
-                    if (t is not null) { window = el; devToggle = t; break; }
+                    if (t is null && OpenSideMenu(el)) { Thread.Sleep(900); t = FindToggle(el); sideMenu = t is not null; }
+                    if (t is not null) { window = el; devToggle = t; windowHandle = w.Handle; break; }
                 }
                 if (devToggle is null && wins.Count > 0 && (DateTime.Now - navigatedAt).TotalSeconds > 8 && tries < 3
                     && DateTime.Now > (navigatedAt == DateTime.MinValue ? DateTime.Now.AddSeconds(-1) : navigatedAt))
@@ -143,6 +145,14 @@ public static class ExtensionInstaller
             {
                 tp.Toggle();
                 Thread.Sleep(900);
+            }
+            if (sideMenu)
+            {
+                // Close Edge's side menu again: while it is open the buttons behind it cannot be pressed.
+                SetForegroundWindow(windowHandle);
+                Thread.Sleep(200);
+                System.Windows.Forms.SendKeys.SendWait("{ESC}");
+                Thread.Sleep(800);
             }
 
             Say("الضغط على «تحميل إضافة غير مُجمَّعة»…");
