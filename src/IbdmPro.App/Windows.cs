@@ -238,7 +238,7 @@ public sealed class AboutWindow : Window
         {
             Children =
             {
-                Center(Ui.Text(L.T("من تصميم و تطوير و تعريب"), 13, Theme.Muted)),
+                Center(Ui.Text(L.T("برمجة و تطوير"), 13, Theme.Muted)),
                 Center(Ui.Text(L.T("ابراهيم الخزرجي"), 20, Theme.Gold, bold: true)),
             },
         });

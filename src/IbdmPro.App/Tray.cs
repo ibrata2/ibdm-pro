@@ -8,6 +8,7 @@ public sealed class Tray : IDisposable
 {
     private readonly WF.NotifyIcon _icon;
     private string? _lastFile;
+    private Action? _onClick;
 
     public Tray(IbdmApp app)
     {
@@ -36,13 +37,23 @@ public sealed class Tray : IDisposable
         _icon.MouseClick += (_, e) => { if (e.Button == WF.MouseButtons.Left) app.ShowMain(); };
         _icon.BalloonTipClicked += (_, _) =>
         {
+            if (_onClick is { } click) { click(); return; }
             if (_lastFile is not null && File.Exists(_lastFile)) Ui.ShowInFolder(_lastFile);
             else app.ShowMain();
         };
     }
 
+    /// <summary>A Windows notice that runs <paramref name="onClick"/> when clicked.</summary>
+    public void Notify(string title, string text, Action onClick)
+    {
+        _lastFile = null;
+        _onClick = onClick;
+        _icon.ShowBalloonTip(8000, title, text.Length > 200 ? text[..200] : text, WF.ToolTipIcon.Info);
+    }
+
     public void Notify(string title, string text, string? file)
     {
+        _onClick = null;
         _lastFile = file;
         _icon.ShowBalloonTip(4000, title, text.Length > 200 ? text[..200] : text, WF.ToolTipIcon.None);
     }

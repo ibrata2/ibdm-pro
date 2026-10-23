@@ -54,22 +54,36 @@ public static class Updater
     }
 
     /// <summary>Quiet check when the app starts: only speaks up (tray message) when there is something new.</summary>
+    private static Version? _announced;
+
+    /// <summary>Checks 20 seconds after start, then every 6 hours. When a newer version exists: a Windows notice
+    /// (click it to update) and a banner at the top of the main window — once per new version.</summary>
     public static async Task CheckInBackground()
     {
-        try
+        await Task.Delay(TimeSpan.FromSeconds(20));
+        while (true)
         {
-            await Task.Delay(TimeSpan.FromSeconds(20));
-            var r = await LatestAsync();
-            if (r is not null && r.Version > Current)
+            try
             {
-                IbdmApp.Instance.Dispatcher.Invoke(() =>
+                if (Settings.Current.CheckUpdatesOnStart)
                 {
-                    IbdmApp.Instance.Main.ShowUpdateBadge(r.Version.ToString());
-                    IbdmApp.Instance.Tray?.Notify(L.T("يتوفر إصدار جديد من IBDM Pro"), L.F("الإصدار {0} — اضغط زر «التحديثات» بالبرنامج لتثبيته.", r.Version), null);
-                });
+                    var r = await LatestAsync();
+                    if (r is not null && r.Version > Current && r.Version != _announced)
+                    {
+                        _announced = r.Version;
+                        IbdmApp.Instance.Dispatcher.Invoke(() =>
+                        {
+                            var app = IbdmApp.Instance;
+                            app.Main.ShowUpdateBadge(r.Version.ToString());
+                            app.Tray?.Notify(L.T("يتوفر إصدار جديد من IBDM Pro"), L.F("الإصدار {0} — اضغط هنا للتحديث.", r.Version),
+                                () => { app.ShowMain(); ShowWindow(app.Main); });
+                        });
+                    }
+                }
             }
+            catch (Exception e) { Log.Write($"update check: {e.Message}"); }
+            await Task.Delay(TimeSpan.FromHours(6));
         }
-        catch (Exception e) { Log.Write($"update check: {e.Message}"); }
     }
 
     public static void ShowWindow(Window owner) => new UpdateWindow { Owner = owner.IsVisible ? owner : null }.ShowDialog();

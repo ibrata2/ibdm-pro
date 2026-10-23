@@ -44,6 +44,10 @@ public sealed class Row : INotifyPropertyChanged
     };
     public bool Indeterminate => Item.Status == DownloadStatus.Processing || (Item.Status == DownloadStatus.Downloading && Item.TotalBytes <= 0);
     public string Date => (Item.Finished ?? Item.Added).ToString("yyyy/MM/dd HH:mm");
+    // which row buttons show
+    public Visibility PauseVisible => Item.IsActive || Item.Status == DownloadStatus.Queued ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ResumeVisible => Item.Status is DownloadStatus.Paused or DownloadStatus.Error ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility FolderVisible => Item.Status == DownloadStatus.Completed ? Visibility.Visible : Visibility.Collapsed;
 
     public void Refresh() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
 }
@@ -65,9 +69,31 @@ public sealed class MainWindow : Window
     private readonly TextBlock _detail = Ui.Text("", 12, Theme.Muted);
     private Button? _updateTool;
 
-    /// <summary>Marks the toolbar's update button when a newer version was found in the background.</summary>
+    private readonly Border _updateBanner = new() { Visibility = Visibility.Collapsed };
+
+    /// <summary>Marks the toolbar's update button and shows a banner when a newer version was found in the background.</summary>
     public void ShowUpdateBadge(string version)
     {
+        var row = new DockPanel { Margin = new Thickness(14, 8, 14, 8) };
+        var close = Ui.Button("", "\uE711", Theme.ToolButton, () => _updateBanner.Visibility = Visibility.Collapsed);
+        close.Padding = new Thickness(8, 4, 8, 4);
+        DockPanel.SetDock(close, Dock.Right);
+        row.Children.Add(close);
+        var go = Ui.Button(L.T("تحديث الآن"), "\uE896", Theme.PrimaryButton, () => Updater.ShowWindow(this));
+        go.Padding = new Thickness(14, 5, 14, 5);
+        go.Margin = new Thickness(8, 0, 8, 0);
+        DockPanel.SetDock(go, Dock.Right);
+        row.Children.Add(go);
+        var icon = Ui.Glyph("\uE895", 16, Theme.Gold);
+        icon.Margin = new Thickness(0, 0, 10, 0);
+        DockPanel.SetDock(icon, Dock.Left);
+        row.Children.Add(icon);
+        row.Children.Add(Ui.Text(L.F("يتوفر إصدار جديد من IBDM Pro: {0}", version), 13, Theme.Ink, bold: true));
+        _updateBanner.Child = row;
+        _updateBanner.Background = Theme.GoldSoft;
+        _updateBanner.BorderBrush = Theme.Gold;
+        _updateBanner.BorderThickness = new Thickness(0, 0, 0, 1);
+        _updateBanner.Visibility = Visibility.Visible;
         if (_updateTool?.Content is not StackPanel sp) return;
         if (sp.Children[0] is TextBlock g) g.Foreground = Theme.Gold;
         if (sp.Children[1] is TextBlock t) { t.Text = L.T("تحديث جديد!"); t.Foreground = Theme.Gold; t.FontWeight = FontWeights.SemiBold; }
@@ -92,6 +118,8 @@ public sealed class MainWindow : Window
         var toolbar = Toolbar();
         DockPanel.SetDock(toolbar, Dock.Top);
         root.Children.Add(toolbar);
+        DockPanel.SetDock(_updateBanner, Dock.Top);
+        root.Children.Add(_updateBanner);
         var status = StatusBar();
         DockPanel.SetDock(status, Dock.Bottom);
         root.Children.Add(status);
@@ -187,7 +215,7 @@ public sealed class MainWindow : Window
     {
         var bar = new DockPanel { Background = Theme.Panel, LastChildFill = false };
         var credit = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 5, 14, 5) };
-        credit.Children.Add(Ui.Text(L.T("من تصميم و تطوير و تعريب "), 12, Theme.Muted));
+        credit.Children.Add(Ui.Text(L.T("برمجة و تطوير "), 12, Theme.Muted));
         credit.Children.Add(Ui.Text(L.T("ابراهيم الخزرجي"), 12, Theme.Gold, bold: true));
         DockPanel.SetDock(credit, Dock.Left);
         bar.Children.Add(credit);
@@ -270,7 +298,7 @@ public sealed class MainWindow : Window
         nameText.SetBinding(FrameworkElement.FlowDirectionProperty, new Binding(nameof(Row.NameFlow)));
         nameText.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
         name.AppendChild(nameText);
-        grid.Columns.Add(Column(L.T("الاسم"), 340, name, "name"));
+        grid.Columns.Add(Column(L.T("الاسم"), 300, name, "name"));
 
         grid.Columns.Add(Column(L.T("الحجم"), 95, TextCell(nameof(Row.Size), ltr: true), "size"));
 
@@ -290,7 +318,16 @@ public sealed class MainWindow : Window
         grid.Columns.Add(Column(L.T("السرعة"), 95, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
         grid.Columns.Add(Column(L.T("المتبقي"), 75, TextCell(nameof(Row.Eta), ltr: true), "eta"));
         grid.Columns.Add(Column(L.T("الحالة"), 150, TextCell(nameof(Row.Status), null, 12.5, nameof(Row.StatusBrush)), "status"));
-        grid.Columns.Add(Column(L.T("التاريخ"), 150, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
+        grid.Columns.Add(Column(L.T("التاريخ"), 135, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
+
+        // buttons on each row: pause / resume, open folder (finished), delete
+        var actions = new FrameworkElementFactory(typeof(StackPanel));
+        actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        actions.AppendChild(RowButton("\uE769", L.T("إيقاف"), nameof(Row.PauseVisible), Theme.Ink, r => _manager.Pause(r.Item)));
+        actions.AppendChild(RowButton("\uE768", L.T("استئناف"), nameof(Row.ResumeVisible), Theme.Green, r => _manager.Resume(r.Item)));
+        actions.AppendChild(RowButton("\uE838", L.T("فتح المجلد"), nameof(Row.FolderVisible), Theme.Ink, r => Ui.ShowInFolder(r.Item.FullPath)));
+        actions.AppendChild(RowButton("\uE711", L.T("حذف"), null, Theme.Red, r => { _list.SelectedItem = r; Delete(); }));
+        grid.Columns.Add(new GridViewColumn { Header = new GridViewColumnHeader { Content = "", IsHitTestVisible = false }, Width = 120, CellTemplate = new DataTemplate { VisualTree = actions } });
         _list.View = grid;
 
         _list.MouseDoubleClick += (_, e) =>
@@ -305,6 +342,32 @@ public sealed class MainWindow : Window
         var menu = new ContextMenu { FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
         _list.ContextMenu = menu;
         _list.ContextMenuOpening += (_, e) => { if (Selected().Count == 0) e.Handled = true; else FillMenu(menu); };
+    }
+
+    /// <summary>A small square icon button in a list row; <paramref name="visibleWhen"/> names a Row property.</summary>
+    private FrameworkElementFactory RowButton(string glyph, string tip, string? visibleWhen, Brush color, Action<Row> act)
+    {
+        var b = new FrameworkElementFactory(typeof(Button));
+        b.SetValue(FrameworkElement.StyleProperty, Theme.Button);
+        b.SetValue(Control.PaddingProperty, new Thickness(0));
+        b.SetValue(FrameworkElement.WidthProperty, 28.0);
+        b.SetValue(FrameworkElement.HeightProperty, 26.0);
+        b.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 2, 0));
+        b.SetValue(FrameworkElement.ToolTipProperty, tip);
+        if (visibleWhen is not null) b.SetBinding(UIElement.VisibilityProperty, new Binding(visibleWhen));
+        var g = new FrameworkElementFactory(typeof(TextBlock));
+        g.SetValue(TextBlock.TextProperty, glyph);
+        g.SetValue(TextBlock.FontFamilyProperty, Theme.Icons);
+        g.SetValue(TextBlock.FontSizeProperty, 12.0);
+        g.SetValue(TextBlock.ForegroundProperty, color);
+        g.SetValue(FrameworkElement.FlowDirectionProperty, FlowDirection.LeftToRight);
+        b.AppendChild(g);
+        b.AddHandler(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, new RoutedEventHandler((s, e) =>
+        {
+            e.Handled = true;
+            if (s is FrameworkElement { DataContext: Row r }) { act(r); Sync(); }
+        }));
+        return b;
     }
 
     private GridViewColumn Column(string header, double width, FrameworkElementFactory cell, string sortKey)

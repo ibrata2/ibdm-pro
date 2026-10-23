@@ -464,7 +464,12 @@ public static class Ui
         w.Foreground = Theme.Ink;
         w.FontFamily = Theme.Font;
         w.FontSize = 13;
-        w.FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        // The window stays left-to-right so Windows keeps minimize / maximize / close on the right in both
+        // languages; its content (set after this) follows the language.
+        w.FlowDirection = FlowDirection.LeftToRight;
+        var contentDir = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        System.ComponentModel.DependencyPropertyDescriptor.FromProperty(ContentControl.ContentProperty, typeof(Window))
+            .AddValueChanged(w, (_, _) => { if (w.Content is FrameworkElement fe) fe.FlowDirection = contentDir; });
         w.Icon = AppIcon(32);
         w.UseLayoutRounding = true;
         TextOptions.SetTextFormattingMode(w, TextFormattingMode.Display);

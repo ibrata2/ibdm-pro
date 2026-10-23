@@ -330,3 +330,8 @@ Note: Firefox removes a temporary add-on when it closes. To keep it installed, t
 Open Firefox
 Open Firefox extension folder
 Firefox is not installed on this computer.
+Programmed and developed by 
+Programmed and developed by
+Version {0} — click here to update.
+Update now
+A new version of IBDM Pro is available: {0}

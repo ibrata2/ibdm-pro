@@ -158,7 +158,7 @@ public sealed class IbdmApp : Application
         Manager.Begin();
         if (!_background) ShowMain();
         WatchWindowsTheme();
-        if (settings.CheckUpdatesOnStart) _ = Updater.CheckInBackground();
+        _ = Updater.CheckInBackground();
 
         if (SetupExtensions)
         {
