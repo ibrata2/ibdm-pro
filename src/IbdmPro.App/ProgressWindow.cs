@@ -307,11 +307,12 @@ public sealed class ProgressWindow : Window
         Refresh();
     }
 
-    private async void Cancel()
+    /// <summary>"Cancel download": stops it and closes this window. The download stays in the list as paused,
+    /// with what was already downloaded, so it can be resumed later (deleting is done from the main window).</summary>
+    private void Cancel()
     {
-        if (Ui.Ask(this, L.T("إلغاء التحميل"), L.F("إلغاء تحميل «{0}» وحذف الجزء المحمَّل؟", _item.FileName), L.T("نعم، إلغاء"), L.T("لا")) != 0) return;
+        _manager.Pause(_item);
         Close();
-        await _manager.RemoveAsync(_item, deleteFile: false);
     }
 
     private void ToggleDetails()
