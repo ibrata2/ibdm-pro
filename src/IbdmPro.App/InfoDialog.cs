@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -291,42 +292,98 @@ public sealed class InfoDialog : Window
         top.Children.Add(titleBox);
         _body.Children.Add(top);
 
-        // qualities
-        _body.Children.Add(Ui.Label("اختر الجودة (الحجم بجانب كل جودة)"));
-        var list = new StackPanel();
+        // qualities: one drop-down — the chosen quality shows, the rest open in a list under it
+        _body.Children.Add(Ui.Label("الجودة"));
         var defaultOption = m.Options.FirstOrDefault(o => !o.AudioOnly && o.Height is > 0 and <= 1080 && o.Ext == "mp4")
             ?? m.Options.FirstOrDefault(o => !o.AudioOnly) ?? m.Options[0];
-        var addedAudioHeader = false;
-        foreach (var o in m.Options)
+
+        UIElement OptionRow(MediaOption o, bool header)
         {
-            if (o.AudioOnly && !addedAudioHeader)
+            var row = new DockPanel { LastChildFill = true };
+            if (header)
             {
-                addedAudioHeader = true;
-                list.Children.Add(Ui.Label("صوت فقط"));
+                var chevron = Ui.Glyph("\uE70D", 12, Theme.Muted);
+                chevron.Margin = new Thickness(12, 0, 0, 0);
+                DockPanel.SetDock(chevron, Dock.Right);
+                row.Children.Add(chevron);
             }
-            var row = new DockPanel();
             var size = o.Size > 0 ? Ui.Ltr(o.SizeText, 13, Theme.Gold, bold: true) : Ui.Text(o.SizeText, 12.5, Theme.Muted);
             DockPanel.SetDock(size, Dock.Right);
             row.Children.Add(size);
-            var g = Ui.Glyph(o.AudioOnly ? "" : "", 15, o.AudioOnly ? Theme.Br("#A86BF0") : Theme.Br("#E5533D"));
+            var g = Ui.Glyph(o.AudioOnly ? "\uE8D6" : "\uE714", 15, o.AudioOnly ? Theme.Br("#A86BF0") : Theme.Br("#E5533D"));
             g.Margin = new Thickness(0, 0, 10, 0);
             DockPanel.SetDock(g, Dock.Left);
             row.Children.Add(g);
             row.Children.Add(o.AudioOnly ? Ui.Text(o.Label, 13, Theme.Ink) : Ui.Ltr(o.Label, 13, Theme.Ink));
-            var rb = new RadioButton { Style = Theme.Choice, Content = row, GroupName = "q" + GetHashCode(), Tag = o, HorizontalContentAlignment = HorizontalAlignment.Stretch };
-            rb.Checked += (_, _) => SelectOption((MediaOption)rb.Tag);
-            rb.MouseDoubleClick += (_, _) => { if (_start.IsEnabled) Finish(true); };
-            list.Children.Add(rb);
-            if (o == defaultOption) rb.IsChecked = true;
+            return row;
         }
-        _body.Children.Add(list);
+
+        var picker = new ToggleButton
+        {
+            Style = Theme.Button, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(12, 9, 12, 9), Cursor = System.Windows.Input.Cursors.Hand,
+        };
+        var popupList = new StackPanel { Margin = new Thickness(6) };
+        var popup = new Popup
+        {
+            PlacementTarget = picker, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true,
+            PopupAnimation = PopupAnimation.Fade, FlowDirection = FlowDirection.RightToLeft,
+            Child = new Border
+            {
+                Background = Theme.Card, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(0, 4, 0, 12),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 18, ShadowDepth = 2, Opacity = 0.25 },
+                Child = new ScrollViewer { Content = popupList, MaxHeight = 380, VerticalScrollBarVisibility = ScrollBarVisibility.Auto },
+            },
+        };
+        picker.SizeChanged += (_, _) => popup.MinWidth = popup.MaxWidth = picker.ActualWidth;
+        picker.Checked += (_, _) => popup.IsOpen = true;
+        picker.Unchecked += (_, _) => popup.IsOpen = false;
+        popup.Closed += (_, _) => picker.IsChecked = false;
+
+        void Choose(MediaOption o)
+        {
+            picker.Content = OptionRow(o, header: true);
+            foreach (var child in popupList.Children)
+                if (child is RadioButton r) r.IsChecked = r.Tag == o;
+            SelectOption(o);
+        }
+
+        var addedAudioHeader = false;
+        var addedVideoHeader = false;
+        foreach (var o in m.Options)
+        {
+            if (!o.AudioOnly && !addedVideoHeader)
+            {
+                addedVideoHeader = true;
+                var vh = Ui.Text("فيديو", 11.5, Theme.Muted);
+                vh.Margin = new Thickness(8, 4, 8, 4);
+                popupList.Children.Add(vh);
+            }
+            if (o.AudioOnly && !addedAudioHeader)
+            {
+                addedAudioHeader = true;
+                var ah = Ui.Text("صوت فقط", 11.5, Theme.Muted);
+                ah.Margin = new Thickness(8, 8, 8, 4);
+                popupList.Children.Add(ah);
+            }
+            var rb = new RadioButton
+            {
+                Style = Theme.Choice, Content = OptionRow(o, header: false), GroupName = "q" + GetHashCode(), Tag = o,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new Thickness(0, 0, 0, 3), Padding = new Thickness(10, 7, 10, 7),
+            };
+            rb.Click += (_, _) => { Choose((MediaOption)rb.Tag); popup.IsOpen = false; };
+            rb.MouseDoubleClick += (_, _) => { if (_start.IsEnabled) Finish(true); };
+            popupList.Children.Add(rb);
+        }
+        _body.Children.Add(picker);
+        Choose(defaultOption);
 
         _body.Children.Add(Ui.Label("اسم الملف"));
         _body.Children.Add(_name);
         AddWhere();
 
         _start.IsEnabled = _later.IsEnabled = true;
-        SelectOption(defaultOption);
         _start.Focus();
     }
 

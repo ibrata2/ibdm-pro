@@ -158,7 +158,7 @@ public static class Theme
         bd.SetBinding(Border.BorderThicknessProperty, TP("BorderThickness"));
         bd.SetBinding(Border.PaddingProperty, TP("Padding"));
         var cp = new FrameworkElementFactory(typeof(ContentPresenter));
-        cp.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        cp.SetBinding(FrameworkElement.HorizontalAlignmentProperty, TP("HorizontalContentAlignment"));
         cp.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         bd.AppendChild(cp);
         var t = new ControlTemplate(typeof(ButtonBase)) { VisualTree = bd };
@@ -171,6 +171,7 @@ public static class Theme
         s.Setters.Add(new Setter(Control.ForegroundProperty, fg));
         s.Setters.Add(new Setter(Control.BorderBrushProperty, border));
         s.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
+        s.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Center));
         s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(16, 7, 16, 7)));
         s.Setters.Add(new Setter(Control.FontSizeProperty, 13.0));
         s.Setters.Add(new Setter(FrameworkElement.CursorProperty, Cursors.Hand));
