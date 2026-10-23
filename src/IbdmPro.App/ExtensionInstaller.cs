@@ -220,7 +220,9 @@ public static class ExtensionInstaller
                 if (n.Contains("menu") || n.Contains("قائمه") || n.Contains("navigation") || n.Contains("تنقل") || id.Contains("menu") || id.Contains("hamburger"))
                 {
                     var r = e.Current.BoundingRectangle;
-                    if (r.Top > 260 || r.Width > 80) continue; // only the small button by the page title, not browser menus
+                    var wr = window.Current.BoundingRectangle;
+                    // Only the small button next to the page's title — not the tab strip or toolbar menus above it.
+                    if (r.Top < wr.Top + 90 || r.Top > wr.Top + 280 || r.Width > 80 || r.Left > wr.Left + 200) continue;
                     if (n.Contains("settings and more") || n.Contains("الاعدادات والمزيد")) continue;
                     ((InvokePattern)e.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
                     return true;
