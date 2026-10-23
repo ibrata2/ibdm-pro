@@ -4,6 +4,9 @@ on:
   push:
     branches: [brave-test]
 
+permissions:
+  contents: write
+
 jobs:
   brave:
     runs-on: windows-latest
@@ -44,9 +47,9 @@ jobs:
           for ($i = 1; $i -le 14; $i++) { Start-Sleep 8; Shot "shots/brave-$i.png"; if ($p.HasExited) { break } }
           $p.WaitForExit(60000) | Out-Null
           Shot "shots/brave-final.png"
-          Write-Host "===== report ====="; Get-Content install-brave.txt -ErrorAction SilentlyContinue
-          Write-Host "===== log ====="; Get-Content "$env:APPDATA/IBDM Pro/log.txt" -ErrorAction SilentlyContinue | Select-Object -Last 40
-          Invoke-RestMethod http://127.0.0.1:39401/status | ConvertTo-Json -Compress
+          Copy-Item install-brave.txt shots/ -ErrorAction SilentlyContinue
+          Copy-Item "$env:APPDATA/IBDM Pro/log.txt" shots/ -ErrorAction SilentlyContinue
+          Invoke-RestMethod http://127.0.0.1:39401/status | ConvertTo-Json -Compress | Out-File shots/status-1.txt
           $pref = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\Default\Secure Preferences"
           if (Test-Path $pref) { (Get-Content $pref -Raw) -split '"' | Select-String -SimpleMatch "IBDM" | Select-Object -First 5 }
           Get-Process brave -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -55,11 +58,16 @@ jobs:
           Start-Process "C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe" -ArgumentList "--no-first-run", "--load-extension=$ext", "brave://extensions"
           Start-Sleep 25
           Shot "shots/brave-load-extension.png"
-          Invoke-RestMethod http://127.0.0.1:39401/status | ConvertTo-Json -Compress
+          Invoke-RestMethod http://127.0.0.1:39401/status | ConvertTo-Json -Compress | Out-File shots/status-2.txt
+          Get-ChildItem "C:\Program Files\BraveSoftware\Brave-Browser\Application" | Out-File shots/brave-dir.txt
           Get-Process brave -ErrorAction SilentlyContinue | Stop-Process -Force
           Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
-      - uses: actions/upload-artifact@v4
+      - name: Push results
         if: always()
-        with:
-          name: brave-shots
-          path: shots
+        run: |
+          git config user.name ci; git config user.email ci@example.com
+          git checkout --orphan brave-results
+          git rm -rf --cached . | Out-Null
+          git add -f shots
+          git commit -m "brave results" | Out-Null
+          git push -f origin brave-results
