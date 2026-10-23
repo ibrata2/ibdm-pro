@@ -90,6 +90,7 @@ public static class ExtensionInstaller
 
             Say($"فتح {browser.Name} على صفحة الإضافات…");
             var before = BrowserWindows(browser.ProcessName).Select(w => w.Handle).ToHashSet();
+            var launched = DateTime.Now;
             Process.Start(new ProcessStartInfo(browser.Exe) { UseShellExecute = false, ArgumentList = { "--no-first-run", "--no-default-browser-check", "--new-window", browser.ExtensionsPage } });
 
             // The extensions page: a browser window in which the developer-mode switch can be found.
@@ -98,17 +99,26 @@ public static class ExtensionInstaller
             AutomationElement? window = null, devToggle = null;
             var until = DateTime.Now.AddSeconds(45);
             var navigatedAt = DateTime.MinValue;
+            var maximized = false;
             var tries = 0;
             while (DateTime.Now < until && devToggle is null)
             {
                 ct.ThrowIfCancellationRequested();
                 Thread.Sleep(700);
                 var wins = BrowserWindows(browser.ProcessName).OrderByDescending(w => !before.Contains(w.Handle)).ToList();
+                if (wins.Count > 0 && !maximized && (DateTime.Now - launched).TotalSeconds > 2)
+                {
+                    ShowWindow(wins[0].Handle, 3); // maximized: the extensions page shows its whole toolbar
+                    maximized = true;
+                    Thread.Sleep(600);
+                }
                 foreach (var w in wins)
                 {
                     var el = Element(w.Handle);
                     if (el is null) continue;
                     var t = FindToggle(el);
+                    // Edge hides developer mode inside the ☰ side menu when the window is narrow.
+                    if (t is null && OpenSideMenu(el)) { Thread.Sleep(900); t = FindToggle(el); }
                     if (t is not null) { window = el; devToggle = t; break; }
                 }
                 if (devToggle is null && wins.Count > 0 && (DateTime.Now - navigatedAt).TotalSeconds > 8 && tries < 3
@@ -191,6 +201,37 @@ public static class ExtensionInstaller
         }
         return r;
     }
+
+    /// <summary>On Edge's extensions page with a narrow window, opens the ☰ menu that holds "Developer mode".</summary>
+    private static bool OpenSideMenu(AutomationElement window)
+    {
+        try
+        {
+            var url = "";
+            foreach (AutomationElement e in window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit)))
+            {
+                if (e.TryGetCurrentPattern(ValuePattern.Pattern, out var vp)) { url = ((ValuePattern)vp).Current.Value ?? ""; break; }
+            }
+            if (!url.Contains("extensions")) return false;
+            foreach (AutomationElement e in window.FindAll(TreeScope.Descendants, new PropertyCondition(AutomationElement.IsInvokePatternAvailableProperty, true)))
+            {
+                var n = Norm(e.Current.Name);
+                var id = Norm(e.Current.AutomationId);
+                if (n.Contains("menu") || n.Contains("قائمه") || n.Contains("navigation") || n.Contains("تنقل") || id.Contains("menu") || id.Contains("hamburger"))
+                {
+                    var r = e.Current.BoundingRectangle;
+                    if (r.Top > 260 || r.Width > 80) continue; // only the small button by the page title, not browser menus
+                    if (n.Contains("settings and more") || n.Contains("الاعدادات والمزيد")) continue;
+                    ((InvokePattern)e.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+                    return true;
+                }
+            }
+        }
+        catch (Exception) { }
+        return false;
+    }
+
+    [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr h, int cmd);
 
     /// <summary>Puts an address in the browser's address bar and opens it.</summary>
     private static bool TypeAddress(IntPtr window, string address)
