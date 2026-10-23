@@ -236,8 +236,8 @@ public sealed class SettingsWindow : Window
 
     // general
     private readonly TextBox _root = Ui.Input();
-    private readonly CheckBox _startup, _tray, _notify, _showInfo, _resume, _updates;
-    private readonly RadioButton _themeAuto = new(), _themeDark = new(), _themeLight = new();
+    private readonly CheckBox _startup, _tray, _notify, _showInfo, _resume, _updates, _showProgress;
+    private readonly RadioButton _themeAuto = new(), _themeDark = new(), _themeLight = new(), _themeGlass = new();
     // speed
     private readonly Slider _conn = new() { Minimum = 1, Maximum = 32, IsSnapToTickEnabled = true, TickFrequency = 1 };
     private readonly Slider _parallel = new() { Minimum = 1, Maximum = 10, IsSnapToTickEnabled = true, TickFrequency = 1 };
@@ -265,6 +265,7 @@ public sealed class SettingsWindow : Window
         _startup = Ui.Check("تشغيل IBDM Pro مع بدء Windows (مهم حتى يلتقط التحميلات دائماً)", _s.StartWithWindows);
         _tray = Ui.Check("عند إغلاق النافذة يبقى البرنامج يعمل بجانب الساعة", _s.MinimizeToTray);
         _notify = Ui.Check("إشعار عند اكتمال التحميل", _s.NotifyOnComplete);
+        _showProgress = Ui.Check("إظهار نافذة تقدّم التحميل (التفاصيل والسرعة وكل اتصال) عند بدء كل تحميل", _s.ShowProgressWindow);
         _showInfo = Ui.Check("عرض نافذة «معلومات الملف» (الحجم والنوع ومكان الحفظ) قبل كل تحميل", _s.ShowInfoBeforeDownload);
         _resume = Ui.Check("استئناف التحميلات غير المكتملة تلقائياً عند تشغيل البرنامج", _s.ResumeOnStart);
         _capture = Ui.Check("التقاط التحميلات من المتصفح", _s.CaptureEnabled);
@@ -344,7 +345,7 @@ public sealed class SettingsWindow : Window
         p.Children.Add(row);
         var spacer = new Border { Height = 12 };
         p.Children.Add(spacer);
-        foreach (var c in new[] { _startup, _tray, _notify, _showInfo, _resume, _updates }) p.Children.Add(c);
+        foreach (var c in new[] { _startup, _tray, _notify, _showInfo, _showProgress, _resume, _updates }) p.Children.Add(c);
 
         p.Children.Add(Ui.Label("المظهر"));
         var themes = new WrapPanel();
@@ -365,9 +366,10 @@ public sealed class SettingsWindow : Window
         ThemeChoice(_themeAuto, "تلقائي — حسب Windows", "\uE7F4", "auto");
         ThemeChoice(_themeDark, "ليلي", "\uE708", "dark");
         ThemeChoice(_themeLight, "نهاري", "\uE706", "light");
-        if (_themeAuto.IsChecked != true && _themeDark.IsChecked != true && _themeLight.IsChecked != true) _themeAuto.IsChecked = true;
+        ThemeChoice(_themeGlass, "زجاجي أحمر (تجريبي)", "\uE790", "glass");
+        if (_themeAuto.IsChecked != true && _themeDark.IsChecked != true && _themeLight.IsChecked != true && _themeGlass.IsChecked != true) _themeAuto.IsChecked = true;
         p.Children.Add(themes);
-        p.Children.Add(Ui.Text($"الوضع الحالي: {(Theme.IsDark ? "ليلي" : "نهاري")}. تغيير المظهر يحتاج إعادة تشغيل البرنامج.", 12, Theme.Muted, wrap: TextWrapping.Wrap));
+        p.Children.Add(Ui.Text($"الوضع الحالي: {(Theme.IsGlass ? "زجاجي" : Theme.IsDark ? "ليلي" : "نهاري")}. تغيير المظهر يحتاج إعادة تشغيل البرنامج.", 12, Theme.Muted, wrap: TextWrapping.Wrap));
 
         var check = Ui.Button("البحث عن أحدث إصدار", "\uE895", Theme.Button, () => Updater.ShowWindow(this));
         check.HorizontalAlignment = HorizontalAlignment.Left;
@@ -539,10 +541,11 @@ public sealed class SettingsWindow : Window
         _s.MinimizeToTray = _tray.IsChecked == true;
         _s.NotifyOnComplete = _notify.IsChecked == true;
         _s.ShowInfoBeforeDownload = _showInfo.IsChecked == true;
+        _s.ShowProgressWindow = _showProgress.IsChecked == true;
         _s.ResumeOnStart = _resume.IsChecked == true;
         _s.CheckUpdatesOnStart = _updates.IsChecked == true;
         var oldTheme = Settings.Current.Theme;
-        _s.Theme = _themeDark.IsChecked == true ? "dark" : _themeLight.IsChecked == true ? "light" : "auto";
+        _s.Theme = _themeGlass.IsChecked == true ? "glass" : _themeDark.IsChecked == true ? "dark" : _themeLight.IsChecked == true ? "light" : "auto";
         _s.Connections = (int)_conn.Value;
         _s.MaxParallel = (int)_parallel.Value;
         _s.SpeedLimitKBps = int.TryParse(_limit.Text.Trim(), out var lim) && lim > 0 ? lim : 0;
@@ -573,8 +576,7 @@ public sealed class SettingsWindow : Window
         _manager.Save();
         Close();
 
-        var willBeDark = _s.Theme == "dark" || (_s.Theme == "auto" && Theme.WindowsIsDark());
-        if (_s.Theme != oldTheme && willBeDark != Theme.IsDark
+        if (_s.Theme != oldTheme
             && Ui.Ask(Owner, "تغيير المظهر", "إعادة تشغيل IBDM Pro الآن لتطبيق الألوان الجديدة؟ (التحميلات تكمل بعد التشغيل)", "إعادة التشغيل الآن", "لاحقاً") == 0)
             IbdmApp.Instance.Restart();
     }

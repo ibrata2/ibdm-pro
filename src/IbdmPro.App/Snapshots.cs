@@ -51,6 +51,25 @@ public static class Snapshots
         Save(InfoDialog.Preview(new CaptureRequest { Kind = "media", Url = media.Url }, null, media), Path.Combine(dir, "3-video-qualities.png"));
 
         Save(new SettingsWindow(m), Path.Combine(dir, "4-settings.png"));
+
+        // A download in progress over 8 connections, each at a different point.
+        var running = m.Items.First(i => i.FileName.StartsWith("Windows"));
+        running.Kind = DownloadKind.File;
+        running.Url = "https://software.download.example.com/Windows11_24H2_Arabic_x64.iso";
+        lock (running.Gate)
+        {
+            running.Segments.Clear();
+            var part = running.TotalBytes / 8;
+            double[] done = [1, 0.62, 0.48, 0.71, 0.35, 0.55, 0.2, 0.41];
+            for (var k = 0; k < 8; k++)
+            {
+                var st = k * part;
+                var en = k == 7 ? running.TotalBytes - 1 : st + part - 1;
+                running.Segments.Add(new Segment { Start = st, End = en, Done = (long)((en - st + 1) * done[k]) });
+            }
+            running.Downloaded = running.Segments.Sum(x => Math.Min(x.Done, x.End - x.Start + 1));
+        }
+        Save(ProgressWindow.Preview(running, m), Path.Combine(dir, "6-progress.png"));
         Save(new AboutWindow(), Path.Combine(dir, "5-about.png"));
     }
 

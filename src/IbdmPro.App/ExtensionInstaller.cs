@@ -93,8 +93,12 @@ public static class ExtensionInstaller
             Process.Start(new ProcessStartInfo(browser.Exe) { UseShellExecute = false, ArgumentList = { "--no-first-run", "--no-default-browser-check", "--new-window", browser.ExtensionsPage } });
 
             // The extensions page: a browser window in which the developer-mode switch can be found.
+            // Browsers often ignore chrome://… addresses given on the command line and open a new tab instead,
+            // so after a few seconds the address is typed into the address bar.
             AutomationElement? window = null, devToggle = null;
-            var until = DateTime.Now.AddSeconds(40);
+            var until = DateTime.Now.AddSeconds(45);
+            var navigatedAt = DateTime.MinValue;
+            var tries = 0;
             while (DateTime.Now < until && devToggle is null)
             {
                 ct.ThrowIfCancellationRequested();
@@ -106,6 +110,14 @@ public static class ExtensionInstaller
                     if (el is null) continue;
                     var t = FindToggle(el);
                     if (t is not null) { window = el; devToggle = t; break; }
+                }
+                if (devToggle is null && wins.Count > 0 && (DateTime.Now - navigatedAt).TotalSeconds > 8 && tries < 3
+                    && DateTime.Now > (navigatedAt == DateTime.MinValue ? DateTime.Now.AddSeconds(-1) : navigatedAt))
+                {
+                    if (tries == 0) Thread.Sleep(2500); // let the window finish opening
+                    if (TypeAddress(wins[0].Handle, browser.ExtensionsPage)) Say("كتابة عنوان صفحة الإضافات…");
+                    navigatedAt = DateTime.Now;
+                    tries++;
                 }
             }
             if (window is null || devToggle is null) throw new InvalidOperationException("لم أجد صفحة الإضافات أو زر «وضع المطوّر» في المتصفح.");
@@ -178,6 +190,48 @@ public static class ExtensionInstaller
             Log.Write($"extension install ({browser.Name}) failed: {e}");
         }
         return r;
+    }
+
+    /// <summary>Puts an address in the browser's address bar and opens it.</summary>
+    private static bool TypeAddress(IntPtr window, string address)
+    {
+        try
+        {
+            var el = Element(window);
+            if (el is null) return false;
+            var edits = el.FindAll(TreeScope.Descendants, new AndCondition(
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit),
+                new PropertyCondition(AutomationElement.IsValuePatternAvailableProperty, true)));
+            AutomationElement? bar = null;
+            foreach (AutomationElement e in edits)
+            {
+                var n = Norm(e.Current.Name);
+                if (n.Contains("address") || n.Contains("عنوان") || n.Contains("search") || n.Contains("بحث") || n.Contains("url")) { bar = e; break; }
+            }
+            bar ??= edits.Count > 0 ? edits[0] : null;
+            SetForegroundWindow(window);
+            Thread.Sleep(200);
+            if (bar is not null)
+            {
+                try { bar.SetFocus(); } catch (Exception) { }
+                ((ValuePattern)bar.GetCurrentPattern(ValuePattern.Pattern)).SetValue(address);
+            }
+            else
+            {
+                System.Windows.Forms.SendKeys.SendWait("^l");
+                Thread.Sleep(200);
+                System.Windows.Forms.SendKeys.SendWait(address);
+            }
+            Thread.Sleep(250);
+            SetForegroundWindow(window);
+            System.Windows.Forms.SendKeys.SendWait("{ENTER}");
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.Write($"type address: {e.Message}");
+            return false;
+        }
     }
 
     // ---------- finding things on the extensions page ----------

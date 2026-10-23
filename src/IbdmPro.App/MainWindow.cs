@@ -40,7 +40,7 @@ public sealed class Row : INotifyPropertyChanged
         DownloadStatus.Completed => Theme.Green,
         DownloadStatus.Error => Theme.Red,
         DownloadStatus.Paused => Theme.Muted,
-        _ => Theme.Gold,
+        _ => Theme.ProgressFill,
     };
     public bool Indeterminate => Item.Status == DownloadStatus.Processing || (Item.Status == DownloadStatus.Downloading && Item.TotalBytes <= 0);
     public string Date => (Item.Finished ?? Item.Added).ToString("yyyy/MM/dd HH:mm");
@@ -298,8 +298,7 @@ public sealed class MainWindow : Window
             if (e.OriginalSource is DependencyObject d && ItemsControl.ContainerFromElement(_list, d) is ListViewItem { DataContext: Row r })
             {
                 if (r.Item.Status == DownloadStatus.Completed) OpenFile(r.Item);
-                else if (r.Item.IsActive) _manager.Pause(r.Item);
-                else _manager.Resume(r.Item);
+                else ProgressWindow.Open(r.Item, _manager);
             }
         };
         _list.SelectionChanged += (_, _) => UpdateDetail();
@@ -345,6 +344,7 @@ public sealed class MainWindow : Window
         var one = Selected().FirstOrDefault();
         if (one?.Status == DownloadStatus.Completed) Add("فتح الملف", OpenSelectedFile);
         Add("فتح المجلد", OpenSelectedFolder);
+        if (one is not null && one.Status != DownloadStatus.Completed) Add("عرض نافذة التقدّم", () => ProgressWindow.Open(one, _manager));
         m.Items.Add(new Separator());
         Add("استئناف", () => ForSelected(i => _manager.Resume(i)));
         Add("إيقاف", () => ForSelected(i => _manager.Pause(i)));
@@ -356,6 +356,17 @@ public sealed class MainWindow : Window
     }
 
     // ---------- keeping the list current ----------
+
+    /// <summary>Shows and selects one download in the list (used by "into the app" in the progress window).</summary>
+    public void Select(DownloadItem item)
+    {
+        Sync();
+        var row = _rows.FirstOrDefault(r => r.Item == item);
+        if (row is null) return;
+        _list.SelectedItem = row;
+        _list.ScrollIntoView(row);
+        _list.Focus();
+    }
 
     public void Sync()
     {

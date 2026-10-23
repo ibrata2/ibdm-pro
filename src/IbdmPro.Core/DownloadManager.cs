@@ -17,6 +17,8 @@ public sealed class DownloadManager : IDisposable
     public event Action<DownloadItem>? ItemCompleted;
     public event Action<DownloadItem>? ItemFailed;
     public event Action? ListChanged;
+    /// <summary>A download the person started (new, resumed or restarted) — the app shows its progress window.</summary>
+    public event Action<DownloadItem>? UserStarted;
 
     public DownloadManager(Store? store = null, Func<Settings>? settings = null)
     {
@@ -41,7 +43,7 @@ public sealed class DownloadManager : IDisposable
         lock (Store.Items) Store.Items.Insert(0, item);
         Save();
         ListChanged?.Invoke();
-        if (start) Start(item);
+        if (start) { Start(item); UserStarted?.Invoke(item); }
     }
 
     /// <summary>Starts now, even if the parallel limit is reached (the person asked for this one).</summary>
@@ -62,7 +64,7 @@ public sealed class DownloadManager : IDisposable
 
     public void Resume(DownloadItem item)
     {
-        if (item.Status is DownloadStatus.Paused or DownloadStatus.Error or DownloadStatus.Queued) Start(item);
+        if (item.Status is DownloadStatus.Paused or DownloadStatus.Error or DownloadStatus.Queued) { Start(item); UserStarted?.Invoke(item); }
     }
 
     public void Pause(DownloadItem item)
@@ -111,6 +113,7 @@ public sealed class DownloadManager : IDisposable
         item.Status = DownloadStatus.Queued;
         try { if (File.Exists(item.PartPath)) File.Delete(item.PartPath); } catch (Exception) { }
         Start(item);
+        UserStarted?.Invoke(item);
     }
 
     public bool IsRunning(DownloadItem item) { lock (_running) return _running.ContainsKey(item.Id); }

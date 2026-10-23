@@ -34,6 +34,11 @@ public sealed class Settings
 
     // Downloading
     public bool ShowInfoBeforeDownload { get; set; } = true;
+    /// <summary>The window that shows each download's progress (like IDM).</summary>
+    public bool ShowProgressWindow { get; set; } = true;
+    public bool ProgressAutoClose { get; set; }
+    public bool ProgressOpenFile { get; set; }
+    public bool ProgressOpenFolder { get; set; }
     public int Connections { get; set; } = 8;
     public int MaxParallel { get; set; } = 3;
     public int SpeedLimitKBps { get; set; } = 0;

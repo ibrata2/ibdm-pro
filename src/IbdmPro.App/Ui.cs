@@ -15,28 +15,51 @@ namespace IbdmPro.App;
 /// the Windows "app mode" (Settings › Personalization › Colors), unless chosen in IBDM Pro's settings.</summary>
 public static class Theme
 {
-    public static readonly bool IsDark = ReadDark();
-    private static string P(string dark, string light) => IsDark ? dark : light;
+    /// <summary>The experimental "glass" style: white frosted glass with red glass accents, like the app icon.</summary>
+    public static readonly bool IsGlass = IbdmPro.Core.Settings.Current.Theme == "glass";
+    public static readonly bool IsDark = !IsGlass && ReadDark();
+    private static string P(string dark, string light, string? glass = null) => IsGlass ? glass ?? light : IsDark ? dark : light;
 
-    public static readonly Brush Bg = Br(P("#0F0F11", "#F3F3F5"));
-    public static readonly Brush Panel = Br(P("#16161A", "#FAFAFB"));
-    public static readonly Brush Card = Br(P("#1E1E23", "#FFFFFF"));
-    public static readonly Brush Hover = Br(P("#2A2A31", "#ECECF0"));
-    public static readonly Brush Pressed = Br(P("#33333B", "#E1E1E7"));
-    public static readonly Brush Line = Br(P("#2C2C33", "#DCDCE2"));
-    public static readonly Brush Gold = Br(P("#D4AF37", "#A87F0A"));
-    public static readonly Brush GoldHover = Br(P("#E2C25A", "#B98E17"));
-    public static readonly Brush GoldPressed = Br(P("#B8962A", "#8F6C08"));
-    public static readonly Brush GoldSoft = Br(P("#33D4AF37", "#26C49A1C"));
-    public static readonly Brush OnGold = Br(P("#111111", "#FFFFFF"));
-    public static readonly Brush Ink = Br(P("#F2F2F4", "#1B1B1F"));
-    public static readonly Brush Muted = Br(P("#9C9CA6", "#6B6B75"));
-    public static readonly Brush Red = Br(P("#E5533D", "#C93B26"));
-    public static readonly Brush RedSoft = Br(P("#33E5533D", "#22C93B26"));
-    public static readonly Brush Green = Br(P("#4CC26B", "#23914A"));
-    public static readonly Brush Blue = Br(P("#3B9BF0", "#1F7BD0"));
-    public static readonly Brush Track = Br(P("#2A2A30", "#E3E3E9"));
-    public static readonly Brush BoxLine = Br(P("#55555F", "#9A9AA5"));
+    public static readonly Brush Bg = IsGlass ? Grad("#FBFCFE", "#E8EBF1") : Br(P("#0F0F11", "#F3F3F5"));
+    public static readonly Brush Panel = IsGlass ? Grad("#F2FFFFFF", "#D9F4F6FA") : Br(P("#16161A", "#FAFAFB"));
+    public static readonly Brush Card = IsGlass ? Grad("#F7FFFFFF", "#E6F7F8FB") : Br(P("#1E1E23", "#FFFFFF"));
+    public static readonly Brush Hover = Br(P("#2A2A31", "#ECECF0", "#14D7141F"));
+    public static readonly Brush Pressed = Br(P("#33333B", "#E1E1E7", "#26D7141F"));
+    public static readonly Brush Line = Br(P("#2C2C33", "#DCDCE2", "#D6DAE2"));
+    public static readonly Brush Gold = Br(P("#D4AF37", "#A87F0A", "#D7141F"));
+    public static readonly Brush GoldHover = IsGlass ? Grad("#F0434C", "#C40F18") : Br(P("#E2C25A", "#B98E17"));
+    public static readonly Brush GoldPressed = Br(P("#B8962A", "#8F6C08", "#A30C14"));
+    public static readonly Brush GoldSoft = Br(P("#33D4AF37", "#26C49A1C", "#1CD7141F"));
+    public static readonly Brush OnGold = Br(P("#111111", "#FFFFFF", "#FFFFFF"));
+    public static readonly Brush Ink = Br(P("#F2F2F4", "#1B1B1F", "#16161A"));
+    public static readonly Brush Muted = Br(P("#9C9CA6", "#6B6B75", "#6A6E78"));
+    public static readonly Brush Red = Br(P("#E5533D", "#C93B26", "#C8121C"));
+    public static readonly Brush RedSoft = Br(P("#33E5533D", "#22C93B26", "#1FC8121C"));
+    public static readonly Brush Green = Br(P("#4CC26B", "#23914A", "#1E8E46"));
+    public static readonly Brush Blue = Br(P("#3B9BF0", "#1F7BD0", "#1F7BD0"));
+    public static readonly Brush Track = IsGlass ? Grad("#D9DDE4", "#EEF0F4") : Br(P("#2A2A30", "#E3E3E9"));
+    public static readonly Brush BoxLine = Br(P("#55555F", "#9A9AA5", "#A8ADB8"));
+    /// <summary>The primary (accent) button face: red glass in the glass style.</summary>
+    public static readonly Brush AccentFace = IsGlass ? Grad("#F2363F", "#B80D16") : Gold;
+    /// <summary>The progress fill: glossy red glass in the glass style.</summary>
+    public static readonly Brush ProgressFill = IsGlass ? Grad("#FF5A62", "#D7141F", "#9E0A12") : Gold;
+
+    public static Brush Grad(string top, string bottom, string? end = null)
+    {
+        var g = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        g.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(top), 0));
+        if (end is null) g.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(bottom), 1));
+        else
+        {
+            g.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(bottom), 0.55));
+            g.GradientStops.Add(new GradientStop((Color)ColorConverter.ConvertFromString(end), 1));
+        }
+        g.Freeze();
+        return g;
+    }
+
+    /// <summary>A plain colour for places that cannot take a gradient (the title bar).</summary>
+    public static Color Solid(Brush b) => b is SolidColorBrush sc ? sc.Color : b is GradientBrush gb && gb.GradientStops.Count > 0 ? gb.GradientStops[0].Color : Colors.White;
 
     /// <summary>"auto" follows Windows; "dark" or "light" if chosen in the settings.</summary>
     private static bool ReadDark()
@@ -70,7 +93,7 @@ public static class Theme
     // ---------- styles built in code (no XAML) ----------
 
     public static readonly Style Button = MakeButton(Card, Hover, Pressed, Ink, Line);
-    public static readonly Style PrimaryButton = MakeButton(Gold, GoldHover, GoldPressed, OnGold, Gold);
+    public static readonly Style PrimaryButton = MakeButton(AccentFace, GoldHover, GoldPressed, OnGold, IsGlass ? Br("#9E0A12") : Gold);
     public static readonly Style DangerButton = MakeButton(RedSoft, Hover, Pressed, Red, RedSoft);
     public static readonly Style ToolButton = MakeButton(Brushes.Transparent, Hover, Pressed, Ink, Brushes.Transparent);
     public static readonly Style Choice = MakeChoice();
@@ -207,20 +230,39 @@ public static class Theme
 
     private static Style MakeProgress()
     {
+        var radius = new CornerRadius(IsGlass ? 5 : 3);
         var grid = new FrameworkElementFactory(typeof(Grid));
         var track = new FrameworkElementFactory(typeof(Border), "PART_Track");
-        track.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+        track.SetValue(Border.CornerRadiusProperty, radius);
         track.SetValue(Border.BackgroundProperty, Track);
-        var ind = new FrameworkElementFactory(typeof(Border), "PART_Indicator");
-        ind.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
-        ind.SetBinding(Border.BackgroundProperty, TP("Foreground"));
+        if (IsGlass)
+        {
+            track.SetValue(Border.BorderBrushProperty, Br("#C9CED8"));
+            track.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        }
+        var ind = new FrameworkElementFactory(typeof(Grid), "PART_Indicator");
         ind.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+        var fill = new FrameworkElementFactory(typeof(Border));
+        fill.SetValue(Border.CornerRadiusProperty, radius);
+        fill.SetBinding(Border.BackgroundProperty, TP("Foreground"));
+        ind.AppendChild(fill);
+        if (IsGlass)
+        {
+            // The shine on the top half that makes it look like red glass.
+            var shine = new FrameworkElementFactory(typeof(Border));
+            shine.SetValue(Border.CornerRadiusProperty, new CornerRadius(5, 5, 2, 2));
+            shine.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top);
+            shine.SetValue(FrameworkElement.MarginProperty, new Thickness(1, 1, 1, 0));
+            shine.SetValue(Border.BackgroundProperty, Grad("#B3FFFFFF", "#14FFFFFF"));
+            shine.SetValue(FrameworkElement.HeightProperty, 4.0);
+            ind.AppendChild(shine);
+        }
         grid.AppendChild(track);
         grid.AppendChild(ind);
         var s = new Style(typeof(ProgressBar));
         s.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(ProgressBar)) { VisualTree = grid }));
-        s.Setters.Add(new Setter(Control.ForegroundProperty, Gold));
-        s.Setters.Add(new Setter(FrameworkElement.HeightProperty, 6.0));
+        s.Setters.Add(new Setter(Control.ForegroundProperty, ProgressFill));
+        s.Setters.Add(new Setter(FrameworkElement.HeightProperty, IsGlass ? 9.0 : 6.0));
         return s;
     }
 
@@ -435,7 +477,7 @@ public static class Ui
             var hwnd = new WindowInteropHelper(w).Handle;
             int on = Theme.IsDark ? 1 : 0;
             if (DwmSetWindowAttribute(hwnd, 20, ref on, 4) != 0) DwmSetWindowAttribute(hwnd, 19, ref on, 4);
-            var bg = ((SolidColorBrush)Theme.Bg).Color;
+            var bg = Theme.Solid(Theme.Bg);
             int caption = bg.R | bg.G << 8 | bg.B << 16; // COLORREF 0x00BBGGRR
             DwmSetWindowAttribute(hwnd, 35, ref caption, 4);
         }

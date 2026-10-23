@@ -130,6 +130,10 @@ public sealed class IbdmApp : Application
         {
             if (Settings.Current.NotifyOnComplete) Tray?.Notify("اكتمل التحميل", item.FileName, item.FullPath);
         });
+        Manager.UserStarted += item => Dispatcher.BeginInvoke(() =>
+        {
+            if (Settings.Current.ShowProgressWindow) ProgressWindow.Open(item, Manager);
+        });
         Manager.ItemFailed += item => Dispatcher.BeginInvoke(() => Tray?.Notify("فشل التحميل", $"{item.FileName}\n{item.Error}", null));
 
         Main = new MainWindow(Manager);
