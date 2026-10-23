@@ -173,12 +173,15 @@ if (api.downloads.onDeterminingFilename) {
 
 // ---------- right-click menu ----------
 
+// Built one after another: two builds at once (install + language change) would add the same item twice.
+let menuChain = Promise.resolve();
 function buildMenus() {
-  api.contextMenus.removeAll().then(() => {
-    api.contextMenus.create({ id: 'ibdm-link', title: t('تحميل بواسطة IBDM Pro'), contexts: ['link', 'image', 'audio'] });
-    api.contextMenus.create({ id: 'ibdm-video', title: t('تحميل هذا الفيديو بواسطة IBDM Pro'), contexts: ['video'] });
-    api.contextMenus.create({ id: 'ibdm-page', title: t('تحميل فيديو هذه الصفحة بواسطة IBDM Pro'), contexts: ['page', 'frame'] });
-  });
+  const make = o => new Promise(res => api.contextMenus.create(o, () => { void api.runtime.lastError; res(); }));
+  menuChain = menuChain.then(() => api.contextMenus.removeAll()).then(async () => {
+    await make({ id: 'ibdm-link', title: t('تحميل بواسطة IBDM Pro'), contexts: ['link', 'image', 'audio'] });
+    await make({ id: 'ibdm-video', title: t('تحميل هذا الفيديو بواسطة IBDM Pro'), contexts: ['video'] });
+    await make({ id: 'ibdm-page', title: t('تحميل فيديو هذه الصفحة بواسطة IBDM Pro'), contexts: ['page', 'frame'] });
+  }).catch(() => { });
 }
 api.runtime.onInstalled.addListener(() => { buildMenus(); ping(true); });
 api.runtime.onStartup.addListener(buildMenus);
