@@ -247,7 +247,6 @@ public sealed class AboutWindow : Window
 
         root.Children.Add(Center(Link(L.T("قناة البرامج على تيليكرام: t.me/ibraprogram"), "https://t.me/ibraprogram")));
         root.Children.Add(Center(Ui.Text(L.T("للطلبات البرمجية: 07818814000"), 13, Theme.Ink)));
-        root.Children.Add(Center(Ui.Text(L.T("يستخدم yt-dlp و FFmpeg (برامج مفتوحة المصدر)"), 11, Theme.Muted), 14));
         var upd = Ui.Button(L.T("البحث عن أحدث إصدار"), "\uE895", Theme.PrimaryButton, () => Updater.ShowWindow(this));
         upd.HorizontalAlignment = HorizontalAlignment.Center;
         upd.Margin = new Thickness(0, 16, 0, 0);

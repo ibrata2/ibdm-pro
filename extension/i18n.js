@@ -34,7 +34,7 @@ var IBDM_EN = {
   'التقاط التحميلات من المتصفح': 'Catch downloads from the browser',
   'الفيديوهات في هذه الصفحة': 'Videos on this page',
   'تحميل فيديو هذه الصفحة': "Download this page's video",
-  'من تصميم و تطوير و تعريب': 'Designed, developed and localized by',
+  'برمجة و تطوير': 'Programmed and developed by',
   'ابراهيم الخزرجي': 'Ibrahim Al-Khazraji',
 };
 var IBDM_LANG = 'ar';

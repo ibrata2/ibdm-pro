@@ -1,5 +1,5 @@
 ; IBDM Pro — Windows installer (per user, no administrator rights), Arabic first.
-; من تصميم و تطوير و تعريب ابراهيم الخزرجي
+; برمجة و تطوير ابراهيم الخزرجي
 ; Built by the GitHub workflow (or BUILD-ON-WINDOWS.ps1), which passes /DAppVersion=1.0.N /DSource=<published folder>
 
 #ifndef AppVersion
@@ -18,7 +18,7 @@ AppPublisher=ابراهيم الخزرجي — IBRAPROGRAM
 AppPublisherURL=https://t.me/ibraprogram
 AppSupportURL=https://t.me/ibraprogram
 AppUpdatesURL=https://t.me/ibraprogram
-AppCopyright=من تصميم و تطوير و تعريب ابراهيم الخزرجي
+AppCopyright=برمجة و تطوير ابراهيم الخزرجي
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription=IBDM Pro — مدير التحميل
 DefaultDirName={autopf}\IBDM Pro

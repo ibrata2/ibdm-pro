@@ -1,4 +1,4 @@
-// IBDM Pro browser extension — من تصميم و تطوير و تعريب ابراهيم الخزرجي
+// IBDM Pro browser extension — برمجة و تطوير ابراهيم الخزرجي
 // Hands browser downloads to the IBDM Pro app (running on this computer) instead of letting the browser download them,
 // and finds videos on pages so they can be downloaded at a chosen quality.
 

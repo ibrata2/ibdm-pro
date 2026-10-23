@@ -3,7 +3,7 @@
   "name": "IBDM Pro",
   "short_name": "IBDM Pro",
   "version": "1.0.0",
-  "description": "يلتقط التحميلات والفيديوهات من أي موقع ويرسلها لبرنامج IBDM Pro — من تصميم و تطوير و تعريب ابراهيم الخزرجي",
+  "description": "يلتقط التحميلات والفيديوهات من أي موقع ويرسلها لبرنامج IBDM Pro — برمجة و تطوير ابراهيم الخزرجي",
   "permissions": [
     "downloads",
     "contextMenus",

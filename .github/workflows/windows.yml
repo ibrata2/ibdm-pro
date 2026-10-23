@@ -260,7 +260,7 @@ jobs:
             build/installer/IBDM-Pro-Extension.zip
           body: |
             ## IBDM Pro ${{ steps.v.outputs.version }}
-            مدير تحميل — من تصميم و تطوير و تعريب **ابراهيم الخزرجي**
+            مدير تحميل — برمجة و تطوير **ابراهيم الخزرجي**
 
             **التثبيت:** حمّل **IBDM-Pro-Setup.exe** وشغّله. إذا طلع تحذير Windows: More info ← Run anyway.
 

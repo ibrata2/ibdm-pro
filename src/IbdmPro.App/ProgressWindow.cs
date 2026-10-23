@@ -166,7 +166,7 @@ public sealed class ProgressWindow : Window
         _error.Margin = new Thickness(0, 8, 0, 0);
         _error.Visibility = Visibility.Collapsed;
 
-        var credit = Ui.Text(L.T("IBDM Pro — من تصميم و تطوير و تعريب ابراهيم الخزرجي"), 11, Theme.Muted);
+        var credit = Ui.Text(L.T("IBDM Pro — برمجة و تطوير ابراهيم الخزرجي"), 11, Theme.Muted);
         credit.Margin = new Thickness(0, 12, 0, 0);
         credit.Opacity = 0.75;
 

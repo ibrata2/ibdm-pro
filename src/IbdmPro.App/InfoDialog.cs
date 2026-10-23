@@ -135,7 +135,7 @@ public sealed class InfoDialog : Window
 
     private static UIElement Credit()
     {
-        var t = Ui.Text(L.T("IBDM Pro — من تصميم و تطوير و تعريب ابراهيم الخزرجي"), 11, Theme.Muted);
+        var t = Ui.Text(L.T("IBDM Pro — برمجة و تطوير ابراهيم الخزرجي"), 11, Theme.Muted);
         t.Margin = new Thickness(0, 14, 0, 0);
         t.Opacity = 0.7;
         return t;

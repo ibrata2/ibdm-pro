@@ -335,3 +335,4 @@ Programmed and developed by
 Version {0} — click here to update.
 Update now
 A new version of IBDM Pro is available: {0}
+IBDM Pro — Programmed and developed by Ibrahim Al-Khazraji

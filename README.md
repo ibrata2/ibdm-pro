@@ -1,6 +1,6 @@
 # IBDM Pro
 
-مدير تحميل لـ Windows — **من تصميم و تطوير و تعريب ابراهيم الخزرجي**
+مدير تحميل لـ Windows — **برمجة و تطوير ابراهيم الخزرجي**
 
 ## التحميل
 آخر إصدار: **[IBDM-Pro-Setup.exe](https://github.com/ibrata2/ibdm-pro/releases/latest/download/IBDM-Pro-Setup.exe)**
