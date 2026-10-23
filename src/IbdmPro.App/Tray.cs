@@ -44,7 +44,7 @@ public sealed class Tray : IDisposable
     }
 
     /// <summary>A Windows notice that runs <paramref name="onClick"/> when clicked.</summary>
-    public void Notify(string title, string text, Action onClick)
+    public void NotifyAction(string title, string text, Action onClick)
     {
         _lastFile = null;
         _onClick = onClick;

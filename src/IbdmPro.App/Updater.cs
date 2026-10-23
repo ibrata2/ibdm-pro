@@ -75,7 +75,7 @@ public static class Updater
                         {
                             var app = IbdmApp.Instance;
                             app.Main.ShowUpdateBadge(r.Version.ToString());
-                            app.Tray?.Notify(L.T("يتوفر إصدار جديد من IBDM Pro"), L.F("الإصدار {0} — اضغط هنا للتحديث.", r.Version),
+                            app.Tray?.NotifyAction(L.T("يتوفر إصدار جديد من IBDM Pro"), L.F("الإصدار {0} — اضغط هنا للتحديث.", r.Version),
                                 () => { app.ShowMain(); ShowWindow(app.Main); });
                         });
                     }
