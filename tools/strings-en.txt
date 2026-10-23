@@ -336,3 +336,8 @@ Version {0} — click here to update.
 Update now
 A new version of IBDM Pro is available: {0}
 IBDM Pro — Programmed and developed by Ibrahim Al-Khazraji
+Download with the browser
+The browser downloads the file itself instead of IBDM Pro
+Delete completed
+There are no completed downloads in the list.
+{0} completed downloads

@@ -117,6 +117,22 @@ public sealed class LocalServer : IDisposable
         catch (Exception e) { Log.Write($"server: {e.Message}"); }
     }
 
+    // Links the user chose to download with the browser itself: the extension lets them through for a few minutes.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> BrowserOnlyUrls = new();
+
+    public static void LetBrowserDownload(params string?[] urls)
+    {
+        foreach (var u in urls)
+            if (!string.IsNullOrWhiteSpace(u)) BrowserOnlyUrls[u] = DateTime.Now.AddMinutes(3);
+    }
+
+    private static string[] BrowserOnly()
+    {
+        foreach (var (u, until) in BrowserOnlyUrls)
+            if (until < DateTime.Now) BrowserOnlyUrls.TryRemove(u, out _);
+        return BrowserOnlyUrls.Keys.ToArray();
+    }
+
     private string PingJson()
     {
         var s = Settings.Current;
@@ -129,6 +145,7 @@ public sealed class LocalServer : IDisposable
             extensions = s.CaptureExtensions,
             minSizeKB = s.MinCaptureSizeKB,
             excluded = s.ExcludedSites,
+            browserOnly = BrowserOnly(),
             theme = s.ResolvedTheme,
             lang = s.Language == "en" ? "en" : "ar", // and its language // the extension's button and window follow the app's style
         }, Json.Web);

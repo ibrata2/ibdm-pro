@@ -209,9 +209,23 @@ public sealed class InfoDialog : Window
         url.Margin = new Thickness(0, 10, 0, 0);
         _body.Children.Add(url);
         var retry = Ui.Button(L.T("إعادة المحاولة"), "", Theme.Button, async () => { Reset(); await LoadAsync(); });
-        retry.Margin = new Thickness(0, 10, 0, 0);
-        retry.HorizontalAlignment = HorizontalAlignment.Left;
-        _body.Children.Add(retry);
+        // Some sites refuse download programs: hand the link back to the browser, which downloads it itself
+        // (the extension is told to leave this link alone).
+        var inBrowser = Ui.Button(L.T("التحميل بالمتصفح"), "\uE774", Theme.Button, DownloadInBrowser);
+        inBrowser.Margin = new Thickness(8, 0, 0, 0);
+        inBrowser.ToolTip = L.T("يتحمل الملف بالمتصفح نفسه بدل IBDM Pro");
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        row.Children.Add(retry);
+        row.Children.Add(inBrowser);
+        _body.Children.Add(row);
+    }
+
+    private void DownloadInBrowser()
+    {
+        var url = _req.Url;
+        LocalServer.LetBrowserDownload(url, _probe?.FinalUrl);
+        try { Ui.Open(url); } catch (Exception e) { Log.Write($"open in browser: {e.Message}"); }
+        Close();
     }
 
     private void Reset()

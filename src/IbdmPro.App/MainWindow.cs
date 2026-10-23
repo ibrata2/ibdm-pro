@@ -179,6 +179,7 @@ public sealed class MainWindow : Window
         tools.Children.Add(Ui.Tool(L.T("إيقاف"), "", () => ForSelected(i => _manager.Pause(i)), Theme.Ink));
         tools.Children.Add(Ui.Tool(L.T("إيقاف الكل"), "", _manager.PauseAll, Theme.Ink));
         tools.Children.Add(Ui.Tool(L.T("حذف"), "", Delete, Theme.Red));
+        tools.Children.Add(Ui.Tool(L.T("حذف المكتملة"), "\uE74D", DeleteCompleted, Theme.Red));
         tools.Children.Add(Separator());
         tools.Children.Add(Ui.Tool(L.T("فتح الملف"), "", OpenSelectedFile, Theme.Ink));
         tools.Children.Add(Ui.Tool(L.T("فتح المجلد"), "", OpenSelectedFolder, Theme.Ink));
@@ -572,6 +573,18 @@ public sealed class MainWindow : Window
             : Ui.Ask(this, L.T("حذف"), L.F("هل تريد حذف {0}؟ سيتم حذف الجزء غير المكتمل.", what), L.T("حذف"), L.T("إلغاء")) switch { 0 => 0, _ => 2 };
         if (choice is < 0 or 2) return;
         foreach (var i in sel) await _manager.RemoveAsync(i, deleteFile: choice == 1);
+        Sync();
+    }
+
+    /// <summary>Clears every finished download from the list (the files stay on the computer unless asked).</summary>
+    private async void DeleteCompleted()
+    {
+        var done = _manager.Items.Where(i => i.Status == DownloadStatus.Completed).ToList();
+        if (done.Count == 0) { Ui.Message(this, L.T("حذف المكتملة"), L.T("لا توجد تحميلات مكتملة في القائمة.")); return; }
+        var choice = Ui.Ask(this, L.T("حذف المكتملة"), L.F("هل تريد حذف {0} من القائمة؟", L.F("{0} تحميلات مكتملة", done.Count)),
+            L.T("حذف من القائمة فقط"), L.T("حذف مع الملف من الجهاز"), L.T("إلغاء"));
+        if (choice is < 0 or 2) return;
+        foreach (var i in done) await _manager.RemoveAsync(i, deleteFile: choice == 1);
         Sync();
     }
 
