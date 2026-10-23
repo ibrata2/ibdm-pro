@@ -24,6 +24,16 @@ public static class Program
             var snap = new IbdmApp(background: true) { SnapshotDir = Path.GetFullPath(args[1]) };
             return snap.Run();
         }
+        if (args.Length > 2 && args[0] == "--dump-uia")
+        {
+            string text = "";
+            var t = new Thread(() => text = ExtensionInstaller.Dump(args[1]));
+            t.SetApartmentState(ApartmentState.MTA);
+            t.Start();
+            t.Join();
+            File.WriteAllText(args[2], text);
+            return 0;
+        }
         if (args.Length > 2 && args[0] == "--install-extension")
         {
             // Used by the build: installs the extension into one browser (the app must already be running) and reports.

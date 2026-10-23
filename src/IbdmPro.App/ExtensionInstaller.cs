@@ -398,6 +398,35 @@ public static class ExtensionInstaller
         }
     }
 
+    /// <summary>Build diagnostics: every control UI Automation sees in the browser's windows.</summary>
+    public static string Dump(string processName)
+    {
+        var sb = new StringBuilder();
+        foreach (var w in BrowserWindows(processName))
+        {
+            sb.AppendLine($"window {w.Handle} {w.Class}");
+            var el = Element(w.Handle);
+            if (el is null) continue;
+            try
+            {
+                foreach (AutomationElement e in el.FindAll(TreeScope.Descendants, Condition.TrueCondition))
+                {
+                    try
+                    {
+                        var c = e.Current;
+                        if (string.IsNullOrWhiteSpace(c.Name) && string.IsNullOrWhiteSpace(c.AutomationId)) continue;
+                        var tog = (bool)e.GetCurrentPropertyValue(AutomationElement.IsTogglePatternAvailableProperty);
+                        var inv = (bool)e.GetCurrentPropertyValue(AutomationElement.IsInvokePatternAvailableProperty);
+                        sb.AppendLine($"  {c.ControlType.ProgrammaticName} id='{c.AutomationId}' name='{c.Name}' toggle={tog} invoke={inv} rect={c.BoundingRectangle}");
+                    }
+                    catch (Exception) { }
+                }
+            }
+            catch (Exception ex) { sb.AppendLine("  error " + ex.Message); }
+        }
+        return sb.ToString();
+    }
+
     private static AutomationElement? Element(IntPtr h)
     {
         try { return AutomationElement.FromHandle(h); } catch (Exception) { return null; }

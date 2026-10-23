@@ -47,11 +47,12 @@ jobs:
           for ($i = 1; $i -le 14; $i++) { Start-Sleep 8; Shot "shots/brave-$i.png"; if ($p.HasExited) { break } }
           $p.WaitForExit(60000) | Out-Null
           Shot "shots/brave-final.png"
+          Start-Process $exe -ArgumentList "--dump-uia", "brave", "$PWD/shots/uia-1.txt" -Wait
+          Start-Sleep 5
+          Start-Process $exe -ArgumentList "--dump-uia", "brave", "$PWD/shots/uia-2.txt" -Wait
           Copy-Item install-brave.txt shots/ -ErrorAction SilentlyContinue
           Copy-Item "$env:APPDATA/IBDM Pro/log.txt" shots/ -ErrorAction SilentlyContinue
           Invoke-RestMethod http://127.0.0.1:39401/status | ConvertTo-Json -Compress | Out-File shots/status-1.txt
-          $pref = "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data\Default\Secure Preferences"
-          if (Test-Path $pref) { (Get-Content $pref -Raw) -split '"' | Select-String -SimpleMatch "IBDM" | Select-Object -First 5 }
           Get-Process brave -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Sleep 3
           # Like loading it by hand: start Brave with the folder and see whether it runs.
