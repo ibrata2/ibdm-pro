@@ -164,6 +164,9 @@ public static class ExtensionInstaller
                 // "Load unpacked" is hidden, so click it once.
                 ((InvokePattern)ipo).Invoke();
                 Thread.Sleep(900);
+                // Invoking the group does not always flip the switch: focus it and press Space, then click it for real.
+                if (FindLoadUnpacked(window) is null) PressSpace(windowHandle, devToggle);
+                if (FindLoadUnpacked(window) is null) ClickOn(windowHandle, devToggle);
             }
             if (sideMenu)
             {
@@ -493,6 +496,40 @@ public static class ExtensionInstaller
     [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr h, StringBuilder sb, int max);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] private static extern void mouse_event(uint flags, int dx, int dy, uint data, UIntPtr extra);
+
+    private static void PressSpace(IntPtr window, AutomationElement e)
+    {
+        try
+        {
+            SetForegroundWindow(window);
+            Thread.Sleep(250);
+            e.SetFocus();
+            Thread.Sleep(250);
+            System.Windows.Forms.SendKeys.SendWait(" ");
+            Thread.Sleep(900);
+        }
+        catch (Exception ex) { Log.Write("press space: " + ex.Message); }
+    }
+
+    private static void ClickOn(IntPtr window, AutomationElement e)
+    {
+        try
+        {
+            SetForegroundWindow(window);
+            Thread.Sleep(250);
+            var r = e.Current.BoundingRectangle; // physical screen pixels
+            SetThreadDpiAwarenessContext(new IntPtr(-4)); // per-monitor v2: same pixels as UI Automation
+            SetCursorPos((int)(r.Left + r.Width / 2), (int)(r.Top + r.Height / 2));
+            Thread.Sleep(150);
+            mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero); // left down
+            mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero); // left up
+            Thread.Sleep(900);
+        }
+        catch (Exception ex) { Log.Write("click: " + ex.Message); }
+    }
+    [DllImport("user32.dll")] private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr v);
 
     // ---------- the window the person uses ----------
 
