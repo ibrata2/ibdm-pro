@@ -342,6 +342,7 @@ public static partial class L
         ["الإصدار {0} — اضغط هنا للتحديث."] = "Version {0} — click here to update.",
         ["تحديث الآن"] = "Update now",
         ["يتوفر إصدار جديد من IBDM Pro: {0}"] = "A new version of IBDM Pro is available: {0}",
+        ["IBDM Pro — برمجة و تطوير ابراهيم الخزرجي"] = "IBDM Pro — Programmed and developed by Ibrahim Al-Khazraji",
         ["صوتيات"] = "Audio",
         ["مضغوطات"] = "Compressed",
         ["برامج"] = "Programs",
