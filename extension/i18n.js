@@ -14,6 +14,7 @@ var IBDM_EN = {
   'IBDM Pro — البرنامج غير مشغّل': 'IBDM Pro — the app is not running',
   'IBDM Pro — اختر الجودة وحمّل': 'IBDM Pro — choose the quality and download',
   'تحميل هذا الفيديو': 'Download this video',
+  'لم يصل رد — حدّث الصفحة وحاول مرة ثانية': 'No answer — reload the page and try again',
   'اسحب لتغيير المكان — نقرتين للرجوع للمكان الأصلي': 'Drag to move — double-click to put it back',
   'اسحب لتكبير أو تصغير الزر': 'Drag to make the button bigger or smaller',
   'إخفاء': 'Hide',

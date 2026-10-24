@@ -58,7 +58,10 @@ async function selfUpdate(appVersion) {
 
 async function sendToApp(payload) {
   try {
-    const r = await fetch(APP + '/add', { method: 'POST', headers: HEADERS, body: JSON.stringify(payload) });
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetch(APP + '/add', { method: 'POST', headers: HEADERS, body: JSON.stringify(payload), signal: ctrl.signal });
+    clearTimeout(timer);
     return r.ok;
   } catch (e) {
     return false;
@@ -186,7 +189,19 @@ function buildMenus() {
     await make({ id: 'ibdm-page', title: t('تحميل فيديو هذه الصفحة بواسطة IBDM Pro'), contexts: ['page', 'frame'] });
   }).catch(() => { });
 }
-api.runtime.onInstalled.addListener(() => { buildMenus(); ping(true); });
+api.runtime.onInstalled.addListener(details => { buildMenus(); ping(true); injectIntoOpenTabs(); });
+
+// Pages that were already open get the video button right away (after installing, or after the extension updates
+// itself), without having to reload them.
+async function injectIntoOpenTabs() {
+  if (!api.scripting) return;
+  try {
+    const tabs = await api.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    for (const tab of tabs) {
+      api.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['i18n.js', 'content.js'] }).catch(() => { });
+    }
+  } catch (e) { }
+}
 api.runtime.onStartup.addListener(buildMenus);
 
 api.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -268,6 +283,13 @@ async function refreshBadge(tabId) {
 
 api.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
+    try { await handle(msg, sender, reply); } catch (e) { try { reply({ ok: false, error: String(e) }); } catch (x) { } }
+  })();
+  return true;
+});
+
+async function handle(msg, sender, reply) {
+  {
     if (msg.cmd === 'status') {
       const cfg = await ping(true);
       const { paused } = await api.storage.local.get({ paused: false });
@@ -298,9 +320,8 @@ api.runtime.onMessage.addListener((msg, sender, reply) => {
     } else if (msg.cmd === 'ping') {
       reply({ app: await ping() });
     }
-  })();
-  return true;
-});
+  }
+}
 
 setInterval(() => refreshBadge(), 15000);
 refreshBadge();

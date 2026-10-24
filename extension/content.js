@@ -1,7 +1,20 @@
 // IBDM Pro — the "تحميل هذا الفيديو" button that appears on videos when the mouse is over them (like IDM).
 (() => {
-  if (window.__ibdmPro) return;
-  window.__ibdmPro = true;
+  // After the extension updates itself, the copy already running in an open page can no longer reach the extension.
+  // The new copy is injected into open pages: it removes the dead one and takes over (no need to reload the page).
+  const alive = () => { try { return !!(api.runtime && api.runtime.id); } catch (e) { return false; } };
+  if (window.__ibdmPro && typeof window.__ibdmPro.alive === 'function' && window.__ibdmPro.alive()) return;
+  try { if (window.__ibdmPro && window.__ibdmPro.destroy) window.__ibdmPro.destroy(); } catch (e) { }
+  const stop = new AbortController();
+  const timers = [];
+  function destroy() {
+    stop.abort();
+    timers.forEach(clearInterval);
+    try { if (host) host.remove(); } catch (e) { }
+    if (window.__ibdmPro && window.__ibdmPro.destroy === destroy) window.__ibdmPro = null;
+  }
+  window.__ibdmPro = { alive, destroy };
+  const on = { signal: stop.signal };
 
   const MIN_W = 200, MIN_H = 120;
   let current = null;      // the video the button belongs to
@@ -137,7 +150,7 @@
     } catch (e) { }
   }
   loadTheme();
-  setInterval(loadTheme, 60000);
+  timers.push(setInterval(() => { if (!alive()) destroy(); else loadTheme(); }, 60000));
 
   function videoAt(x, y) {
     for (const v of document.querySelectorAll('video')) {
@@ -222,14 +235,20 @@
     if (post && post !== location.href) src = '';
     sending = true;
     label.textContent = t('جاري الإرسال…');
-    api.runtime.sendMessage({ cmd: 'media', src, pageUrl: post || location.href, title: document.title }).then(res => {
-      label.textContent = res && res.ok ? t('✓ تم — اختر الجودة بالبرنامج') : t('شغّل برنامج IBDM Pro أولاً');
-      setTimeout(() => { sending = false; if (label) label.textContent = t('تحميل هذا الفيديو'); }, 3500);
-    }).catch(() => { label.textContent = t('أعد تحميل الصفحة'); });
+    const done = text => { label.textContent = text; setTimeout(() => { sending = false; if (label) label.textContent = t('تحميل هذا الفيديو'); }, 3500); };
+    // Never stay on "sending…": no answer in 15 seconds means something went wrong.
+    const guard = setTimeout(() => done(t('لم يصل رد — حدّث الصفحة وحاول مرة ثانية')), 15000);
+    if (!alive()) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); return; }
+    try { api.runtime.sendMessage({ cmd: 'media', src, pageUrl: post || location.href, title: document.title }).then(res => {
+      clearTimeout(guard);
+      done(res && res.ok ? t('✓ تم — اختر الجودة بالبرنامج') : t('شغّل برنامج IBDM Pro أولاً'));
+    }).catch(() => { clearTimeout(guard); done(t('أعد تحميل الصفحة')); });
+    } catch (e) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); }
   }
 
   let lastMove = 0;
   document.addEventListener('mousemove', e => {
+    if (!alive()) { destroy(); return; }
     const now = Date.now();
     if (now - lastMove < 120) return;
     lastMove = now;
@@ -237,10 +256,10 @@
     if (dragging) return;
     if (v) { if (v !== current) show(v); else clearTimeout(hideTimer); }
     else if (current && host && !host.matches(':hover')) scheduleHide();
-  }, { passive: true });
+  }, { passive: true, signal: stop.signal });
 
-  addEventListener('scroll', place, { passive: true, capture: true });
-  addEventListener('resize', place, { passive: true });
-  document.addEventListener('fullscreenchange', () => { if (current) show(current); });
-  setInterval(() => { if (current && !current.isConnected) hide(); else place(); }, 800);
+  addEventListener('scroll', place, { passive: true, capture: true, signal: stop.signal });
+  addEventListener('resize', place, { passive: true, signal: stop.signal });
+  document.addEventListener('fullscreenchange', () => { if (current) show(current); }, on);
+  timers.push(setInterval(() => { if (current && !current.isConnected) hide(); else place(); }, 800));
 })();
