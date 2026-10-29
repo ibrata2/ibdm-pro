@@ -20,7 +20,8 @@ for y in range(h):
         op[x, y] = (r, g, b, min(a, alpha))
 # Opaque inside the tile no matter how dark (the black B): fill the tile's rounded square.
 mask = Image.new("L", (w, h), 0)
-ImageDraw.Draw(mask).rounded_rectangle([int(w*0.075), int(h*0.075), int(w*0.925), int(h*0.925)], radius=int(w*0.14), fill=255)
+# The tile of the current artwork (measured): x 61–1186, y 51–1159 of 1254.
+ImageDraw.Draw(mask).rounded_rectangle([int(w*0.058), int(h*0.048), int(w*0.942), int(h*0.918)], radius=int(w*0.11), fill=255)
 alpha = out.getchannel("A")
 alpha = Image.composite(Image.new("L", (w, h), 255), alpha, mask)
 out.putalpha(alpha)
