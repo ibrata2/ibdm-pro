@@ -433,8 +433,16 @@ public sealed class MainWindow : Window
         grid.Columns.Add(Column(L.T("الحالة"), 110, TextCell(nameof(Row.Status), null, 12, nameof(Row.StatusBrush)), "status"));
         grid.Columns.Add(Column(L.T("الوقت المتبقي"), 110, TextCell(nameof(Row.Eta), ltr: true), "eta"));
         grid.Columns.Add(Column(L.T("معدل النقل"), 94, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
+        // buttons on each row: pause / resume, open folder (finished), delete
+        var actions = new FrameworkElementFactory(typeof(StackPanel));
+        actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        actions.AppendChild(RowButton("\uE769", L.T("إيقاف"), nameof(Row.PauseVisible), Theme.Ink, r => _manager.Pause(r.Item)));
+        actions.AppendChild(RowButton("\uE768", L.T("استئناف"), nameof(Row.ResumeVisible), Theme.Green, r => _manager.Resume(r.Item)));
+        actions.AppendChild(RowButton("\uE838", L.T("فتح المجلد"), nameof(Row.FolderVisible), Theme.Ink, r => Ui.ShowInFolder(r.Item.FullPath)));
+        actions.AppendChild(RowButton("\uE711", L.T("حذف"), null, Theme.Red, r => { _list.SelectedItem = r; Delete(); }));
+        grid.Columns.Add(new GridViewColumn { Header = new GridViewColumnHeader { Content = "", IsHitTestVisible = false }, Width = 100, CellTemplate = new DataTemplate { VisualTree = actions } });
         grid.Columns.Add(Column(L.T("آخر تاريخ"), 120, TextCell(nameof(Row.Date), Theme.Muted, 12, ltr: true), "date"));
-        grid.Columns.Add(Column(L.T("الوصف"), 155, TextCell(nameof(Row.Description), Theme.Muted, 12), "description"));
+        grid.Columns.Add(Column(L.T("الوصف"), 120, TextCell(nameof(Row.Description), Theme.Muted, 12), "description"));
         _list.View = grid;
 
         _list.MouseDoubleClick += (_, e) =>
