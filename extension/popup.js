@@ -26,6 +26,7 @@ async function load() {
   if (st.app && st.app.theme) { theme = st.app.theme; api.storage.local.set({ theme }); }
   document.body.classList.toggle('dark', theme === 'dark');
   document.body.classList.toggle('light', theme === 'light');
+  document.body.classList.toggle('gdark', theme === 'glass-dark');
   // …and the same language.
   IBDM_LANG = (st.app && st.app.lang) || (await api.storage.local.get({ lang: 'ar' })).lang;
   if (st.app && st.app.lang) api.storage.local.set({ lang: IBDM_LANG });

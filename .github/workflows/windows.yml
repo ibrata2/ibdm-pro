@@ -194,14 +194,16 @@ jobs:
           }
           $cfg = "$env:APPDATA\IBDM Pro"
           New-Item -ItemType Directory -Force $cfg | Out-Null
-          foreach ($lang in "ar", "en") {
+          foreach ($run in "ar:glass", "en:glass", "ar:glass-clear", "ar:glass-dark") {
+            $lang, $theme = $run.Split(":")
             $s = if (Test-Path "$cfg\settings.json") { Get-Content "$cfg\settings.json" -Raw | ConvertFrom-Json } else { [pscustomobject]@{} }
             $s | Add-Member -NotePropertyName Language -NotePropertyValue $lang -Force
+            $s | Add-Member -NotePropertyName Theme -NotePropertyValue $theme -Force
             $s | Add-Member -NotePropertyName HasSeenWelcome -NotePropertyValue $true -Force
             $s | ConvertTo-Json -Depth 10 | Set-Content "$cfg\settings.json" -Encoding utf8
             $p = Start-Process build/publish/IBDMPro.exe -PassThru
             Start-Sleep 8
-            Shot "build/snapshots/screen/window-$lang.png"
+            Shot "build/snapshots/screen/window-$lang-$theme.png"
             Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
             Start-Sleep 2
           }
@@ -215,6 +217,10 @@ jobs:
           Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/english", "--theme", "glass", "--lang", "en" -Wait
           Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/dark", "--theme", "dark" -Wait
           Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/light", "--theme", "light" -Wait
+          foreach ($t in "glass-white", "glass-dark", "glass-clear", "auto") {
+            New-Item -ItemType Directory -Force "build/snapshots/$t" | Out-Null
+            Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/$t", "--theme", $t, "--lang", "ar" -Wait
+          }
           Get-ChildItem build/snapshots -Recurse | Format-Table FullName, Length
           Get-ChildItem build/snapshots -Recurse -Filter *.txt | ForEach-Object { Get-Content $_ }
 

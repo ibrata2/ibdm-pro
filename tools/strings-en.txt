@@ -377,3 +377,10 @@ Add selected to queue
 Download video from a link
 Paste a link to a page with a video, or a file link — the app searches the link for the video and its available qualities.
 Find the video
+White and red glass
+White glass
+Red and black glass
+Clear glass (see-through)
+Match the computer's style
+Classic light
+Classic dark

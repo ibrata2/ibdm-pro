@@ -289,7 +289,8 @@ public sealed class SettingsWindow : Window
     // general
     private readonly TextBox _root = Ui.Input();
     private readonly CheckBox _startup, _tray, _notify, _showInfo, _resume, _updates, _showProgress;
-    private readonly RadioButton _themeAuto = new(), _themeDark = new(), _themeLight = new(), _themeGlass = new(), _langAr = new(), _langEn = new();
+    private readonly RadioButton _langAr = new(), _langEn = new();
+    private readonly List<(RadioButton Button, string Key)> _themes = [];
     // speed
     private readonly Slider _conn = new() { Minimum = 1, Maximum = 32, IsSnapToTickEnabled = true, TickFrequency = 1 };
     private readonly Slider _parallel = new() { Minimum = 1, Maximum = 10, IsSnapToTickEnabled = true, TickFrequency = 1 };
@@ -429,15 +430,19 @@ public sealed class SettingsWindow : Window
             rb.GroupName = "theme";
             rb.Margin = new Thickness(0, 0, 8, 6);
             rb.IsChecked = _s.Theme == key;
+            _themes.Add((rb, key));
             themes.Children.Add(rb);
         }
-        ThemeChoice(_themeAuto, L.T("تلقائي — حسب Windows"), "\uE7F4", "auto");
-        ThemeChoice(_themeDark, L.T("ليلي"), "\uE708", "dark");
-        ThemeChoice(_themeLight, L.T("نهاري"), "\uE706", "light");
-        ThemeChoice(_themeGlass, L.T("زجاجي أحمر (تجريبي)"), "\uE790", "glass");
-        if (_themeAuto.IsChecked != true && _themeDark.IsChecked != true && _themeLight.IsChecked != true && _themeGlass.IsChecked != true) _themeAuto.IsChecked = true;
+        ThemeChoice(new RadioButton(), L.T("زجاجي أبيض وأحمر"), "\uE790", "glass");
+        ThemeChoice(new RadioButton(), L.T("زجاجي أبيض"), "\uE790", "glass-white");
+        ThemeChoice(new RadioButton(), L.T("زجاجي أحمر وأسود"), "\uE790", "glass-dark");
+        ThemeChoice(new RadioButton(), L.T("زجاجي شفاف"), "\uE7B3", "glass-clear");
+        ThemeChoice(new RadioButton(), L.T("متناسب مع ستايل الحاسبة"), "\uE7F4", "auto");
+        ThemeChoice(new RadioButton(), L.T("كلاسيكي نهاري"), "\uE706", "light");
+        ThemeChoice(new RadioButton(), L.T("كلاسيكي ليلي"), "\uE708", "dark");
+        if (!_themes.Any(t => t.Button.IsChecked == true)) _themes[0].Button.IsChecked = true;
         p.Children.Add(themes);
-        p.Children.Add(Ui.Text(L.F("الوضع الحالي: {0}. تغيير المظهر يحتاج إعادة تشغيل البرنامج.", (Theme.IsGlass ? L.T("زجاجي") : Theme.IsDark ? L.T("ليلي") : L.T("نهاري"))), 12, Theme.Muted, wrap: TextWrapping.Wrap));
+        p.Children.Add(Ui.Text(L.F("الوضع الحالي: {0}. تغيير المظهر يحتاج إعادة تشغيل البرنامج.", ThemeName(Theme.Mode)), 12, Theme.Muted, wrap: TextWrapping.Wrap));
 
         var check = Ui.Button(L.T("البحث عن أحدث إصدار"), "\uE895", Theme.Button, () => Updater.ShowWindow(this));
         check.HorizontalAlignment = HorizontalAlignment.Left;
@@ -615,7 +620,7 @@ public sealed class SettingsWindow : Window
         var oldTheme = Settings.Current.Theme;
         var oldLang = Settings.Current.Language;
         _s.Language = _langEn.IsChecked == true ? "en" : "ar";
-        _s.Theme = _themeGlass.IsChecked == true ? "glass" : _themeDark.IsChecked == true ? "dark" : _themeLight.IsChecked == true ? "light" : "auto";
+        _s.Theme = _themes.FirstOrDefault(t => t.Button.IsChecked == true).Key ?? "glass";
         _s.Connections = (int)_conn.Value;
         _s.MaxParallel = (int)_parallel.Value;
         _s.SpeedLimitKBps = int.TryParse(_limit.Text.Trim(), out var lim) && lim > 0 ? lim : 0;
@@ -661,6 +666,17 @@ public sealed class SettingsWindow : Window
             && Ui.Ask(Owner, L.T("تغيير المظهر"), L.T("إعادة تشغيل IBDM Pro الآن لتطبيق الألوان الجديدة؟ (التحميلات تكمل بعد التشغيل)"), L.T("إعادة التشغيل الآن"), L.T("لاحقاً")) == 0)
             IbdmApp.Instance.Restart();
     }
+
+    private static string ThemeName(string key) => key switch
+    {
+        "glass-white" => L.T("زجاجي أبيض"),
+        "glass-dark" => L.T("زجاجي أحمر وأسود"),
+        "glass-clear" => L.T("زجاجي شفاف"),
+        "auto" => L.T("متناسب مع ستايل الحاسبة"),
+        "light" => L.T("كلاسيكي نهاري"),
+        "dark" => L.T("كلاسيكي ليلي"),
+        _ => L.T("زجاجي أبيض وأحمر"),
+    };
 
     private static List<string> Words(string text) =>
         text.Split([' ', ',', '\n', '\r', '\t', '؛', '،'], StringSplitOptions.RemoveEmptyEntries)

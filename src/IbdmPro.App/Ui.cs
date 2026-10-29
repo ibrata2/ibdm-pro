@@ -11,38 +11,99 @@ using System.Windows.Media.Imaging;
 
 namespace IbdmPro.App;
 
-/// <summary>The IBDM Pro look: gold accents, Arabic, right to left — dark (black) or light (white) following
-/// the Windows "app mode" (Settings › Personalization › Colors), unless chosen in IBDM Pro's settings.</summary>
+/// <summary>The app's look. Styles (chosen in the settings, applied after a restart):
+/// "glass" white glass with red · "glass-white" white glass · "glass-dark" red and black glass ·
+/// "glass-clear" see-through glass (Windows 11 blur behind the window) · "auto" like the computer
+/// (Windows light/dark mode and its accent colour) · "light" / "dark" the classic flat styles.</summary>
 public static class Theme
 {
-    /// <summary>The experimental "glass" style: white frosted glass with red glass accents, like the app icon.</summary>
-    public static readonly bool IsGlass = IbdmPro.Core.Settings.Current.Theme == "glass";
-    public static readonly bool IsDark = !IsGlass && ReadDark();
-    private static string P(string dark, string light, string? glass = null) => IsGlass ? glass ?? light : IsDark ? dark : light;
+    public static readonly string Mode = IbdmPro.Core.Settings.Current.Theme ?? "glass";
+    private static readonly bool WinDark = WindowsIsDark();
+    /// <summary>See-through glass: the desktop shows (blurred) behind the window.</summary>
+    public static readonly bool IsClear = Mode == "glass-clear";
+    /// <summary>Any glass style (gradients, shine on the progress bar).</summary>
+    public static readonly bool IsGlass = Mode is "glass" or "glass-white" or "glass-dark" or "glass-clear" or "auto";
+    public static readonly bool IsDark = Mode switch
+    {
+        "dark" or "glass-dark" => true,
+        "glass-clear" or "auto" => WinDark,
+        "light" or "glass" or "glass-white" => false,
+        _ => WinDark,
+    };
+    private static readonly bool Classic = !IsGlass;
+    private static string P(string dark, string light, string? glass = null) => IsDark ? dark : Classic ? light : glass ?? light;
 
-    public static readonly Brush Bg = IsGlass ? Grad("#FBFCFE", "#E8EBF1") : Br(P("#0F0F11", "#F3F3F5"));
-    public static readonly Brush Panel = IsGlass ? Grad("#F2FFFFFF", "#D9F4F6FA") : Br(P("#16161A", "#FAFAFB"));
-    public static readonly Brush Card = IsGlass ? Grad("#F7FFFFFF", "#E6F7F8FB") : Br(P("#1E1E23", "#FFFFFF"));
-    public static readonly Brush Hover = Br(P("#2A2A31", "#ECECF0", "#14D7141F"));
-    public static readonly Brush Pressed = Br(P("#33333B", "#E1E1E7", "#26D7141F"));
-    public static readonly Brush Line = Br(P("#2C2C33", "#DCDCE2", "#D6DAE2"));
-    public static readonly Brush Gold = Br(P("#D4AF37", "#A87F0A", "#D7141F"));
-    public static readonly Brush GoldHover = IsGlass ? Grad("#F0434C", "#C40F18") : Br(P("#E2C25A", "#B98E17"));
-    public static readonly Brush GoldPressed = Br(P("#B8962A", "#8F6C08", "#A30C14"));
-    public static readonly Brush GoldSoft = Br(P("#33D4AF37", "#26C49A1C", "#1CD7141F"));
-    public static readonly Brush OnGold = Br(P("#111111", "#FFFFFF", "#FFFFFF"));
+    // The accent: (shine, colour, deep)
+    private static readonly (Color Hi, Color Base, Color Lo) Acc = Mode switch
+    {
+        "glass-white" => (C("#7D8BA0"), C("#3E4A5C"), C("#232B37")),
+        "auto" => FromWindowsAccent(),
+        "dark" => (C("#E2C25A"), C("#D4AF37"), C("#B8962A")),
+        "light" => (C("#B98E17"), C("#A87F0A"), C("#8F6C08")),
+        _ => (C("#F2363F"), C("#D7141F"), C("#9E0A12")), // red glass
+    };
+
+    public static readonly Brush Bg = IsClear
+        ? (IsDark ? Grad("#7A0E0E12", "#99070709") : Grad("#59FFFFFF", "#80EEF1F6"))
+        : Classic ? Br(P("#0F0F11", "#F3F3F5")) : IsDark ? Grad("#1D1D23", "#0B0B0E") : Grad("#FBFCFE", "#E8EBF1");
+    /// <summary>The same background without see-through (used when Windows cannot blur behind the window).</summary>
+    public static readonly Brush SolidBg = IsDark ? (Classic ? Br("#0F0F11") : Grad("#1D1D23", "#0B0B0E")) : Classic ? Br("#F3F3F5") : Grad("#FBFCFE", "#E8EBF1");
+    public static readonly Brush Panel = IsClear
+        ? (IsDark ? Grad("#8C1A1A20", "#A6101014") : Grad("#99FFFFFF", "#80F4F6FA"))
+        : Classic ? Br(P("#16161A", "#FAFAFB")) : IsDark ? Grad("#F2212128", "#E6131317") : Grad("#F2FFFFFF", "#D9F4F6FA");
+    public static readonly Brush Card = IsClear
+        ? (IsDark ? Grad("#B3262630", "#CC18181E") : Grad("#CCFFFFFF", "#B3F7F8FB"))
+        : Classic ? Br(P("#1E1E23", "#FFFFFF")) : IsDark ? Grad("#F22B2B33", "#E61C1C22") : Grad("#F7FFFFFF", "#E6F7F8FB");
+    public static readonly Brush Hover = Classic ? Br(P("#2A2A31", "#ECECF0")) : Br(A(IsDark ? 0x40 : 0x16, Acc.Base));
+    public static readonly Brush Pressed = Classic ? Br(P("#33333B", "#E1E1E7")) : Br(A(IsDark ? 0x60 : 0x28, Acc.Base));
+    public static readonly Brush Line = Br(P(IsGlass ? "#38383F" : "#2C2C33", "#DCDCE2", IsClear ? "#99C9CED8" : "#D6DAE2"));
+    public static readonly Brush Gold = Br(IsDark && Mode == "auto" ? Acc.Hi : Acc.Base);
+    public static readonly Brush GoldHover = Classic ? Br(Acc.Hi) : Grad(Lighter(Acc.Hi, 0.15), Acc.Base);
+    public static readonly Brush GoldPressed = Br(Acc.Lo);
+    public static readonly Brush GoldSoft = Br(A(IsDark ? 0x33 : 0x1C, Acc.Base));
+    public static readonly Brush OnGold = Br(Mode == "dark" ? "#111111" : "#FFFFFF");
     public static readonly Brush Ink = Br(P("#F2F2F4", "#1B1B1F", "#16161A"));
-    public static readonly Brush Muted = Br(P("#9C9CA6", "#6B6B75", "#6A6E78"));
+    public static readonly Brush Muted = Br(P("#A0A0AA", "#6B6B75", "#6A6E78"));
     public static readonly Brush Red = Br(P("#E5533D", "#C93B26", "#C8121C"));
     public static readonly Brush RedSoft = Br(P("#33E5533D", "#22C93B26", "#1FC8121C"));
     public static readonly Brush Green = Br(P("#4CC26B", "#23914A", "#1E8E46"));
     public static readonly Brush Blue = Br(P("#3B9BF0", "#1F7BD0", "#1F7BD0"));
-    public static readonly Brush Track = IsGlass ? Grad("#D9DDE4", "#EEF0F4") : Br(P("#2A2A30", "#E3E3E9"));
-    public static readonly Brush BoxLine = Br(P("#55555F", "#9A9AA5", "#A8ADB8"));
-    /// <summary>The primary (accent) button face: red glass in the glass style.</summary>
-    public static readonly Brush AccentFace = IsGlass ? Grad("#F2363F", "#B80D16") : Gold;
-    /// <summary>The progress fill: glossy red glass in the glass style.</summary>
-    public static readonly Brush ProgressFill = IsGlass ? Grad("#FF5A62", "#D7141F", "#9E0A12") : Gold;
+    public static readonly Brush Track = Classic ? Br(P("#2A2A30", "#E3E3E9")) : IsDark ? Grad("#24242B", "#33333B") : Grad("#D9DDE4", "#EEF0F4");
+    public static readonly Brush TrackLine = Br(IsDark ? "#45454E" : "#C9CED8");
+    public static readonly Brush BoxLine = Br(P("#5A5A64", "#9A9AA5", "#A8ADB8"));
+    /// <summary>The primary (accent) button face: glass in the glass styles.</summary>
+    public static readonly Brush AccentFace = Classic ? Br(Acc.Base) : Grad(Acc.Hi, Acc.Lo);
+    public static readonly Brush AccentEdge = Br(Classic ? Acc.Base : Acc.Lo);
+    /// <summary>The progress fill: glossy glass in the glass styles.</summary>
+    public static readonly Brush ProgressFill = Classic ? Br(Acc.Base) : Grad(Lighter(Acc.Hi, 0.2), Acc.Base, Acc.Lo);
+
+    private static Color C(string hex) => (Color)ColorConverter.ConvertFromString(hex);
+    private static Color A(byte alpha, Color c) => Color.FromArgb(alpha, c.R, c.G, c.B);
+    private static string Hex(Color c) => $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
+    private static Brush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+    private static Color Mix(Color c, Color with, double t) => Color.FromRgb(
+        (byte)(c.R + (with.R - c.R) * t), (byte)(c.G + (with.G - c.G) * t), (byte)(c.B + (with.B - c.B) * t));
+    private static string Lighter(Color c, double t) => Hex(Mix(c, Colors.White, t));
+    private static Brush Grad(Color top, Color bottom) => Grad(Hex(top), Hex(bottom));
+    private static Brush Grad(string top, Color bottom) => Grad(top, Hex(bottom));
+    private static Brush Grad(string top, Color mid, Color end) => Grad(top, Hex(mid), Hex(end));
+
+    /// <summary>The colour chosen in Windows (Settings › Personalization › Colors › Accent colour).</summary>
+    private static (Color, Color, Color) FromWindowsAccent()
+    {
+        var c = C("#0078D4");
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\DWM");
+            if (key?.GetValue("AccentColor") is int abgr)
+            {
+                var v = unchecked((uint)abgr); // 0xAABBGGRR
+                c = Color.FromRgb((byte)(v & 0xFF), (byte)((v >> 8) & 0xFF), (byte)((v >> 16) & 0xFF));
+            }
+        }
+        catch (Exception) { }
+        return (Mix(c, Colors.White, 0.25), c, Mix(c, Colors.Black, 0.3));
+    }
 
     public static Brush Grad(string top, string bottom, string? end = null)
     {
@@ -93,7 +154,7 @@ public static class Theme
     // ---------- styles built in code (no XAML) ----------
 
     public static readonly Style Button = MakeButton(Card, Hover, Pressed, Ink, Line);
-    public static readonly Style PrimaryButton = MakeButton(AccentFace, GoldHover, GoldPressed, OnGold, IsGlass ? Br("#9E0A12") : Gold);
+    public static readonly Style PrimaryButton = MakeButton(AccentFace, GoldHover, GoldPressed, OnGold, AccentEdge);
     public static readonly Style DangerButton = MakeButton(RedSoft, Hover, Pressed, Red, RedSoft);
     public static readonly Style ToolButton = MakeButton(Brushes.Transparent, Hover, Pressed, Ink, Brushes.Transparent);
     public static readonly Style Choice = MakeChoice();
@@ -238,7 +299,7 @@ public static class Theme
         track.SetValue(Border.BackgroundProperty, Track);
         if (IsGlass)
         {
-            track.SetValue(Border.BorderBrushProperty, Br("#C9CED8"));
+            track.SetValue(Border.BorderBrushProperty, TrackLine);
             track.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         }
         var ind = new FrameworkElementFactory(typeof(Grid), "PART_Indicator");
@@ -483,6 +544,13 @@ public static class Ui
             var hwnd = new WindowInteropHelper(w).Handle;
             int on = Theme.IsDark ? 1 : 0;
             if (DwmSetWindowAttribute(hwnd, 20, ref on, 4) != 0) DwmSetWindowAttribute(hwnd, 19, ref on, 4);
+            if (Theme.IsClear)
+            {
+                // See-through glass: Windows 11 draws a blurred view of what is behind the window under its
+                // half-transparent content. Older Windows cannot: the window gets the solid glass background.
+                if (!SeeThrough(w, hwnd)) w.Background = Theme.SolidBg;
+                return;
+            }
             var bg = Theme.Solid(Theme.Bg);
             int caption = bg.R | bg.G << 8 | bg.B << 16; // COLORREF 0x00BBGGRR
             DwmSetWindowAttribute(hwnd, 35, ref caption, 4);
@@ -492,6 +560,26 @@ public static class Ui
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Margins { public int Left, Right, Top, Bottom; }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref Margins margins);
+
+    private static bool SeeThrough(Window w, IntPtr hwnd)
+    {
+        try
+        {
+            if (Environment.OSVersion.Version.Build < 22621) return false; // the blur needs Windows 11 22H2 or newer
+            if (HwndSource.FromHwnd(hwnd) is { CompositionTarget: { } target }) target.BackgroundColor = Colors.Transparent;
+            var m = new Margins { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+            DwmExtendFrameIntoClientArea(hwnd, ref m);
+            int acrylic = 3; // DWMSBT_TRANSIENTWINDOW: the frosted "acrylic" blur
+            return DwmSetWindowAttribute(hwnd, 38, ref acrylic, 4) == 0;
+        }
+        catch (Exception) { return false; }
+    }
 
     /// <summary>Brings a window to the front even when another program (the browser) has focus.</summary>
     public static void ForceFront(Window w)

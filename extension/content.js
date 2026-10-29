@@ -44,6 +44,8 @@
            --fg:#16161A;--ac:#D7141F;--bd:rgba(215,20,31,.85);--mu:#7A7F8A;--sh:0 6px 22px rgba(160,10,18,.28),inset 0 1px 0 #fff}
         .b.dark{--bg:linear-gradient(180deg,#1E1E23,#0F0F11);--bgh:linear-gradient(180deg,#2A2A31,#16161A);
            --fg:#F2F2F4;--ac:#D4AF37;--bd:#D4AF37;--mu:#9C9CA6;--sh:0 4px 18px rgba(0,0,0,.45)}
+        .b.gdark{--bg:linear-gradient(180deg,#2A2A31 0%,#16161A 60%,#0B0B0E 100%);--bgh:linear-gradient(180deg,#34343C,#1C1C22);
+           --fg:#F2F2F4;--ac:#F0434C;--bd:rgba(215,20,31,.9);--mu:#A0A0AA;--sh:0 6px 22px rgba(160,10,18,.45),inset 0 1px 0 rgba(255,255,255,.12)}
         .b.light{--bg:linear-gradient(180deg,#FFFFFF,#F3F3F5);--bgh:linear-gradient(180deg,#FFFFFF,#ECECF0);
            --fg:#1B1B1F;--ac:#A87F0A;--bd:#C49A1C;--mu:#6B6B75;--sh:0 4px 16px rgba(0,0,0,.18)}
         .b{display:flex;align-items:center;gap:8px;direction:rtl;font:600 13px/1 "Segoe UI",Tahoma,sans-serif;
@@ -133,6 +135,7 @@
     if (!button) return;
     button.classList.toggle('dark', theme === 'dark');
     button.classList.toggle('light', theme === 'light');
+    button.classList.toggle('gdark', theme === 'glass-dark');
     button.style.direction = IBDM_LANG === 'en' ? 'ltr' : 'rtl';
     button.title = t('IBDM Pro — اختر الجودة وحمّل');
     if (label && !sending) label.textContent = t('تحميل هذا الفيديو');

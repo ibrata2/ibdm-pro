@@ -204,7 +204,7 @@ public sealed class IbdmApp : Application
         var asked = false;
         SystemEvents.UserPreferenceChanged += (_, e) =>
         {
-            if (e.Category != UserPreferenceCategory.General || asked || Settings.Current.Theme != "auto") return;
+            if (e.Category != UserPreferenceCategory.General || asked || Settings.Current.Theme is not ("auto" or "glass-clear")) return;
             if (Theme.WindowsIsDark() == Theme.IsDark) return;
             asked = true;
             Dispatcher.BeginInvoke(() =>

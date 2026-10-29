@@ -59,16 +59,19 @@ public sealed class Settings
     /// <summary>"ar" (Arabic, default) or "en" (English). Changing it needs a restart.</summary>
     public string Language { get; set; } = "ar";
 
-    /// <summary>"glass" (red glass, the default), "auto" = light or dark like Windows, "dark", or "light".</summary>
-    public string Theme { get; set; } = "light";
+    /// <summary>"glass" white and red glass, "glass-white", "glass-dark" red and black glass, "glass-clear" see-through,
+    /// "auto" like the computer (Windows light/dark and accent colour), or the classic "light" / "dark".</summary>
+    public string Theme { get; set; } = "glass";
     /// <summary>Set once the red glass style has been made the default for an existing install.</summary>
     public bool GlassDefaultApplied { get; set; } = true;
 
-    /// <summary>The style actually in use: "glass", "dark" or "light" ("auto" resolved from Windows).</summary>
+    /// <summary>The style told to the browser extension: "glass" (white glass), "glass-dark" (red and black glass),
+    /// "dark" or "light" (classic).</summary>
     public string ResolvedTheme => Theme switch
     {
-        "glass" or "dark" or "light" => Theme,
-        _ => WindowsIsDark() ? "dark" : "light",
+        "glass" or "glass-white" or "dark" or "light" or "glass-dark" => Theme == "glass-white" ? "glass" : Theme,
+        "glass-clear" or "auto" => WindowsIsDark() ? "glass-dark" : "glass",
+        _ => "glass",
     };
 
     public static bool WindowsIsDark()
