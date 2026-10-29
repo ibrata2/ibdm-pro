@@ -1,4 +1,4 @@
-# IBDM Pro
+# IBRA Download Manager (IBDM Pro)
 
 مدير تحميل لـ Windows — **برمجة و تطوير ابراهيم الخزرجي**
 

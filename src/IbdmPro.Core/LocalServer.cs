@@ -19,6 +19,7 @@ public sealed class CaptureRequest
     public string? Cookies { get; set; }
     public string? UserAgent { get; set; }
     public string? Title { get; set; }
+    public string QueueName { get; set; } = Settings.DefaultQueueName;
 
     public RequestInfo ToRequestInfo() => new() { Cookies = Cookies, UserAgent = UserAgent, Referrer = Referrer ?? PageUrl };
 }
@@ -239,3 +240,5 @@ public sealed class LocalServer : IDisposable
         try { _listener.Stop(); } catch (Exception) { }
     }
 }
+
+

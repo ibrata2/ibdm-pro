@@ -8,6 +8,7 @@ namespace IbdmPro.App;
 
 public static class Program
 {
+    public const string ProductName = "IBRA Download Manager";
     public static string Version { get; } =
         (typeof(Program).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "1.0.0");
 
@@ -15,6 +16,7 @@ public static class Program
     public static int Main(string[] args)
     {
         _ = Settings.Current; // loads the settings, which also sets the language (L.Lang) before any window exists
+        L.Brand = ProductName; // texts show "IBRA Download Manager"
         if (args.Length > 1 && args[0] == "--snapshot")
         {
             // Render the windows to pictures with sample data, without touching the real settings or list.
@@ -70,7 +72,7 @@ public static class Program
             try
             {
                 var r = Updater.LatestAsync().GetAwaiter().GetResult();
-                File.WriteAllText(args[1], r is null ? "no setup asset" : $"current={Program.Version} latest={r.Version} newer={r.Version > Updater.Current} size={r.Size} url={r.SetupUrl}");
+                File.WriteAllText(args[1], r is null ? $"current={Program.Version} latest=none newer=false" : $"current={Program.Version} latest={r.Version} newer={r.Version > Updater.Current} size={r.Size} url={r.SetupUrl}");
             }
             catch (Exception e) { File.WriteAllText(args[1], "error: " + e.Message); }
             return 0;
@@ -241,3 +243,5 @@ public static class AutoStart
         catch (Exception e) { Log.Write($"startup: {e.Message}"); }
     }
 }
+
+

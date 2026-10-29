@@ -21,6 +21,16 @@ public sealed class Settings
 {
     public const int Port = 39401;
     public const string OtherCategory = "أخرى";
+    public const string DefaultQueueName = "الرئيسية";
+
+    public sealed class DownloadQueue
+    {
+        public string Name { get; set; } = DefaultQueueName;
+        public bool IsRunning { get; set; }
+    }
+
+    /// <summary>Named waiting lists. Existing installs get a default queue automatically.</summary>
+    public List<DownloadQueue> Queues { get; set; } = [new() { Name = DefaultQueueName, IsRunning = true }];
 
     /// <summary>Everything IBDM Pro downloads goes inside this folder, sorted into one folder per kind.</summary>
     public string DownloadRoot { get; set; } = Path.Combine(Paths.UserDownloads, "IBDM Pro");
@@ -36,6 +46,7 @@ public sealed class Settings
     public bool ShowInfoBeforeDownload { get; set; } = true;
     /// <summary>The window that shows each download's progress (like IDM).</summary>
     public bool ShowProgressWindow { get; set; } = true;
+    public bool? ProgressDetailsVisible { get; set; }
     public bool ProgressAutoClose { get; set; }
     public bool ProgressOpenFile { get; set; }
     public bool ProgressOpenFolder { get; set; }
@@ -49,7 +60,7 @@ public sealed class Settings
     public string Language { get; set; } = "ar";
 
     /// <summary>"glass" (red glass, the default), "auto" = light or dark like Windows, "dark", or "light".</summary>
-    public string Theme { get; set; } = "glass";
+    public string Theme { get; set; } = "light";
     /// <summary>Set once the red glass style has been made the default for an existing install.</summary>
     public bool GlassDefaultApplied { get; set; } = true;
 
@@ -172,11 +183,16 @@ public sealed class Settings
                 if (s is not null) L.Lang = s.Language == "en" ? "en" : "ar";
                 if (s is not null)
                 {
+                    s.Queues ??= [];
+                    if (s.Queues.Count == 0) s.Queues.Add(new DownloadQueue { Name = DefaultQueueName, IsRunning = true });
+                    foreach (var item in s.Queues) item.Name = item.Name?.Trim() ?? "";
+                    s.Queues.RemoveAll(q => q.Name.Length == 0);
+                    if (s.Queues.Count == 0) s.Queues.Add(new DownloadQueue { Name = DefaultQueueName, IsRunning = true });
                     if (s.Categories.Count == 0) s.Categories = DefaultCategories();
                     if (!s.GlassDefaultApplied)
                     {
-                        // Older settings files: switch once to the new default red glass style.
-                        s.Theme = "glass";
+                        // Older settings files: migrate once to the classic light download-manager layout.
+                        s.Theme = "light";
                         s.GlassDefaultApplied = true;
                         try { Json.SaveAtomic(FilePath, s); } catch (Exception) { }
                     }
@@ -202,3 +218,5 @@ public sealed class Settings
     /// <summary>For tests.</summary>
     public static void Reset(Settings? s = null) => _current = s;
 }
+
+

@@ -341,3 +341,39 @@ The browser downloads the file itself instead of IBDM Pro
 Delete completed
 There are no completed downloads in the list.
 {0} completed downloads
+New download
+Queues
+File
+Downloads
+View
+Settings
+Exit
+Start all queues
+Stop all queues
+Start queue
+Stop queue
+New queue…
+New queue
+Queue
+Queue name
+Create
+Move to queue
+Tasks
+Help
+Register
+Options
+Category
+Last date
+Description
+Categories
+The program is free and fully featured
+More programs on Telegram
+New queue
+Add to queue
+Open the program
+Download in progress
+Open the program
+Add selected to queue
+Download video from a link
+Paste a link to a page with a video, or a file link — the app searches the link for the video and its available qualities.
+Find the video

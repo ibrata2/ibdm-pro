@@ -38,6 +38,8 @@ public sealed class DownloadItem
     public string FileName { get; set; } = "";
     public string Folder { get; set; } = "";
     public string Category { get; set; } = "";
+    /// <summary>The named waiting list this download belongs to.</summary>
+    public string QueueName { get; set; } = Settings.DefaultQueueName;
     public string? Description { get; set; }
 
     public long TotalBytes { get; set; } = -1;
@@ -136,3 +138,5 @@ public sealed class Store
         }
     }
 }
+
+

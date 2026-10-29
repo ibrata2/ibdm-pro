@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace IbdmPro.Core;
 
 /// <summary>Owns the download list: starts, pauses, resumes and removes downloads, keeps at most
@@ -8,6 +10,7 @@ public sealed class DownloadManager : IDisposable
     public SpeedLimiter Limiter { get; } = new();
     private readonly Dictionary<string, CancellationTokenSource> _running = [];
     private readonly Dictionary<string, (long Bytes, long Tick)> _samples = [];
+    private readonly ConcurrentDictionary<string, int> _automaticRetries = new();
     private readonly Timer _timer;
     private bool _dirty;
     private volatile bool _closing;
@@ -26,6 +29,7 @@ public sealed class DownloadManager : IDisposable
         Store = store ?? new Store();
         foreach (var item in Store.Items)
         {
+            if (string.IsNullOrWhiteSpace(item.QueueName)) item.QueueName = Settings.DefaultQueueName;
             item.Speed = 0;
             if (item.Status is DownloadStatus.Downloading or DownloadStatus.Processing or DownloadStatus.Queued)
                 item.Status = _settings().ResumeOnStart ? DownloadStatus.Queued : DownloadStatus.Paused;
@@ -35,6 +39,45 @@ public sealed class DownloadManager : IDisposable
 
     public IReadOnlyList<DownloadItem> Items { get { lock (Store.Items) return [.. Store.Items]; } }
 
+    public void CreateQueue(string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0 || _settings().Queues.Any(q => q.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return;
+        _settings().Queues.Add(new Settings.DownloadQueue { Name = name, IsRunning = false });
+        _settings().Save();
+    }
+
+    public void SetQueueRunning(string name, bool running)
+    {
+        var queue = _settings().Queues.FirstOrDefault(q => q.Name == name);
+        if (queue is null) return;
+        queue.IsRunning = running;
+        if (!running)
+            foreach (var item in Items.Where(i => i.QueueName == name && (i.IsActive || i.Status == DownloadStatus.Queued))) Pause(item);
+        else
+        {
+            foreach (var item in Items.Where(i => i.QueueName == name && i.Status == DownloadStatus.Paused)) item.Status = DownloadStatus.Queued;
+            Pump();
+        }
+        Save();
+        ListChanged?.Invoke();
+    }
+
+    public void MoveToQueue(IEnumerable<DownloadItem> items, string name)
+    {
+        if (!_settings().Queues.Any(q => q.Name == name)) return;
+        foreach (var item in items)
+        {
+            var wasRunning = IsRunning(item);
+            item.QueueName = name;
+            if (wasRunning && !_settings().Queues.First(q => q.Name == name).IsRunning) Pause(item);
+            if (item.Status == DownloadStatus.Paused && _settings().Queues.First(q => q.Name == name).IsRunning) item.Status = DownloadStatus.Queued;
+        }
+        Save();
+        Pump();
+        ListChanged?.Invoke();
+    }
+
     public void Begin() => Pump();
 
     public void Add(DownloadItem item, bool start)
@@ -43,7 +86,11 @@ public sealed class DownloadManager : IDisposable
         lock (Store.Items) Store.Items.Insert(0, item);
         Save();
         ListChanged?.Invoke();
-        if (start) { Start(item); UserStarted?.Invoke(item); }
+        if (start && _settings().Queues.Any(q => q.Name == item.QueueName && q.IsRunning))
+        {
+            Start(item);
+            UserStarted?.Invoke(item);
+        }
     }
 
     /// <summary>Starts now, even if the parallel limit is reached (the person asked for this one).</summary>
@@ -64,7 +111,7 @@ public sealed class DownloadManager : IDisposable
 
     public void Resume(DownloadItem item)
     {
-        if (item.Status is DownloadStatus.Paused or DownloadStatus.Error or DownloadStatus.Queued) { Start(item); UserStarted?.Invoke(item); }
+        if (item.Status is DownloadStatus.Paused or DownloadStatus.Error or DownloadStatus.Queued) { _automaticRetries.TryRemove(item.Id, out _); Start(item); UserStarted?.Invoke(item); }
     }
 
     public void Pause(DownloadItem item)
@@ -82,7 +129,7 @@ public sealed class DownloadManager : IDisposable
 
     public void ResumeAll()
     {
-        foreach (var i in Items.Where(i => i.Status is DownloadStatus.Paused or DownloadStatus.Error)) i.Status = DownloadStatus.Queued;
+        foreach (var i in Items.Where(i => i.Status is DownloadStatus.Paused or DownloadStatus.Error)) { _automaticRetries.TryRemove(i.Id, out _); i.Status = DownloadStatus.Queued; }
         Pump();
         ListChanged?.Invoke();
     }
@@ -127,7 +174,7 @@ public sealed class DownloadManager : IDisposable
         var s = _settings();
         int active;
         lock (_running) active = _running.Count;
-        foreach (var item in Items.Where(i => i.Status == DownloadStatus.Queued).OrderBy(i => i.Added))
+        foreach (var item in Items.Where(i => i.Status == DownloadStatus.Queued && _settings().Queues.Any(q => q.Name == i.QueueName && q.IsRunning)).OrderBy(i => i.Added))
         {
             if (active >= s.MaxParallel) break;
             Start(item);
@@ -165,6 +212,8 @@ public sealed class DownloadManager : IDisposable
             item.Status = DownloadStatus.Completed;
             item.Finished = DateTime.Now;
             item.Speed = 0;
+            _automaticRetries.TryRemove(item.Id, out _);
+            _retryProgress.TryRemove(item.Id, out _);
             lock (item.Gate) item.Segments.Clear();
             ItemCompleted?.Invoke(item);
         }
@@ -179,11 +228,36 @@ public sealed class DownloadManager : IDisposable
         }
         catch (Exception e)
         {
-            Log.Write($"{item.FileName}: {e}");
-            item.Status = DownloadStatus.Error;
-            item.Error = e is HttpRequestException h ? L.T("خطأ في الاتصال: ") + (h.InnerException?.Message ?? h.Message) : e.Message;
-            item.Speed = 0;
-            ItemFailed?.Invoke(item);
+            if (ct.IsCancellationRequested)
+            {
+                item.Status = _closing && _settings().ResumeOnStart ? DownloadStatus.Queued : DownloadStatus.Paused;
+                item.Speed = 0;
+            }
+            else if (IsRetryable(e) && RetryBudget(item) < MaxAutomaticRetries)
+            {
+                // A network hiccup: wait and carry on by itself (resuming from where it stopped), so the user does
+                // not have to press "Resume". Any progress since the last failure gives a fresh set of tries.
+                var attempt = RetryBudget(item) + 1;
+                _automaticRetries[item.Id] = attempt;
+                _retryProgress[item.Id] = item.Downloaded;
+                item.Status = DownloadStatus.Queued;
+                item.Error = null;
+                item.Speed = 0;
+                Log.Write($"{item.FileName}: temporary download failure; automatic retry {attempt}/{MaxAutomaticRetries}: {e.Message}");
+                try { await Task.Delay(TimeSpan.FromSeconds(Math.Min(60, 3 * Math.Pow(2, attempt - 1))), ct); }
+                catch (OperationCanceledException)
+                {
+                    item.Status = _closing && _settings().ResumeOnStart ? DownloadStatus.Queued : DownloadStatus.Paused;
+                }
+            }
+            else
+            {
+                Log.Write($"{item.FileName}: {e}");
+                item.Status = DownloadStatus.Error;
+                item.Error = e is HttpRequestException h ? L.T("خطأ في الاتصال: ") + (h.InnerException?.Message ?? h.Message) : e.Message;
+                item.Speed = 0;
+                ItemFailed?.Invoke(item);
+            }
         }
         finally
         {
@@ -193,6 +267,24 @@ public sealed class DownloadManager : IDisposable
             Pump();
         }
     }
+
+    private const int MaxAutomaticRetries = 12;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, long> _retryProgress = new();
+
+    /// <summary>Tries used since the download last moved forward.</summary>
+    private int RetryBudget(DownloadItem item)
+    {
+        if (_retryProgress.TryGetValue(item.Id, out var at) && item.Downloaded > at) _automaticRetries[item.Id] = 0;
+        return _automaticRetries.GetValueOrDefault(item.Id);
+    }
+
+    private static bool IsRetryable(Exception e) => e switch
+    {
+        HttpRequestException h => h.StatusCode is null or System.Net.HttpStatusCode.RequestTimeout
+            or System.Net.HttpStatusCode.TooManyRequests or >= System.Net.HttpStatusCode.InternalServerError,
+        IOException or TimeoutException => true,
+        _ => false,
+    };
 
     private void Tick()
     {
@@ -224,3 +316,5 @@ public sealed class DownloadManager : IDisposable
         Store.Save();
     }
 }
+
+
