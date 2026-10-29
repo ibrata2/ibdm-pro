@@ -78,7 +78,7 @@ public static class Theme
     public static readonly Brush ProgressFill = Classic ? Br(Acc.Base) : Grad(Lighter(Acc.Hi, 0.2), Acc.Base, Acc.Lo);
 
     private static Color C(string hex) => (Color)ColorConverter.ConvertFromString(hex);
-    private static Color A(byte alpha, Color c) => Color.FromArgb(alpha, c.R, c.G, c.B);
+    private static Color A(int alpha, Color c) => Color.FromArgb((byte)alpha, c.R, c.G, c.B);
     private static string Hex(Color c) => $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
     private static Brush Br(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
     private static Color Mix(Color c, Color with, double t) => Color.FromRgb(
