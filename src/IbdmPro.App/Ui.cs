@@ -177,10 +177,61 @@ public static class Theme
         r[typeof(ToolTip)] = MakeToolTip();
         r[typeof(ComboBox)] = MakeCombo();
         r[typeof(ComboBoxItem)] = MakeComboItem();
+        try { r[typeof(ScrollBar)] = MakeScrollBar(); } catch (Exception e) { IbdmPro.Core.Log.Write("scrollbar style: " + e.Message); }
         var menu = new Style(typeof(Menu));
         menu.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
         menu.Setters.Add(new Setter(Control.BackgroundProperty, Panel));
         r[typeof(Menu)] = menu;
+    }
+
+    /// <summary>Slim scroll bars in the style's colours (the Windows ones are always light).</summary>
+    private static Style MakeScrollBar()
+    {
+        var thumb = IsDark ? "#66FFFFFF" : "#59000000";
+        var thumbHover = IsDark ? "#99FFFFFF" : "#80000000";
+        var xaml = $$"""
+<Style xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" TargetType="ScrollBar">
+  <Style.Resources>
+    <Style x:Key="Page" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False"/><Setter Property="IsTabStop" Value="False"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="Thumb" TargetType="Thumb">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb">
+        <Border x:Name="T" CornerRadius="4" Background="{{thumb}}" Margin="2"/>
+        <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="T" Property="Background" Value="{{thumbHover}}"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+  </Style.Resources>
+  <Setter Property="Background" Value="Transparent"/>
+  <Setter Property="Width" Value="12"/><Setter Property="MinWidth" Value="12"/>
+  <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+    <Grid Background="Transparent">
+      <Track x:Name="PART_Track" IsDirectionReversed="True">
+        <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource Page}" Command="ScrollBar.PageUpCommand"/></Track.DecreaseRepeatButton>
+        <Track.Thumb><Thumb Style="{StaticResource Thumb}"/></Track.Thumb>
+        <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource Page}" Command="ScrollBar.PageDownCommand"/></Track.IncreaseRepeatButton>
+      </Track>
+    </Grid>
+  </ControlTemplate></Setter.Value></Setter>
+  <Style.Triggers>
+    <Trigger Property="Orientation" Value="Horizontal">
+      <Setter Property="Width" Value="Auto"/><Setter Property="MinWidth" Value="0"/>
+      <Setter Property="Height" Value="12"/><Setter Property="MinHeight" Value="12"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+        <Grid Background="Transparent">
+          <Track x:Name="PART_Track" IsDirectionReversed="False">
+            <Track.DecreaseRepeatButton><RepeatButton Style="{StaticResource Page}" Command="ScrollBar.PageLeftCommand"/></Track.DecreaseRepeatButton>
+            <Track.Thumb><Thumb Style="{StaticResource Thumb}"/></Track.Thumb>
+            <Track.IncreaseRepeatButton><RepeatButton Style="{StaticResource Page}" Command="ScrollBar.PageRightCommand"/></Track.IncreaseRepeatButton>
+          </Track>
+        </Grid>
+      </ControlTemplate></Setter.Value></Setter>
+    </Trigger>
+  </Style.Triggers>
+</Style>
+""";
+        return (Style)System.Windows.Markup.XamlReader.Parse(xaml);
     }
 
     /// <summary>The box a menu opens in.</summary>
