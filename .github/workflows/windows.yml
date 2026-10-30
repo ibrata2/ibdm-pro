@@ -194,7 +194,7 @@ jobs:
           }
           $cfg = "$env:APPDATA\IBDM Pro"
           New-Item -ItemType Directory -Force $cfg | Out-Null
-          foreach ($run in "ar:glass", "en:glass", "ar:glass-clear", "ar:glass-dark") {
+          foreach ($run in "ar:glass", "en:glass", "ar:glass-clear", "ar:glass-dark", "ar:dark", "ar:glass-white") {
             $lang, $theme = $run.Split(":")
             $s = if (Test-Path "$cfg\settings.json") { Get-Content "$cfg\settings.json" -Raw | ConvertFrom-Json } else { [pscustomobject]@{} }
             $s | Add-Member -NotePropertyName Language -NotePropertyValue $lang -Force
@@ -204,6 +204,13 @@ jobs:
             $p = Start-Process build/publish/IBDMPro.exe -PassThru
             Start-Sleep 8
             Shot "build/snapshots/screen/window-$lang-$theme.png"
+            # Open the first menu (Alt, then Down) to check its text can be read in this style.
+            $ws = New-Object -ComObject WScript.Shell
+            $ws.AppActivate($p.Id) | Out-Null; Start-Sleep 1
+            [System.Windows.Forms.SendKeys]::SendWait("%"); Start-Sleep 1
+            [System.Windows.Forms.SendKeys]::SendWait("{DOWN}"); Start-Sleep 2
+            Shot "build/snapshots/screen/menu-$lang-$theme.png"
+            [System.Windows.Forms.SendKeys]::SendWait("{ESC}{ESC}")
             Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
             Start-Sleep 2
           }

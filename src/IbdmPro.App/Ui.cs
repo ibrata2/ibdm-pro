@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -164,6 +165,234 @@ public static class Theme
     public static readonly Style Header = MakeHeader();
     public static readonly Style Input = MakeInput();
     public static readonly Style CheckBox = MakeCheck();
+
+    /// <summary>Menus, their drop-downs, tooltips and drop-down lists drawn in the style's own colours
+    /// (the Windows defaults are always light, so in the dark styles their text could not be read).</summary>
+    public static void ApplyAppStyles(Application app)
+    {
+        var r = app.Resources;
+        r[typeof(MenuItem)] = MakeMenuItem();
+        r[typeof(ContextMenu)] = MakeContextMenu();
+        r[MenuItem.SeparatorStyleKey] = MakeMenuSeparator();
+        r[typeof(ToolTip)] = MakeToolTip();
+        r[typeof(ComboBox)] = MakeCombo();
+        r[typeof(ComboBoxItem)] = MakeComboItem();
+        var menu = new Style(typeof(Menu));
+        menu.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
+        menu.Setters.Add(new Setter(Control.BackgroundProperty, Panel));
+        r[typeof(Menu)] = menu;
+    }
+
+    /// <summary>The box a menu opens in.</summary>
+    private static FrameworkElementFactory MenuBox(FrameworkElementFactory content)
+    {
+        var box = new FrameworkElementFactory(typeof(Border));
+        box.SetValue(Border.BackgroundProperty, IsDark ? Br("#FF1E1E24") : Br("#FFFFFFFF"));
+        box.SetValue(Border.BorderBrushProperty, Line);
+        box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        box.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+        box.SetValue(Border.PaddingProperty, new Thickness(3));
+        box.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 6));
+        box.SetValue(UIElement.EffectProperty, new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 10, ShadowDepth = 2, Opacity = IsDark ? 0.6 : 0.22 });
+        box.AppendChild(content);
+        return box;
+    }
+
+    private static Style MakeMenuItem()
+    {
+        var bd = new FrameworkElementFactory(typeof(Border), "Bd");
+        bd.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        bd.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        bd.SetBinding(Border.PaddingProperty, TP("Padding"));
+        var dock = new FrameworkElementFactory(typeof(DockPanel));
+        var arrow = new FrameworkElementFactory(typeof(TextBlock), "Arrow");
+        arrow.SetValue(TextBlock.TextProperty, L.Rtl ? "\uE76B" : "\uE76C");
+        arrow.SetValue(TextBlock.FontFamilyProperty, Icons);
+        arrow.SetValue(TextBlock.FontSizeProperty, 9.0);
+        arrow.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        arrow.SetValue(FrameworkElement.MarginProperty, new Thickness(14, 0, 0, 0));
+        arrow.SetValue(DockPanel.DockProperty, Dock.Right);
+        arrow.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+        arrow.SetValue(FrameworkElement.FlowDirectionProperty, FlowDirection.LeftToRight);
+        dock.AppendChild(arrow);
+        var header = new FrameworkElementFactory(typeof(ContentPresenter), "Header");
+        header.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+        header.SetValue(ContentPresenter.RecognizesAccessKeyProperty, true);
+        header.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        dock.AppendChild(header);
+        bd.AppendChild(dock);
+
+        var popup = new FrameworkElementFactory(typeof(Popup), "PART_Popup");
+        popup.SetBinding(Popup.IsOpenProperty, new Binding("IsSubmenuOpen") { RelativeSource = RelativeSource.TemplatedParent, Mode = BindingMode.TwoWay });
+        popup.SetValue(Popup.AllowsTransparencyProperty, true);
+        popup.SetValue(Popup.FocusableProperty, false);
+        popup.SetValue(Popup.PopupAnimationProperty, PopupAnimation.Fade);
+        popup.SetValue(Popup.PlacementProperty, PlacementMode.Bottom);
+        var items = new FrameworkElementFactory(typeof(ItemsPresenter));
+        items.SetValue(KeyboardNavigation.DirectionalNavigationProperty, KeyboardNavigationMode.Cycle);
+        var scroll = new FrameworkElementFactory(typeof(ScrollViewer));
+        scroll.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
+        scroll.SetValue(FrameworkElement.MaxHeightProperty, 520.0);
+        scroll.AppendChild(items);
+        var list = new FrameworkElementFactory(typeof(StackPanel));
+        list.SetValue(FrameworkElement.MinWidthProperty, 190.0);
+        list.SetValue(TextElement.ForegroundProperty, Ink);
+        list.AppendChild(scroll);
+        popup.AppendChild(MenuBox(list));
+
+        var root = new FrameworkElementFactory(typeof(Grid));
+        root.AppendChild(bd);
+        root.AppendChild(popup);
+
+        var t = new ControlTemplate(typeof(MenuItem)) { VisualTree = root };
+        var hl = new Trigger { Property = MenuItem.IsHighlightedProperty, Value = true };
+        hl.Setters.Add(new Setter(Border.BackgroundProperty, Hover, "Bd"));
+        t.Triggers.Add(hl);
+        var open = new Trigger { Property = MenuItem.IsSubmenuOpenProperty, Value = true };
+        open.Setters.Add(new Setter(Border.BackgroundProperty, Pressed, "Bd"));
+        t.Triggers.Add(open);
+        var sub = new Trigger { Property = MenuItem.RoleProperty, Value = MenuItemRole.SubmenuHeader };
+        sub.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Arrow"));
+        sub.Setters.Add(new Setter(Popup.PlacementProperty, PlacementMode.Right, "PART_Popup"));
+        t.Triggers.Add(sub);
+        var off = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+        off.Setters.Add(new Setter(TextElement.ForegroundProperty, Muted, "Header"));
+        t.Triggers.Add(off);
+
+        var s = new Style(typeof(MenuItem));
+        s.Setters.Add(new Setter(Control.TemplateProperty, t));
+        s.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
+        s.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 5, 10, 5)));
+        s.Setters.Add(new Setter(Control.FontSizeProperty, 13.0));
+        s.Setters.Add(new Setter(FrameworkElement.CursorProperty, Cursors.Hand));
+        var top = new Trigger { Property = MenuItem.RoleProperty, Value = MenuItemRole.TopLevelHeader };
+        top.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(9, 4, 9, 4)));
+        s.Triggers.Add(top);
+        var topItem = new Trigger { Property = MenuItem.RoleProperty, Value = MenuItemRole.TopLevelItem };
+        topItem.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(9, 4, 9, 4)));
+        s.Triggers.Add(topItem);
+        return s;
+    }
+
+    private static Style MakeContextMenu()
+    {
+        var items = new FrameworkElementFactory(typeof(ItemsPresenter));
+        var list = new FrameworkElementFactory(typeof(StackPanel));
+        list.SetValue(FrameworkElement.MinWidthProperty, 190.0);
+        list.SetValue(TextElement.ForegroundProperty, Ink);
+        list.AppendChild(items);
+        var s = new Style(typeof(ContextMenu));
+        s.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(ContextMenu)) { VisualTree = MenuBox(list) }));
+        s.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
+        s.Setters.Add(new Setter(ContextMenu.HasDropShadowProperty, false));
+        s.Setters.Add(new Setter(Control.FontFamilyProperty, Font));
+        s.Setters.Add(new Setter(Control.FontSizeProperty, 13.0));
+        return s;
+    }
+
+    private static Style MakeMenuSeparator()
+    {
+        var line = new FrameworkElementFactory(typeof(Border));
+        line.SetValue(Border.BackgroundProperty, Line);
+        line.SetValue(FrameworkElement.HeightProperty, 1.0);
+        line.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 4, 6, 4));
+        var s = new Style(typeof(Separator));
+        s.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(Separator)) { VisualTree = line }));
+        return s;
+    }
+
+    private static Style MakeToolTip()
+    {
+        var bd = new FrameworkElementFactory(typeof(Border));
+        bd.SetValue(Border.BackgroundProperty, IsDark ? Br("#FF26262D") : Br("#FFFFFFFF"));
+        bd.SetValue(Border.BorderBrushProperty, Line);
+        bd.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        bd.SetValue(Border.CornerRadiusProperty, new CornerRadius(5));
+        bd.SetValue(Border.PaddingProperty, new Thickness(8, 4, 8, 4));
+        var cp = new FrameworkElementFactory(typeof(ContentPresenter));
+        bd.AppendChild(cp);
+        var s = new Style(typeof(ToolTip));
+        s.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(ToolTip)) { VisualTree = bd }));
+        s.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
+        s.Setters.Add(new Setter(Control.FontFamilyProperty, Font));
+        s.Setters.Add(new Setter(Control.FontSizeProperty, 12.0));
+        s.Setters.Add(new Setter(ToolTip.HasDropShadowProperty, false));
+        return s;
+    }
+
+    /// <summary>A drop-down list (the queue picker) in the style's colours.</summary>
+    private static Style MakeCombo()
+    {
+        var root = new FrameworkElementFactory(typeof(Grid));
+        var toggle = new FrameworkElementFactory(typeof(ToggleButton));
+        toggle.SetBinding(ToggleButton.IsCheckedProperty, new Binding("IsDropDownOpen") { RelativeSource = RelativeSource.TemplatedParent, Mode = BindingMode.TwoWay });
+        toggle.SetValue(UIElement.FocusableProperty, false);
+        toggle.SetValue(Control.ClickModeProperty, ClickMode.Press);
+        var tbd = new FrameworkElementFactory(typeof(Border), "Box");
+        tbd.SetValue(Border.BackgroundProperty, Card);
+        tbd.SetValue(Border.BorderBrushProperty, BoxLine);
+        tbd.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        tbd.SetValue(Border.CornerRadiusProperty, new CornerRadius(5));
+        var arrow = new FrameworkElementFactory(typeof(TextBlock));
+        arrow.SetValue(TextBlock.TextProperty, "\uE70D");
+        arrow.SetValue(TextBlock.FontFamilyProperty, Icons);
+        arrow.SetValue(TextBlock.FontSizeProperty, 10.0);
+        arrow.SetValue(TextBlock.ForegroundProperty, Muted);
+        arrow.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
+        arrow.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        arrow.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 9, 0));
+        tbd.AppendChild(arrow);
+        var tt = new ControlTemplate(typeof(ToggleButton)) { VisualTree = tbd };
+        toggle.SetValue(Control.TemplateProperty, tt);
+        root.AppendChild(toggle);
+        var shown = new FrameworkElementFactory(typeof(ContentPresenter));
+        shown.SetBinding(ContentPresenter.ContentProperty, TP("SelectionBoxItem"));
+        shown.SetValue(UIElement.IsHitTestVisibleProperty, false);
+        shown.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        shown.SetValue(FrameworkElement.MarginProperty, new Thickness(9, 4, 28, 4));
+        root.AppendChild(shown);
+        var popup = new FrameworkElementFactory(typeof(Popup), "PART_Popup");
+        popup.SetBinding(Popup.IsOpenProperty, TP("IsDropDownOpen"));
+        popup.SetValue(Popup.AllowsTransparencyProperty, true);
+        popup.SetValue(Popup.PlacementProperty, PlacementMode.Bottom);
+        popup.SetValue(Popup.FocusableProperty, false);
+        var items = new FrameworkElementFactory(typeof(ItemsPresenter));
+        var scroll = new FrameworkElementFactory(typeof(ScrollViewer));
+        scroll.SetValue(FrameworkElement.MaxHeightProperty, 260.0);
+        scroll.AppendChild(items);
+        var list = new FrameworkElementFactory(typeof(StackPanel));
+        list.SetBinding(FrameworkElement.MinWidthProperty, TP("ActualWidth"));
+        list.SetValue(TextElement.ForegroundProperty, Ink);
+        list.AppendChild(scroll);
+        popup.AppendChild(MenuBox(list));
+        root.AppendChild(popup);
+        var s = new Style(typeof(ComboBox));
+        s.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(ComboBox)) { VisualTree = root }));
+        s.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
+        s.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 30.0));
+        s.Setters.Add(new Setter(FrameworkElement.CursorProperty, Cursors.Hand));
+        return s;
+    }
+
+    private static Style MakeComboItem()
+    {
+        var bd = new FrameworkElementFactory(typeof(Border), "Bd");
+        bd.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        bd.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        bd.SetValue(Border.PaddingProperty, new Thickness(9, 5, 9, 5));
+        bd.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
+        var t = new ControlTemplate(typeof(ComboBoxItem)) { VisualTree = bd };
+        var hover = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+        hover.Setters.Add(new Setter(Border.BackgroundProperty, Hover, "Bd"));
+        t.Triggers.Add(hover);
+        var sel = new Trigger { Property = ComboBoxItem.IsSelectedProperty, Value = true };
+        sel.Setters.Add(new Setter(Border.BackgroundProperty, GoldSoft, "Bd"));
+        t.Triggers.Add(sel);
+        var s = new Style(typeof(ComboBoxItem));
+        s.Setters.Add(new Setter(Control.TemplateProperty, t));
+        s.Setters.Add(new Setter(Control.ForegroundProperty, Ink));
+        return s;
+    }
 
     /// <summary>A gold tick in a dark box (the default box draws a mirrored tick in right-to-left windows).</summary>
     private static Style MakeCheck()

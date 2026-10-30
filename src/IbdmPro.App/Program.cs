@@ -121,6 +121,7 @@ public sealed class IbdmApp : Application
         };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Write($"fatal: {e.ExceptionObject}");
         FrameworkElement.LanguageProperty.OverrideMetadata(typeof(FrameworkElement), new FrameworkPropertyMetadata(XmlLanguage.GetLanguage(L.En ? "en-US" : "ar")));
+        Theme.ApplyAppStyles(this);
     }
 
     protected override void OnStartup(StartupEventArgs e)
