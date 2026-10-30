@@ -378,7 +378,7 @@ public static class Theme
         var toggle = new FrameworkElementFactory(typeof(ToggleButton));
         toggle.SetBinding(ToggleButton.IsCheckedProperty, new Binding("IsDropDownOpen") { RelativeSource = RelativeSource.TemplatedParent, Mode = BindingMode.TwoWay });
         toggle.SetValue(UIElement.FocusableProperty, false);
-        toggle.SetValue(Control.ClickModeProperty, ClickMode.Press);
+        toggle.SetValue(ButtonBase.ClickModeProperty, ClickMode.Press);
         var tbd = new FrameworkElementFactory(typeof(Border), "Box");
         tbd.SetValue(Border.BackgroundProperty, Card);
         tbd.SetValue(Border.BorderBrushProperty, BoxLine);
