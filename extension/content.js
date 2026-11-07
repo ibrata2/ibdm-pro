@@ -242,7 +242,7 @@
     // Never stay on "sending…": no answer in 15 seconds means something went wrong.
     const guard = setTimeout(() => done(t('لم يصل رد — حدّث الصفحة وحاول مرة ثانية')), 15000);
     if (!alive()) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); return; }
-    try { api.runtime.sendMessage({ cmd: 'media', src, pageUrl: post || location.href, title: document.title }).then(res => {
+    try { api.runtime.sendMessage({ cmd: 'media', src, pageUrl: post || location.href, post: !!post, title: document.title }).then(res => {
       clearTimeout(guard);
       done(res && res.ok ? t('✓ تم — اختر الجودة بالبرنامج') : t('شغّل برنامج IBDM Pro أولاً'));
     }).catch(() => { clearTimeout(guard); done(t('أعد تحميل الصفحة')); });

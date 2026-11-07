@@ -302,9 +302,16 @@ async function handle(msg, sender, reply) {
     } else if (msg.cmd === 'media') {
       // From the button on a video, or the popup list.
       const tabUrl = sender.tab ? sender.tab.url : msg.tabUrl;
-      const page = msg.pageUrl || tabUrl || '';
+      let page = msg.pageUrl || tabUrl || '';
+      let frameUrl = '';
+      // A video inside an embedded player (Dailymotion, Vimeo, YouTube embeds…): the player's own address often
+      // has no video in it; the page the user is on does. Send the page, with the player address as a fallback.
+      if (sender.frameId > 0 && !msg.post && tabUrl && /^https?:/i.test(tabUrl) && tabUrl !== page) {
+        frameUrl = page;
+        page = tabUrl;
+      }
       const src = msg.src && /^https?:/i.test(msg.src) ? msg.src : '';
-      const url = src || page;
+      const url = src || frameUrl || page;
       const ok = /^https?:/i.test(url) && await sendToApp({
         kind: msg.kind || 'media',
         url,

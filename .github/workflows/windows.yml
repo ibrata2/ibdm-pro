@@ -111,6 +111,19 @@ jobs:
             $heights = $d.formats | Where-Object { $_.height } | ForEach-Object { $_.height } | Sort-Object -Unique
             Write-Host "title: $($d.title) — video heights: $($heights -join ', ') — formats: $($d.formats.Count)"
           } catch { Write-Host "YouTube answer: $json" }
+          # Other sites (the build keeps the answers with the snapshots so they can be reviewed).
+          New-Item -ItemType Directory -Force build/snapshots | Out-Null
+          $report = @()
+          foreach ($u in "https://www.dailymotion.com/video/xbu9cma", "https://geo.dailymotion.com/player/xtv3w.html?video=xbu9cma") {
+            $out = & "$tools/yt-dlp.exe" -J --no-playlist --no-warnings --ignore-no-formats-error $u 2>&1
+            try {
+              $d = ($out | Where-Object { $_ -like '{*' }) | ConvertFrom-Json
+              $h = $d.formats | Where-Object { $_.height } | ForEach-Object { $_.height } | Sort-Object -Unique
+              $report += "$u => $($d.title) | heights: $($h -join ', ') | formats: $($d.formats.Count)"
+            } catch { $report += "$u => $(($out | Select-Object -Last 3) -join ' ')" }
+          }
+          $report | Set-Content build/snapshots/sites-check.txt -Encoding utf8
+          $report | ForEach-Object { Write-Host $_ }
 
       - name: Check the app starts and talks to the extension
         run: |
