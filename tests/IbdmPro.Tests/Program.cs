@@ -225,6 +225,22 @@ Check(await Post("/add", "https://evil.example", true) == 403 && got is null, "a
 Check(await Post("/add", "chrome-extension://abc", false) == 404 && got is null, "a request without the extension header is refused");
 Check(await Post("/add", "chrome-extension://abc", true) == 200 && await WaitFor(() => got?.FileName == "a.zip" && got.Size == 123, 3), "the extension's download reaches the app");
 
+// ---------- messages from the developer ----------
+var feed = MessageFeed.Parse("""
+[{"id":"a","title":"Old","text":"old news","date":"2026-01-01 10:00","lang":"all"},
+ {"id":"b","title":"جديد","text":"خبر","url":"https://t.me/ibraprogram","date":"2026-11-10 09:00","lang":"ar"},
+ {"id":"c","title":"English only","text":"x","date":"2026-11-09 09:00","lang":"en"},
+ {"id":"d","title":"Expired","text":"x","date":"2026-02-01 09:00","expires":"2026-03-01"},
+ {"id":"e","title":"","text":"written by the send action","url":null,"date":"2026-11-08 09:00","expires":null,"lang":"all"},
+ {"id":"","title":"no id","text":"x"}]
+""");
+Check(feed.Count == 5 && feed[0].Id == "b" && feed[0].HasLink, "messages: parsed newest first, empty ids skipped, link read");
+var mine = MessageFeed.Current(feed, "ar", new DateTime(2026, 11, 10, 12, 0, 0, DateTimeKind.Utc));
+Check(mine.Select(m => m.Id).OrderBy(x => x).SequenceEqual(["a", "b", "e"]), "messages: other language and expired ones are left out");
+Check(MessageFeed.FirstRun && MessageFeed.Unseen(mine).Count == 3, "messages: all new before anything was shown");
+MessageFeed.MarkSeen(["a", "e"]);
+Check(!MessageFeed.FirstRun && MessageFeed.Unseen(mine).Select(m => m.Id).SequenceEqual(["b"]), "messages: a shown message is not shown again");
+
 manager.Dispose();
 Console.WriteLine(failures == 0 ? "\nALL PASSED" : $"\n{failures} FAILED");
 try { Directory.Delete(work, true); } catch (Exception) { }

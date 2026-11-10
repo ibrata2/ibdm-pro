@@ -73,6 +73,10 @@ public static class Snapshots
         Save(ProgressWindow.Preview(running, m), Path.Combine(dir, "6-progress.png"));
         Save(ExtensionGuide.Build(null), Path.Combine(dir, "7-extension-guide.png"));
         Save(new AboutWindow(), Path.Combine(dir, "5-about.png"));
+        Save(new MessagesWindow(MessageFeed.Parse("""
+            [{"id":"1","title":"عرض جديد على قناة البرامج","text":"نزل برنامج جديد على قناة التليكرام، ادخل وشوفه.","url":"https://t.me/ibraprogram","date":"2026-11-10 09:00"},
+             {"id":"2","title":"تنبيه","text":"إذا ما يحمل فيديو من موقع معيّن، حدّث محرك الفيديو من الإعدادات.","date":"2026-11-01 12:00"}]
+            """)), Path.Combine(dir, "8-messages.png"));
     }
 
     private static void Save(Window w, string file)

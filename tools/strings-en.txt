@@ -384,3 +384,10 @@ Clear glass (see-through)
 Match the computer's style
 Classic light
 Classic dark
+A message from {0}
+Click here to open the link
+Messages
+Messages and announcements from the developer
+No messages right now.
+Message
+Open link

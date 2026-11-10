@@ -196,6 +196,7 @@ public sealed class MainWindow : Window
         foreach (var c in Settings.Current.Categories) view.Items.Add(Command(c.Name, () => SetFilter("cat:" + c.Name)));
         foreach (var q in Settings.Current.Queues) view.Items.Add(Command(q.Name, () => SetFilter("queue:" + q.Name)));
         var help = new MenuItem { Header = L.T("تعليمات") };
+        help.Items.Add(Command("الرسائل", () => MessagesWindow.Show(this)));
         help.Items.Add(Command("الإضافة", () => ExtensionGuide.Show(this)));
         help.Items.Add(Command("التحديثات", () => Updater.ShowWindow(this)));
         help.Items.Add(Command("حول", () => new AboutWindow { Owner = this }.ShowDialog()));

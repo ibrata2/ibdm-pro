@@ -172,6 +172,7 @@ public sealed class IbdmApp : Application
         if (!_background) ShowMain();
         WatchWindowsTheme();
         _ = Updater.CheckInBackground();
+        _ = MessageCenter.RunInBackground();
 
         if (SetupExtensions)
         {

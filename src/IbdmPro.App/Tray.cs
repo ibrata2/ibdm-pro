@@ -15,6 +15,7 @@ public sealed class Tray : IDisposable
         var menu = new WF.ContextMenuStrip { RightToLeft = L.Rtl ? WF.RightToLeft.Yes : WF.RightToLeft.No };
         menu.Items.Add(L.T("فتح البرنامج"), null, (_, _) => app.ShowMain());
         menu.Items.Add(L.T("إضافة رابط…"), null, (_, _) => { app.ShowMain(); app.Main.AddUrl(); });
+        menu.Items.Add(L.T("الرسائل"), null, (_, _) => { app.ShowMain(); MessagesWindow.Show(app.Main); });
         menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add(L.T("استئناف الكل"), null, (_, _) => app.Manager.ResumeAll());
         menu.Items.Add(L.T("إيقاف الكل"), null, (_, _) => app.Manager.PauseAll());

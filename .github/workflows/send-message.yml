@@ -1,0 +1,59 @@
+name: Send a message (إرسال رسالة للمستخدمين)
+
+# Run it from the "Actions" tab on GitHub (also works in the GitHub phone app): pick this action, press
+# "Run workflow", fill in the boxes. Every copy of the app checks for new messages every 30 minutes and shows
+# them next to the clock; clicking a message opens its link.
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "العنوان / Title"
+        required: false
+        default: ""
+      text:
+        description: "نص الرسالة / Text (\\n = new line)"
+        required: false
+        default: ""
+      link:
+        description: "رابط (اختياري) / Link (optional)"
+        required: false
+        default: ""
+      lang:
+        description: "لمن تظهر / Who sees it"
+        type: choice
+        options: [all, ar, en]
+        default: all
+      days:
+        description: "تختفي بعد كم يوم (0 = تبقى) / Expires after days (0 = never)"
+        required: false
+        default: "30"
+      action:
+        description: "send = إرسال، delete-last = حذف آخر رسالة، delete-all = حذف الكل"
+        type: choice
+        options: [send, delete-last, delete-all]
+        default: send
+
+permissions:
+  contents: write
+
+jobs:
+  message:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update messages.json
+        env:
+          TITLE: ${{ inputs.title }}
+          TEXT: ${{ inputs.text }}
+          LINK: ${{ inputs.link }}
+          LANG_FOR: ${{ inputs.lang }}
+          DAYS: ${{ inputs.days }}
+          ACTION: ${{ inputs.action }}
+        run: python3 .github/scripts/send_message.py
+      - name: Publish
+        run: |
+          git config user.name "ibrata2"
+          git config user.email "ibrata2@users.noreply.github.com"
+          git add messages.json
+          git commit -m "Message: ${{ inputs.action }} [skip ci]" || { echo "nothing changed"; exit 0; }
+          git push
