@@ -170,6 +170,7 @@ public sealed class MainWindow : Window
         var tasks = new MenuItem { Header = L.T("المهام") };
         tasks.Items.Add(Command("تحميل جديد", AddUrl));
         tasks.Items.Add(Command("تحميل فيديو من رابط…", AddVideo));
+        tasks.Items.Add(Command("روابط متعددة…", () => BatchWindow.ShowLinks(this, _manager)));
         tasks.Items.Add(Command("قائمة انتظار جديدة…", NewQueue));
         tasks.Items.Add(new Separator());
         tasks.Items.Add(Command("خروج", Close));
@@ -218,6 +219,7 @@ public sealed class MainWindow : Window
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 8, 0), FlowDirection = dir };
         buttons.Children.Add(Ui.Tool(L.T("إضافة رابط"), "", AddUrl));
         buttons.Children.Add(Ui.Tool(L.T("تحميل فيديو"), "\uE714", AddVideo, Theme.Red));
+        buttons.Children.Add(Ui.Tool(L.T("روابط متعددة"), "\uE8FD", () => BatchWindow.ShowLinks(this, _manager), Theme.Ink));
         buttons.Children.Add(Ui.Tool(L.T("استئناف"), "", () => ForSelected(i => _manager.Resume(i)), Theme.Green));
         buttons.Children.Add(Ui.Tool(L.T("إيقاف"), "", () => ForSelected(i => _manager.Pause(i)), Theme.Ink));
         buttons.Children.Add(Ui.Tool(L.T("إيقاف الكل"), "", _manager.PauseAll, Theme.Ink));
@@ -303,6 +305,9 @@ public sealed class MainWindow : Window
             stop.Click += (_, _) => _manager.SetQueueRunning(q.Name, false);
             parent.Items.Add(start);
             parent.Items.Add(stop);
+            var schedule = new MenuItem { Header = L.T("جدولة…") };
+            schedule.Click += (_, _) => ScheduleWindow.Show(this, q.Name);
+            parent.Items.Add(schedule);
             menu.Items.Add(parent);
         }
         menu.Items.Add(new Separator());
@@ -370,6 +375,9 @@ public sealed class MainWindow : Window
             stop.Click += (_, _) => _manager.SetQueueRunning(q.Name, false);
             menu.Items.Add(start);
             menu.Items.Add(stop);
+            var schedule = new MenuItem { Header = L.T("جدولة…") };
+            schedule.Click += (_, _) => ScheduleWindow.Show(this, q.Name);
+            menu.Items.Add(schedule);
             queueRow.ContextMenu = menu;
             _nav.Children.Add(queueRow);
         }
@@ -516,30 +524,80 @@ public sealed class MainWindow : Window
         return t;
     }
 
+    /// <summary>The right-click menu on a download (like IDM): open, folder, pause/resume, the links it came from,
+    /// rename, move to a queue, delete, properties.</summary>
     private void FillMenu(ContextMenu m)
     {
         m.Items.Clear();
-        void Add(string text, Action a) { var mi = new MenuItem { Header = text }; mi.Click += (_, _) => a(); m.Items.Add(mi); }
-        var one = Selected().FirstOrDefault();
-        if (one?.Status == DownloadStatus.Completed) Add(L.T("فتح الملف"), OpenSelectedFile);
-        Add(L.T("فتح المجلد"), OpenSelectedFolder);
-        if (one is not null && one.Status != DownloadStatus.Completed) Add(L.T("عرض نافذة التقدّم"), () => ProgressWindow.Open(one, _manager));
-        m.Items.Add(new Separator());
-        Add(L.T("استئناف"), () => ForSelected(i => _manager.Resume(i)));
-        Add(L.T("إيقاف"), () => ForSelected(i => _manager.Pause(i)));
-        Add(L.T("إعادة التحميل من البداية"), () => ForSelected(i => _manager.Redownload(i)));
-        var move = new MenuItem { Header = L.T("نقل إلى قائمة") };
-        foreach (var q in Settings.Current.Queues)
+        MenuItem Add(string text, string glyph, Action a, bool enabled = true)
         {
-            var target = new MenuItem { Header = q.Name };
-            target.Click += (_, _) => { _manager.MoveToQueue(Selected(), q.Name); Sync(); };
-            move.Items.Add(target);
+            var mi = new MenuItem { Header = text, IsEnabled = enabled };
+            mi.Icon = Ui.Glyph(glyph, 13, Theme.Muted);
+            mi.Click += (_, _) => a();
+            m.Items.Add(mi);
+            return mi;
         }
-        m.Items.Add(move);
-        m.Items.Add(new Separator());
-        Add(L.T("نسخ الرابط"), () => { if (one is not null) Clipboard.SetText(one.PageUrl ?? one.Url); });
-        m.Items.Add(new Separator());
-        Add(L.T("حذف…"), Delete);
+        void Sep() => m.Items.Add(new Separator());
+        var sel = Selected();
+        var one = sel.FirstOrDefault();
+        if (one is null) return;
+        var done = one.Status == DownloadStatus.Completed;
+        var exists = done && File.Exists(one.FullPath);
+
+        if (done) Add(L.T("فتح"), "\uE8E5", OpenSelectedFile, exists);
+        if (done) Add(L.T("فتح باستخدام…"), "\uE7AC", () => OpenWith(one.FullPath), exists);
+        Add(L.T("فتح المجلد"), "\uE838", OpenSelectedFolder);
+        if (!done) Add(L.T("عرض نافذة التقدّم"), "\uE9D9", () => ProgressWindow.Open(one, _manager));
+        Sep();
+        if (sel.Any(i => i.Status is DownloadStatus.Paused or DownloadStatus.Error or DownloadStatus.Queued))
+            Add(L.T("استئناف"), "\uE768", () => ForSelected(i => _manager.Resume(i)));
+        if (sel.Any(i => i.IsActive || i.Status == DownloadStatus.Queued))
+            Add(L.T("إيقاف"), "\uE769", () => ForSelected(i => _manager.Pause(i)));
+        Add(L.T("إعادة التحميل من البداية"), "\uE72C", () => ForSelected(i => _manager.Redownload(i)));
+        m.Items.Add(QueueTargets(L.T("نقل إلى قائمة")));
+        Sep();
+        Add(L.T("نسخ رابط التحميل"), "\uE71B", () => CopyText(string.Join(Environment.NewLine, sel.Select(i => i.Url))));
+        var page = one.PageUrl ?? one.Request?.Referrer;
+        if (!string.IsNullOrEmpty(page) && page != one.Url)
+            Add(L.T("نسخ رابط الصفحة"), "\uE71B", () => CopyText(page));
+        Add(L.T("فتح صفحة التحميل بالمتصفح"), "\uE774", () => Ui.Open(string.IsNullOrEmpty(page) ? one.Url : page));
+        Add(L.T("نسخ مسار الملف"), "\uE8C8", () => CopyText(string.Join(Environment.NewLine, sel.Select(i => i.FullPath))));
+        if (sel.Count == 1 && !_manager.IsRunning(one)) Add(L.T("إعادة تسمية…"), "\uE8AC", () => Rename(one));
+        Sep();
+        Add(L.T("حذف…"), "\uE74D", Delete);
+        Sep();
+        if (sel.Count == 1) Add(L.T("خصائص"), "\uE946", () => PropertiesWindow.Show(this, one));
+    }
+
+    private static void CopyText(string text)
+    {
+        try { Clipboard.SetText(text); } catch (Exception) { }
+    }
+
+    private static void OpenWith(string file)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("rundll32.exe", $"shell32.dll,OpenAs_RunDLL {file}") { UseShellExecute = false }); }
+        catch (Exception e) { Log.Write($"open with: {e.Message}"); }
+    }
+
+    /// <summary>Renames the file on disk and in the list (for a download that is not running).</summary>
+    private void Rename(DownloadItem item)
+    {
+        var name = Ui.AskText(this, L.T("إعادة تسمية"), L.T("الاسم الجديد للملف"), item.FileName);
+        if (string.IsNullOrWhiteSpace(name)) return;
+        name = FileNames.Clean(name.Trim());
+        if (name == item.FileName) return;
+        var target = Path.Combine(item.Folder, name);
+        if (File.Exists(target)) { Ui.Message(this, L.T("إعادة تسمية"), L.T("يوجد ملف بنفس الاسم في هذا المجلد.")); return; }
+        try
+        {
+            if (File.Exists(item.FullPath)) File.Move(item.FullPath, target);
+            else if (File.Exists(item.PartPath)) File.Move(item.PartPath, target + ".ibdmpart");
+            item.FileName = name;
+            _manager.Save();
+            Sync();
+        }
+        catch (Exception e) { Ui.Message(this, L.T("إعادة تسمية"), e.Message); }
     }
 
     // ---------- keeping the list current ----------
@@ -662,6 +720,7 @@ public sealed class MainWindow : Window
     {
         var url = AddUrlDialog.Ask(this);
         if (url is null) return;
+        if (url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase) && YtDlp.IsPlaylistUrl(url)) { BatchWindow.ShowPlaylist(this, _manager, url); return; }
         Capture.Handle(new CaptureRequest { Kind = "link", Url = url, QueueName = CurrentQueueName() });
     }
 
@@ -671,6 +730,7 @@ public sealed class MainWindow : Window
     {
         var url = AddUrlDialog.Ask(this, video: true);
         if (url is null) return;
+        if (url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase) && YtDlp.IsPlaylistUrl(url)) { BatchWindow.ShowPlaylist(this, _manager, url); return; }
         Capture.Handle(new CaptureRequest { Kind = "media", Url = url, PageUrl = url, QueueName = CurrentQueueName() });
     }
 
@@ -764,6 +824,7 @@ public sealed class MainWindow : Window
         else if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control && !_search.IsKeyboardFocused)
         {
             var text = Clipboard.ContainsText() ? Clipboard.GetText().Trim() : "";
+            if (BatchWindow.Links(text).Count > 1) { BatchWindow.ShowLinks(this, _manager, string.Join(Environment.NewLine, BatchWindow.Links(text))); e.Handled = true; return; }
             if (Uri.TryCreate(text, UriKind.Absolute, out var u) && u.Scheme.StartsWith("http"))
             {
                 Capture.Handle(new CaptureRequest { Kind = "link", Url = text });

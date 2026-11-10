@@ -13,6 +13,7 @@ var work = Path.Combine(Path.GetTempPath(), "ibdm-test-" + Guid.NewGuid().ToStri
 Directory.CreateDirectory(work);
 Paths.AppDataOverride = Path.Combine(work, "appdata");
 var settings = new Settings { DownloadRoot = Path.Combine(work, "IBDM Pro"), Connections = 8, MaxParallel = 3 };
+YtDlp.AutoUpdateOnFailure = false; // no updating the engine during the tests
 Settings.Reset(settings);
 var failures = 0;
 
@@ -206,6 +207,15 @@ var o1080 = yt.Options.FirstOrDefault(o => o.Height == 1080);
 Check(o1080 is not null && o1080.FormatSpec.StartsWith("137+140") && o1080.Size == 100_000_000 + 5_000_000 && o1080.Ext == "mp4", "1080p picks H.264/MP4 + M4A audio, exact size = video + audio");
 Check(yt.Options.First().Height == 2160 && yt.Options.Count(o => o.AudioOnly) == 2, "highest quality first, audio-only choices included");
 
+var dm = YtDlp.Parse("""
+{"title":"dm","duration":100,"extractor_key":"Dailymotion","formats":[
+ {"format_id":"hls-audio-aac-64000","ext":"mp4","vcodec":"none","protocol":"m3u8_native","tbr":64},
+ {"format_id":"hls-380","ext":"mp4","vcodec":"avc1.4d401e","height":380,"protocol":"m3u8_native","tbr":800},
+ {"format_id":"hls-720","ext":"mp4","vcodec":"avc1.64001f","height":720,"protocol":"m3u8_native","tbr":2200}]}
+""", "https://www.dailymotion.com/video/x");
+var dm720 = dm.Options.FirstOrDefault(o => o.Height == 720);
+Check(dm720 is not null && dm720.FormatSpec.StartsWith("hls-720+hls-audio-aac-64000"), "Dailymotion-style (picture and sound listed apart, sound codec not named): the sound is added");
+
 // ---------- the local server the extension talks to ----------
 using var server = new LocalServer(port + 1) { Version = "9.9.9" };
 CaptureRequest? got = null;
@@ -249,6 +259,46 @@ Check(await Post("/add", "chrome-extension://abc", true) == 200 && await WaitFor
     Check(old.Categories.First(c => c.Name == "فيديو").Folder == "Video" && old.FoldersRenamed, "rename: settings point at the new folder");
     Check(after.Contains(JsonSerializer.Serialize(Path.Combine(root, "Video")).Trim('"')) && after.Contains("custom"), "rename: the download list follows the files, other folders untouched");
     if (before is null) File.Delete(listFile); else File.WriteAllText(listFile, before);
+}
+
+// ---------- playlists ----------
+Check(YtDlp.IsPlaylistUrl("https://www.youtube.com/playlist?list=PLabc") && YtDlp.IsPlaylistUrl("https://www.youtube.com/watch?v=x&list=PLabc")
+      && !YtDlp.IsPlaylistUrl("https://www.youtube.com/watch?v=x&list=RDx") && !YtDlp.IsPlaylistUrl("https://www.youtube.com/watch?v=x"),
+      "playlist links recognised (radio mixes left out)");
+Check(YtDlp.PlaylistUrl("https://www.youtube.com/watch?v=x&list=PLabc&index=3") == "https://www.youtube.com/playlist?list=PLabc", "playlist address from a video inside it");
+var pl = YtDlp.ParsePlaylist("""{"title":"My list","entries":[{"id":"a1","title":"One","duration":61},{"id":"a2","title":"[Private video]"},{"url":"https://www.youtube.com/watch?v=a3","title":"Three"}]}""");
+Check(pl.Title == "My list" && pl.Entries.Count == 2 && pl.Entries[0].Url == "https://www.youtube.com/watch?v=a1" && pl.Entries[1].Title == "Three", "playlist entries read, private ones skipped");
+Check(YtDlp.SpecFor("720").Contains("height<=720") && YtDlp.SpecFor("audio") == "ba/b", "quality for many videos at once");
+
+// ---------- MEGA (fixture encrypted independently, the way MEGA does) ----------
+{
+    using var fx = JsonDocument.Parse(File.ReadAllText(Path.Combine(data, "mega.json")));
+    var key = fx.RootElement.GetProperty("key").GetString()!;
+    var link = $"https://mega.nz/file/AbCdEfGh#{key}";
+    Check(Mega.IsFileLink(link) && Mega.IsFileLink($"https://mega.nz/#!AbCdEfGh!{key}") && !Mega.IsFileLink("https://mega.nz/folder/AbCdEfGh#x") && Mega.IsFolderLink("https://mega.nz/folder/AbCdEfGh#x"),
+        "MEGA: file links recognised (new and old form), folder links told apart");
+    Check(Mega.DecryptName(fx.RootElement.GetProperty("at").GetString()!, key) == "فيديو test.mp4", "MEGA: the file name is decrypted from the attributes");
+    var plain = Convert.FromBase64String(fx.RootElement.GetProperty("plain").GetString()!);
+    var encFile = Path.Combine(work, "mega.bin");
+    File.WriteAllBytes(encFile, Convert.FromBase64String(fx.RootElement.GetProperty("cipher").GetString()!));
+    await Mega.DecryptFileAsync(encFile, key);
+    Check(File.ReadAllBytes(encFile).AsSpan().SequenceEqual(plain), "MEGA: the downloaded file decrypts to the original (AES-CTR)");
+    var (k, n) = Mega.Keys(key);
+    var piece = Convert.FromBase64String(fx.RootElement.GetProperty("cipher").GetString()!).AsSpan(1000, 777).ToArray();
+    Mega.Ctr(k, n, 1000, piece);
+    Check(piece.AsSpan().SequenceEqual(plain.AsSpan(1000, 777)), "MEGA: decrypting from the middle of the file works (for resumed parts)");
+}
+
+// ---------- download scheduler ----------
+{
+    var q = new Settings.DownloadQueue { Name = "night", ScheduleEnabled = true, StartTime = "02:00", Daily = false };
+    var d = new DateTime(2026, 11, 10, 1, 59, 0);
+    Check(!q.IsDue(d) && q.IsDue(d.AddMinutes(1)) && q.IsDue(d.AddHours(3)) && !q.IsDue(d.AddHours(9)), "schedule: due from the start time (up to 6 hours late), not before");
+    q.MarkScheduledRun(d.AddMinutes(1));
+    Check(!q.ScheduleEnabled && !q.IsDue(d.AddMinutes(2)), "schedule: a one-time schedule switches off after it ran");
+    var daily = new Settings.DownloadQueue { ScheduleEnabled = true, StartTime = "23:30", Daily = true };
+    daily.MarkScheduledRun(new DateTime(2026, 11, 10, 23, 30, 0));
+    Check(daily.ScheduleEnabled && !daily.IsDue(new DateTime(2026, 11, 10, 23, 45, 0)) && daily.IsDue(new DateTime(2026, 11, 11, 23, 31, 0)), "schedule: a daily schedule runs once a day");
 }
 
 // ---------- messages from the developer ----------

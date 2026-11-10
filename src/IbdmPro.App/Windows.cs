@@ -297,6 +297,7 @@ public sealed class SettingsWindow : Window
     private readonly TextBox _limit = Ui.Input();
     // capture
     private readonly CheckBox _capture;
+    private CheckBox _autoEngine = null!;
     private readonly TextBox _exts = Ui.Input(multiline: true);
     private readonly TextBox _minSize = Ui.Input();
     private readonly TextBox _excluded = Ui.Input(multiline: true);
@@ -442,6 +443,19 @@ public sealed class SettingsWindow : Window
         ThemeChoice(new RadioButton(), L.T("كلاسيكي ليلي"), "\uE708", "dark");
         if (!_themes.Any(t => t.Button.IsChecked == true)) _themes[0].Button.IsChecked = true;
         p.Children.Add(themes);
+        var glassNote = Ui.Text(Theme.Backdrop
+            ? L.T("الزجاج الحقيقي مفعّل: ما خلف النافذة يظهر بشكل ضبابي في الستايلات الزجاجية.")
+            : L.T("الزجاج الحقيقي (رؤية ما خلف النافذة بشكل ضبابي) يحتاج ويندوز 11 وتفعيل «تأثيرات الشفافية» في إعدادات ويندوز ← التخصيص ← الألوان."),
+            12, Theme.Backdrop ? Theme.Green : Theme.Muted, wrap: TextWrapping.Wrap);
+        glassNote.Margin = new Thickness(0, 4, 0, 4);
+        p.Children.Add(glassNote);
+        if (!Theme.Backdrop && Environment.OSVersion.Version.Build >= 22621)
+        {
+            var openColors = Ui.Button(L.T("فتح إعدادات الشفافية في ويندوز"), "\uE790", Theme.Button, () => Ui.Open("ms-settings:colors"));
+            openColors.HorizontalAlignment = HorizontalAlignment.Left;
+            openColors.Margin = new Thickness(0, 0, 0, 6);
+            p.Children.Add(openColors);
+        }
         p.Children.Add(Ui.Text(L.F("الوضع الحالي: {0}. تغيير المظهر يحتاج إعادة تشغيل البرنامج.", ThemeName(Theme.Mode)), 12, Theme.Muted, wrap: TextWrapping.Wrap));
 
         var check = Ui.Button(L.T("البحث عن أحدث إصدار"), "\uE895", Theme.Button, () => Updater.ShowWindow(this));
@@ -585,6 +599,11 @@ public sealed class SettingsWindow : Window
 
         p.Children.Add(Ui.Label(L.T("محرك تحميل الفيديو (yt-dlp)")));
         p.Children.Add(Ui.Text(L.T("مواقع الفيديو تغيّر طريقة عملها باستمرار. إذا فشل تحميل فيديو من موقع كان يشتغل، حدّث المحرك من هنا."), 12, Theme.Muted, wrap: TextWrapping.Wrap));
+        _autoEngine = Ui.Check(L.T("تحديث محرك الفيديو تلقائياً (كل يوم، وفوراً إذا فشل تحميل فيديو)"), _s.AutoUpdateEngine);
+        _autoEngine.Margin = new Thickness(0, 8, 0, 0);
+        p.Children.Add(_autoEngine);
+        if (YtDlp.LastUpdateCheck != DateTime.MinValue)
+            p.Children.Add(Ui.Text(L.F("آخر فحص لتحديث المحرك: {0}", YtDlp.LastUpdateCheck.ToLocalTime().ToString("yyyy/MM/dd HH:mm")), 11.5, Theme.Muted));
         var update = Ui.Button(L.T("تحديث محرك الفيديو"), "", Theme.Button, null);
         update.Click += async (_, _) =>
         {
@@ -617,6 +636,8 @@ public sealed class SettingsWindow : Window
         _s.ShowProgressWindow = _showProgress.IsChecked == true;
         _s.ResumeOnStart = _resume.IsChecked == true;
         _s.CheckUpdatesOnStart = _updates.IsChecked == true;
+        _s.AutoUpdateEngine = _autoEngine.IsChecked == true;
+        YtDlp.AutoUpdateOnFailure = _s.AutoUpdateEngine;
         var oldTheme = Settings.Current.Theme;
         var oldLang = Settings.Current.Language;
         _s.Language = _langEn.IsChecked == true ? "en" : "ar";

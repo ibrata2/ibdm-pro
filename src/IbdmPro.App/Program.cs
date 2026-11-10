@@ -21,6 +21,7 @@ public static class Program
         {
             // Render the windows to pictures with sample data, without touching the real settings or list.
             Paths.AppDataOverride = Path.Combine(Path.GetTempPath(), "IBDM Pro snapshot " + Guid.NewGuid().ToString("N")[..6]);
+            Environment.SetEnvironmentVariable("IBDM_SNAPSHOT", "1"); // pictures are drawn with the solid glass
             if (args.Length > 3 && args[2] == "--theme") Settings.Current.Theme = args[3];
             if (args.Length > 5 && args[4] == "--lang") { Settings.Current.Language = args[5]; L.Lang = args[5]; }
             var snap = new IbdmApp(background: true) { SnapshotDir = Path.GetFullPath(args[1]) };
@@ -173,6 +174,18 @@ public sealed class IbdmApp : Application
         WatchWindowsTheme();
         _ = Updater.CheckInBackground();
         _ = MessageCenter.RunInBackground();
+        Scheduler.Start();
+        YtDlp.AutoUpdateOnFailure = settings.AutoUpdateEngine;
+        _ = Task.Run(async () =>
+        {
+            // The video engine keeps up with the sites: checked a minute after start, then every few hours (updated at most daily).
+            await Task.Delay(TimeSpan.FromMinutes(1));
+            while (true)
+            {
+                if (Settings.Current.AutoUpdateEngine) await YtDlp.AutoUpdateIfDue(TimeSpan.FromHours(20));
+                await Task.Delay(TimeSpan.FromHours(4));
+            }
+        });
 
         if (SetupExtensions)
         {

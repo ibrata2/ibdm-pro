@@ -190,9 +190,25 @@ public sealed class DownloadManager : IDisposable
         {
             if (item.Kind == DownloadKind.File)
             {
+                if (item.MegaKey is not null && Mega.IsFileLink(item.PageUrl))
+                {
+                    // MEGA's download addresses expire: ask for a fresh one every time the download (re)starts.
+                    var mega = await Mega.GetFileAsync(Http.Client, item.PageUrl!, ct);
+                    item.Url = mega.DownloadUrl;
+                }
                 await HttpDownloader.RunAsync(item, s.Connections, Limiter, ct);
                 var final = FileNames.Unique(item.FullPath);
-                File.Move(item.PartPath, final);
+                if (item.MegaKey is not null)
+                {
+                    // The downloaded part stays encrypted until the decrypted file is complete, so a stop in the
+                    // middle simply decrypts again next time.
+                    item.Status = DownloadStatus.Processing;
+                    item.Phase = L.T("فك تشفير ملف MEGA…");
+                    await Mega.DecryptToAsync(item.PartPath, final, item.MegaKey, null, ct);
+                    File.Delete(item.PartPath);
+                    item.Phase = null;
+                }
+                else File.Move(item.PartPath, final);
                 item.FileName = Path.GetFileName(final);
             }
             else

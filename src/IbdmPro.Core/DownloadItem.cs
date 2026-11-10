@@ -53,6 +53,8 @@ public sealed class DownloadItem
 
     // Video/audio through yt-dlp
     public string? FormatSpec { get; set; }
+    /// <summary>A MEGA file: the key from its link (the file is decrypted when complete; <see cref="PageUrl"/> is the link).</summary>
+    public string? MegaKey { get; set; }
     public bool AudioOnly { get; set; }
     public string? AudioFormat { get; set; }
     public string? Quality { get; set; }

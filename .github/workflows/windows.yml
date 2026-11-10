@@ -120,6 +120,7 @@ jobs:
               $d = ($out | Where-Object { $_ -like '{*' }) | ConvertFrom-Json
               $h = $d.formats | Where-Object { $_.height } | ForEach-Object { $_.height } | Sort-Object -Unique
               $report += "$u => $($d.title) | heights: $($h -join ', ') | formats: $($d.formats.Count)"
+              $report += $d.formats | ForEach-Object { "   $($_.format_id) | ext=$($_.ext) | v=$($_.vcodec) | a=$($_.acodec) | h=$($_.height) | proto=$($_.protocol) | aext=$($_.audio_ext) | vext=$($_.video_ext) | res=$($_.resolution)" }
             } catch { $report += "$u => $(($out | Select-Object -Last 3) -join ' ')" }
           }
           $report | Set-Content build/snapshots/sites-check.txt -Encoding utf8
@@ -242,6 +243,10 @@ jobs:
             $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
             $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
           }
+          # Windows' "Transparency effects" on, so the glass styles really show what is behind the window.
+          New-Item -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Force | Out-Null
+          Set-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" EnableTransparency 1 -Type DWord
+          Write-Host "Windows build: $([Environment]::OSVersion.Version)"
           $cfg = "$env:APPDATA\IBRA Download Manager"
           New-Item -ItemType Directory -Force $cfg | Out-Null
           foreach ($run in "ar:glass", "en:glass", "ar:glass-clear", "ar:glass-dark", "ar:dark", "ar:glass-white") {

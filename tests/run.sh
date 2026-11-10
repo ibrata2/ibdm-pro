@@ -3,7 +3,7 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 data="$(mktemp -d)"
-cp "$here/data/yt.json" "$data/"
+cp "$here/data/yt.json" "$here/data/mega.json" "$data/"
 head -c 62914560 /dev/urandom > "$data/file.bin"
 head -c 3145728 /dev/urandom > "$data/small.bin"
 ffmpeg -loglevel error -y -f lavfi -i testsrc=size=640x360:rate=25 -f lavfi -i sine=frequency=440 -t 5 -c:v libx264 -c:a aac -shortest "$data/clip.mp4"

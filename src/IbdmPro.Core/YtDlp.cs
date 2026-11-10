@@ -134,6 +134,80 @@ public static class YtDlp
         return url;
     }
 
+    // ---------- playlists and many links at once ----------
+
+    public sealed record PlaylistEntry(string Title, string Url, double Duration);
+    public sealed record Playlist(string Title, List<PlaylistEntry> Entries);
+
+    /// <summary>A YouTube playlist link (…/playlist?list=… or a video with &amp;list=…), other than an endless radio mix.</summary>
+    public static bool IsPlaylistUrl(string url)
+    {
+        try
+        {
+            var u = new Uri(url);
+            if (!IsYoutube(url)) return false;
+            var list = System.Web.HttpUtility.ParseQueryString(u.Query)["list"];
+            return !string.IsNullOrEmpty(list) && !list.StartsWith("RD", StringComparison.Ordinal);
+        }
+        catch (Exception) { return false; }
+    }
+
+    /// <summary>The playlist's own address (…/playlist?list=…) from a video link inside it.</summary>
+    public static string PlaylistUrl(string url)
+    {
+        var list = System.Web.HttpUtility.ParseQueryString(new Uri(url).Query)["list"];
+        return $"https://www.youtube.com/playlist?list={list}";
+    }
+
+    /// <summary>The videos of a playlist (titles and links only, quick).</summary>
+    public static async Task<Playlist> GetPlaylistAsync(string url, RequestInfo info, CancellationToken ct = default)
+    {
+        if (IsPlaylistUrl(url)) url = PlaylistUrl(url);
+        using var cookies = CookieFile.For(info, url);
+        var args = new List<string> { "-J", "--flat-playlist", "--yes-playlist", "--no-warnings", "--ignore-config" };
+        args.AddRange(HeaderArgs(info, cookies));
+        args.Add("--");
+        args.Add(url);
+        using var p = Process.Start(Start(args)) ?? throw new InvalidOperationException(L.T("تعذر تشغيل yt-dlp"));
+        var stdout = p.StandardOutput.ReadToEndAsync(ct);
+        var stderr = p.StandardError.ReadToEndAsync(ct);
+        await p.WaitForExitAsync(ct);
+        var json = await stdout;
+        if (string.IsNullOrWhiteSpace(json)) throw new InvalidOperationException(CleanError(await stderr) ?? L.T("تعذر قراءة قائمة التشغيل"));
+        return ParsePlaylist(json);
+    }
+
+    public static Playlist ParsePlaylist(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var list = new List<PlaylistEntry>();
+        if (root.TryGetProperty("entries", out var entries) && entries.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var e in entries.EnumerateArray())
+            {
+                var id = Str(e, "id");
+                var link = Str(e, "url") is { } u && u.StartsWith("http") ? u : id is not null ? $"https://www.youtube.com/watch?v={id}" : null;
+                var title = Str(e, "title") ?? id ?? "video";
+                if (link is null || title is "[Private video]" or "[Deleted video]") continue;
+                list.Add(new PlaylistEntry(title, link, Num(e, "duration")));
+            }
+        }
+        return new Playlist(Str(root, "title") ?? "playlist", list);
+    }
+
+    /// <summary>The yt-dlp choice for a quality picked for many videos at once ("best", "1080", "720", "480", "audio"):
+    /// MP4 when the site has it, otherwise the best there is, never above the height.</summary>
+    public static string SpecFor(string quality) => quality switch
+    {
+        "audio" => "ba/b",
+        "best" or "" => "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b",
+        _ => $"bv*[ext=mp4][height<={quality}]+ba[ext=m4a]/b[ext=mp4][height<={quality}]/bv*[height<={quality}]+ba/b[height<={quality}]/b",
+    };
+
+    /// <summary>Off in the tests (no network to the engine's site there).</summary>
+    public static bool AutoUpdateOnFailure { get; set; } = true;
+
     public static async Task<MediaInfo> GetInfoAsync(string url, RequestInfo info, CancellationToken ct = default)
     {
         url = CleanUrl(url);
@@ -151,6 +225,17 @@ public static class YtDlp
                 if (again.Options.Count > (media?.Options.Count ?? 0)) { media = again; error = null; }
             }
             catch (InvalidOperationException e) { error ??= e.Message; }
+        }
+        // Still nothing: the site may have changed — update the engine (at most once an hour) and try once more.
+        if ((media is null || media.Options.Count == 0) && AutoUpdateOnFailure && DateTime.UtcNow - _lastFailureUpdate > TimeSpan.FromHours(1)
+            && error?.Contains(L.T("هذا الفيديو خاص")) != true && error?.Contains(L.T("هذا الفيديو يحتاج تسجيل دخول")) != true)
+        {
+            _lastFailureUpdate = DateTime.UtcNow;
+            if (await UpdateQuietly("a video failed"))
+            {
+                try { media = await GetInfoOnce(url, info, IsYoutube(url) ? YoutubeFallbackClients : null, ct); error = null; }
+                catch (InvalidOperationException e) { error = e.Message; }
+            }
         }
         if (media is null || media.Options.Count == 0)
             throw new InvalidOperationException(error ?? L.T("لم يتم العثور على جودات متوفرة لهذا الفيديو"));
@@ -213,6 +298,12 @@ public static class YtDlp
         static bool HasVideo(JsonElement f) => Str(f, "vcodec") is not "none"
             && (Num(f, "height") > 0 || Str(f, "vcodec") is { } v && v != "none" || Str(f, "video_ext") is { } ve && ve != "none");
         static bool HasAudio(JsonElement f) => Str(f, "acodec") is { } a ? a != "none" : Str(f, "audio_ext") is { } ae && ae != "none" || Str(f, "vcodec") is null;
+        // Sound not stated either way (Dailymotion and other HLS sites list the picture and the sound separately
+        // without naming the sound's codec): treated as "maybe silent", so a sound track is added when one exists.
+        static bool AudioUnknown(JsonElement f) => Str(f, "acodec") is null && Str(f, "audio_ext") is null && Str(f, "vcodec") is not null;
+        // A sound-only format: no picture, and sound not ruled out.
+        static bool IsAudioOnly(JsonElement f) => !HasVideo(f) && Str(f, "acodec") is not "none"
+            && (Str(f, "acodec") is not null || Str(f, "vcodec") is "none" || Str(f, "video_ext") is "none" || Str(f, "resolution") is "audio only");
         long SizeOf(JsonElement f, out bool estimate)
         {
             estimate = false;
@@ -223,7 +314,7 @@ public static class YtDlp
             return -1;
         }
 
-        var audios = formats.Where(f => !HasVideo(f) && Str(f, "acodec") is { } a && a != "none").ToList();
+        var audios = formats.Where(IsAudioOnly).ToList();
         // The audio that pairs with a video: M4A for MP4 (result stays MP4), WebM/Opus for WebM (result stays WebM).
         JsonElement AudioFor(string? videoExt) => audios
             .OrderByDescending(f => videoExt == "webm" ? Str(f, "ext") == "webm" : Str(f, "ext") == "m4a")
@@ -248,7 +339,7 @@ public static class YtDlp
             var size = SizeOf(f, out var est);
             var vext = Str(f, "ext");
             var audio = AudioFor(vext);
-            var needsAudio = !HasAudio(f) && audio.ValueKind == JsonValueKind.Object;
+            var needsAudio = (!HasAudio(f) || AudioUnknown(f)) && audio.ValueKind == JsonValueKind.Object;
             if (needsAudio && size > 0)
             {
                 var a = SizeOf(audio, out var aEst);
@@ -403,6 +494,45 @@ public static class YtDlp
                 .OrderByDescending(f => f.LastWriteTimeUtc).FirstOrDefault()?.FullName;
         }
         return final ?? throw new InvalidOperationException(L.T("اكتمل التحميل لكن لم يتم العثور على الملف"));
+    }
+
+    // ---------- keeping the video engine up to date by itself ----------
+
+    private static readonly SemaphoreSlim UpdateGate = new(1, 1);
+    private static string UpdateStamp => Path.Combine(Paths.AppData, "engine-updated.txt");
+    private static DateTime _lastFailureUpdate = DateTime.MinValue;
+
+    /// <summary>When the engine last checked for a new version (UTC).</summary>
+    public static DateTime LastUpdateCheck
+    {
+        get
+        {
+            try { return File.Exists(UpdateStamp) && DateTime.TryParse(File.ReadAllText(UpdateStamp), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var d) ? d : DateTime.MinValue; }
+            catch (Exception) { return DateTime.MinValue; }
+        }
+    }
+
+    /// <summary>Updates the engine when the last check is older than <paramref name="every"/>. True if a new version was installed.</summary>
+    public static async Task<bool> AutoUpdateIfDue(TimeSpan every)
+    {
+        if (DateTime.UtcNow - LastUpdateCheck < every) return false;
+        return await UpdateQuietly("daily");
+    }
+
+    /// <summary>Runs "yt-dlp -U" once at a time and remembers when. True if a new version was installed.</summary>
+    public static async Task<bool> UpdateQuietly(string why)
+    {
+        if (!await UpdateGate.WaitAsync(0)) { await UpdateGate.WaitAsync(); UpdateGate.Release(); return false; }
+        try
+        {
+            var output = await UpdateAsync();
+            try { File.WriteAllText(UpdateStamp, DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)); } catch (Exception) { }
+            var updated = output.Contains("Updated yt-dlp to", StringComparison.OrdinalIgnoreCase);
+            Log.Write($"video engine update ({why}): {(updated ? "updated" : "up to date")} — {output.Split('\n').LastOrDefault()?.Trim()}");
+            return updated;
+        }
+        catch (Exception e) { Log.Write($"video engine update ({why}) failed: {e.Message}"); return false; }
+        finally { UpdateGate.Release(); }
     }
 
     public static async Task<string> UpdateAsync()

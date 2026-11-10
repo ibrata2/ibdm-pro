@@ -391,3 +391,73 @@ Messages and announcements from the developer
 No messages right now.
 Message
 Open link
+Update the video engine automatically (daily, and right away when a video fails)
+Last engine update check: {0}
+Properties
+Copy
+Download link
+Download page
+Referrer
+Saved to
+Added
+Open
+Open with…
+Copy download link
+Copy page link
+Open the download page in the browser
+Copy file path
+Rename…
+Rename
+New file name
+A file with this name already exists in this folder.
+Queue started on schedule
+Sleep
+Shut down the computer
+Queue "{0}" is done. {1} in:
+{0} seconds
+Now
+Schedule queue "{0}"
+Start the queue automatically at:
+Once
+Every day
+When the queue is done
+Do nothing
+Close the app
+Before shutting down or sleeping, a one-minute countdown appears that you can cancel.
+Schedule…
+Download the whole playlist…
+Multiple links
+Multiple links…
+Playlist
+Download multiple links
+Download a playlist
+Paste the links, one per line (files, video pages or YouTube playlists). You can paste a whole text and the app takes the links out of it.
+Choose the videos you want from the list.
+Video quality
+Start downloading now (otherwise they are added to the queue stopped)
+Add
+Select all
+Select none
+Reading the playlist…
+{0} — {1} videos
+Checking link {0} of {1}…
+{0} downloads added.
+{0} failed:
+Best quality
+Could not read the playlist
+Best available quality
+Audio only (MP3)
+Reading the MEGA file…
+MEGA folder links are not supported yet. Open the folder on MEGA, copy the link of the file you want (Share link) and paste it here.
+Invalid MEGA link
+MEGA gave no download address for this file (the free download limit may be reached; wait a while).
+The file is not on MEGA (it may have been deleted, or the link is incomplete).
+The file is blocked on MEGA.
+MEGA is busy or the free download limit is reached — wait a while, then try again.
+MEGA refused access to the file.
+MEGA error ({0})
+The MEGA link's key is incomplete
+Decrypting the MEGA file…
+Real glass is on: what is behind the window shows blurred in the glass styles.
+Real glass (seeing what is behind the window, blurred) needs Windows 11 with "Transparency effects" on in Windows Settings › Personalization › Colors.
+Open Windows transparency settings

@@ -32,6 +32,20 @@ public static class Theme
         _ => WinDark,
     };
     private static readonly bool Classic = !IsGlass;
+    /// <summary>Real glass: Windows 11 (22H2 or newer) blurs what is behind the window, and the app's surfaces let it
+    /// show through. Needs Windows' "Transparency effects" on; otherwise (and on older Windows) the glass is drawn solid.</summary>
+    public static readonly bool Backdrop = IsGlass && Environment.GetEnvironmentVariable("IBDM_SNAPSHOT") != "1"
+        && Environment.OSVersion.Version.Build >= 22621 && WindowsTransparencyOn();
+
+    public static bool WindowsTransparencyOn()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("EnableTransparency") is not int on || on != 0;
+        }
+        catch (Exception) { return true; }
+    }
     private static string P(string dark, string light, string? glass = null) => IsDark ? dark : Classic ? light : glass ?? light;
 
     // The accent: (shine, colour, deep)
@@ -46,14 +60,17 @@ public static class Theme
 
     public static readonly Brush Bg = IsClear
         ? (IsDark ? Grad("#7A0E0E12", "#99070709") : Grad("#59FFFFFF", "#80EEF1F6"))
+        : Backdrop ? (IsDark ? Grad("#B31D1D23", "#CC0B0B0E") : Grad("#B3FBFCFE", "#C7E8EBF1"))
         : Classic ? Br(P("#0F0F11", "#F3F3F5")) : IsDark ? Grad("#1D1D23", "#0B0B0E") : Grad("#FBFCFE", "#E8EBF1");
     /// <summary>The same background without see-through (used when Windows cannot blur behind the window).</summary>
     public static readonly Brush SolidBg = IsDark ? (Classic ? Br("#0F0F11") : Grad("#1D1D23", "#0B0B0E")) : Classic ? Br("#F3F3F5") : Grad("#FBFCFE", "#E8EBF1");
     public static readonly Brush Panel = IsClear
         ? (IsDark ? Grad("#8C1A1A20", "#A6101014") : Grad("#99FFFFFF", "#80F4F6FA"))
+        : Backdrop ? (IsDark ? Grad("#BF212128", "#B3131317") : Grad("#C7FFFFFF", "#B3F4F6FA"))
         : Classic ? Br(P("#16161A", "#FAFAFB")) : IsDark ? Grad("#F2212128", "#E6131317") : Grad("#F2FFFFFF", "#D9F4F6FA");
     public static readonly Brush Card = IsClear
         ? (IsDark ? Grad("#B3262630", "#CC18181E") : Grad("#CCFFFFFF", "#B3F7F8FB"))
+        : Backdrop ? (IsDark ? Grad("#D92B2B33", "#CC1C1C22") : Grad("#E6FFFFFF", "#D9F7F8FB"))
         : Classic ? Br(P("#1E1E23", "#FFFFFF")) : IsDark ? Grad("#F22B2B33", "#E61C1C22") : Grad("#F7FFFFFF", "#E6F7F8FB");
     public static readonly Brush Hover = Classic ? Br(P("#2A2A31", "#ECECF0")) : Br(A(IsDark ? 0x40 : 0x16, Acc.Base));
     public static readonly Brush Pressed = Classic ? Br(P("#33333B", "#E1E1E7")) : Br(A(IsDark ? 0x60 : 0x28, Acc.Base));
@@ -266,6 +283,12 @@ public static class Theme
         arrow.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
         arrow.SetValue(FrameworkElement.FlowDirectionProperty, FlowDirection.LeftToRight);
         dock.AppendChild(arrow);
+        var icon = new FrameworkElementFactory(typeof(ContentPresenter), "Icon");
+        icon.SetValue(ContentPresenter.ContentSourceProperty, "Icon");
+        icon.SetValue(FrameworkElement.WidthProperty, 22.0);
+        icon.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        icon.SetValue(DockPanel.DockProperty, Dock.Left);
+        dock.AppendChild(icon);
         var header = new FrameworkElementFactory(typeof(ContentPresenter), "Header");
         header.SetValue(ContentPresenter.ContentSourceProperty, "Header");
         header.SetValue(ContentPresenter.RecognizesAccessKeyProperty, true);
@@ -306,6 +329,9 @@ public static class Theme
         sub.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "Arrow"));
         sub.Setters.Add(new Setter(Popup.PlacementProperty, PlacementMode.Right, "PART_Popup"));
         t.Triggers.Add(sub);
+        var hasIcon = new Trigger { Property = MenuItem.IconProperty, Value = null };
+        hasIcon.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "Icon"));
+        t.Triggers.Add(hasIcon);
         var off = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         off.Setters.Add(new Setter(TextElement.ForegroundProperty, Muted, "Header"));
         t.Triggers.Add(off);
@@ -824,11 +850,11 @@ public static class Ui
             var hwnd = new WindowInteropHelper(w).Handle;
             int on = Theme.IsDark ? 1 : 0;
             if (DwmSetWindowAttribute(hwnd, 20, ref on, 4) != 0) DwmSetWindowAttribute(hwnd, 19, ref on, 4);
-            if (Theme.IsClear)
+            if (Theme.Backdrop || Theme.IsClear)
             {
-                // See-through glass: Windows 11 draws a blurred view of what is behind the window under its
-                // half-transparent content. Older Windows cannot: the window gets the solid glass background.
-                if (!SeeThrough(w, hwnd)) w.Background = Theme.SolidBg;
+                // Real glass: Windows 11 draws a blurred view of what is behind the window under its
+                // half-transparent content. When it cannot, the window gets the solid glass background.
+                if (!(Theme.Backdrop && SeeThrough(w, hwnd))) w.Background = Theme.SolidBg;
                 return;
             }
             var bg = Theme.Solid(Theme.Bg);
@@ -919,6 +945,97 @@ public static class Ui
     }
 
     public static void Message(Window? owner, string title, string message) => Ask(owner, title, message, L.T("حسناً"));
+
+    /// <summary>Asks for one line of text. Returns null when cancelled.</summary>
+    public static string? AskText(Window? owner, string title, string label, string value)
+    {
+        var w = new Window { ResizeMode = ResizeMode.NoResize, SizeToContent = SizeToContent.Height, ShowInTaskbar = owner is null };
+        Setup(w, title, 480, 200);
+        w.WindowStartupLocation = owner is { IsVisible: true } ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen;
+        if (owner is { IsVisible: true }) w.Owner = owner;
+        string? result = null;
+        var root = new StackPanel { Margin = new Thickness(22) };
+        root.Children.Add(Label(label));
+        var input = Input(value);
+        root.Children.Add(input);
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 16, 0, 0) };
+        var ok = Button(L.T("حفظ"), style: Theme.PrimaryButton, click: () => { result = input.Text; w.Close(); });
+        ok.IsDefault = true;
+        var cancel = Button(L.T("إلغاء"), style: Theme.Button, click: w.Close);
+        cancel.IsCancel = true;
+        cancel.Margin = new Thickness(8, 0, 0, 0);
+        row.Children.Add(ok);
+        row.Children.Add(cancel);
+        root.Children.Add(row);
+        w.Content = root;
+        w.Loaded += (_, _) =>
+        {
+            input.Focus();
+            // Select the name without the extension, like Windows does.
+            var dot = value.LastIndexOf('.');
+            input.Select(0, dot > 0 ? dot : value.Length);
+        };
+        w.ShowDialog();
+        return result;
+    }
+}
+
+/// <summary>"Properties" of a download: where it came from (download link, page, referrer) and where it is saved.</summary>
+public sealed class PropertiesWindow : Window
+{
+    public static void Show(Window owner, DownloadItem item) => new PropertiesWindow(item) { Owner = owner }.ShowDialog();
+
+    public PropertiesWindow(DownloadItem item)
+    {
+        Ui.Setup(this, L.T("خصائص"), 620, 520);
+        SizeToContent = SizeToContent.Height;
+        ResizeMode = ResizeMode.NoResize;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        var root = new StackPanel { Margin = new Thickness(22, 18, 22, 18) };
+        var title = Ui.Text(item.FileName, 15, Theme.Ink, bold: true, wrap: TextWrapping.Wrap);
+        title.Margin = new Thickness(0, 0, 0, 12);
+        root.Children.Add(title);
+
+        void Field(string label, string? value, bool ltr = true)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            root.Children.Add(Ui.Label(label));
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+            var copy = Ui.Button(L.T("نسخ"), "\uE8C8", Theme.Button, () => { try { Clipboard.SetText(value); } catch (Exception) { } });
+            copy.Margin = new Thickness(8, 0, 0, 0);
+            DockPanel.SetDock(copy, Dock.Right);
+            row.Children.Add(copy);
+            var box = Ui.Input(value);
+            box.IsReadOnly = true;
+            if (ltr) box.FlowDirection = FlowDirection.LeftToRight;
+            row.Children.Add(box);
+            root.Children.Add(row);
+        }
+        Field(L.T("رابط التحميل"), item.Url);
+        if (item.PageUrl != item.Url) Field(L.T("صفحة التحميل"), item.PageUrl);
+        if (item.Request?.Referrer is { } r && r != item.PageUrl && r != item.Url) Field(L.T("المُحيل (Referrer)"), r);
+        Field(L.T("مكان الحفظ"), item.FullPath);
+
+        var facts = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+        void Fact(string k, string v) { if (v.Length > 0) facts.Children.Add(Ui.Text($"{k}: {v}", 12.5, Theme.Muted)); }
+        Fact(L.T("الحجم"), item.TotalBytes > 0 ? Fmt.Size(item.TotalBytes) : "");
+        Fact(L.T("الحالة"), item.StatusText);
+        Fact(L.T("النوع"), L.T(item.Category));
+        Fact(L.T("قائمة الانتظار"), item.QueueName);
+        Fact(L.T("أضيف"), item.Added.ToString("yyyy/MM/dd HH:mm"));
+        if (item.Finished is { } f) Fact(L.T("اكتمل"), f.ToString("yyyy/MM/dd HH:mm"));
+        root.Children.Add(facts);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 16, 0, 0) };
+        var folder = Ui.Button(L.T("فتح المجلد"), "\uE838", Theme.Button, () => Ui.ShowInFolder(item.FullPath));
+        var close = Ui.Button(L.T("إغلاق"), style: Theme.PrimaryButton, click: Close);
+        close.IsCancel = true;
+        close.Margin = new Thickness(8, 0, 0, 0);
+        buttons.Children.Add(folder);
+        buttons.Children.Add(close);
+        root.Children.Add(buttons);
+        Content = root;
+    }
 }
 
 

@@ -123,6 +123,7 @@ public sealed class InfoDialog : Window
     }
 
     private bool _preview;
+    private string? _megaKey, _megaLink;
 
     /// <summary>For the build's snapshots: the dialog already filled with a checked file or video.</summary>
     public static InfoDialog Preview(CaptureRequest req, ProbeResult? probe, MediaInfo? media)
@@ -155,6 +156,24 @@ public sealed class InfoDialog : Window
         var ct = _cts.Token;
         try
         {
+            var megaLink = new[] { _req.Url, _req.PageUrl }.FirstOrDefault(Mega.IsFileLink);
+            if (megaLink is not null)
+            {
+                _headTitle.Text = L.T("جاري قراءة ملف MEGA…");
+                _headSub.Text = "mega.nz";
+                var mega = await Mega.GetFileAsync(Http.Client, megaLink, ct);
+                var check = await Http.ProbeAsync(mega.DownloadUrl, new RequestInfo(), ct);
+                _megaKey = Mega.Parse(megaLink)!.Value.Key;
+                _megaLink = megaLink;
+                _probe = new ProbeResult { FinalUrl = mega.DownloadUrl, FileName = mega.Name, Size = mega.Size, Resumable = check.Error is null && check.Resumable, ContentType = "application/octet-stream" };
+                ShowFile();
+                return;
+            }
+            if (Mega.IsFolderLink(_req.Url) || Mega.IsFolderLink(_req.PageUrl))
+            {
+                ShowError(L.T("روابط مجلدات MEGA غير مدعومة حالياً. افتح المجلد على MEGA، وانسخ رابط الملف الذي تريده (Share link) وألصقه هنا."));
+                return;
+            }
             if (_req.Kind == "media")
             {
                 // A video on a page: the page address gives yt-dlp every quality (YouTube, Facebook…);
@@ -292,6 +311,15 @@ public sealed class InfoDialog : Window
         var m = _media!;
         _body.Children.Clear();
         SetHead(_s.CategoryNamed("فيديو") ?? _category, L.T("تحميل فيديو"), (m.Site is { Length: > 0 } site && site != "Generic" ? site + " — " : "") + Host(m.Url));
+        var listUrl = new[] { _req.PageUrl, _req.Url }.FirstOrDefault(u => u is not null && YtDlp.IsPlaylistUrl(u));
+        if (listUrl is not null && !_preview)
+        {
+            // The video is part of a playlist: offer the whole list too.
+            var whole = Ui.Button(L.T("تحميل قائمة التشغيل كاملة…"), "\uE8FD", Theme.Button, () => { var u = listUrl; Close(); BatchWindow.ShowPlaylist(null, IbdmApp.Instance.Manager, u); });
+            whole.HorizontalAlignment = HorizontalAlignment.Left;
+            whole.Margin = new Thickness(0, 0, 0, 8);
+            _body.Children.Add(whole);
+        }
 
         // thumbnail + title
         var top = new DockPanel();
@@ -593,9 +621,9 @@ public sealed class InfoDialog : Window
         {
             item = new DownloadItem
             {
-                Kind = DownloadKind.File, Url = _probe.FinalUrl, PageUrl = _req.PageUrl, Request = _req.ToRequestInfo(),
+                Kind = DownloadKind.File, Url = _probe.FinalUrl, PageUrl = _megaLink ?? _req.PageUrl, Request = _megaKey is null ? _req.ToRequestInfo() : new RequestInfo(),
                 FileName = name, Folder = folder, Category = _category.Name, QueueName = queueName,
-                TotalBytes = _probe.Size, Resumable = _probe.Resumable,
+                TotalBytes = _probe.Size, Resumable = _probe.Resumable, MegaKey = _megaKey,
             };
         }
         else return;

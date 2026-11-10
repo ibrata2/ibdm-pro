@@ -77,6 +77,12 @@ public static class Snapshots
             [{"id":"1","title":"عرض جديد على قناة البرامج","text":"نزل برنامج جديد على قناة التليكرام، ادخل وشوفه.","url":"https://t.me/ibraprogram","date":"2026-11-10 09:00"},
              {"id":"2","title":"تنبيه","text":"إذا ما يحمل فيديو من موقع معيّن، حدّث محرك الفيديو من الإعدادات.","date":"2026-11-01 12:00"}]
             """)), Path.Combine(dir, "8-messages.png"));
+        var done = m.Items.First(i => i.Status == DownloadStatus.Completed);
+        done.PageUrl = "https://www.example.com/music/page";
+        Save(new PropertiesWindow(done), Path.Combine(dir, "9-properties.png"));
+        var q = s.Queues[0];
+        q.ScheduleEnabled = true; q.StartTime = "02:30"; q.Daily = true; q.WhenDone = "shutdown";
+        Save(new ScheduleWindow(q), Path.Combine(dir, "10-schedule.png"));
     }
 
     private static void Save(Window w, string file)

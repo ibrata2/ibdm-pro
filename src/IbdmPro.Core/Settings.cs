@@ -27,6 +27,31 @@ public sealed class Settings
     {
         public string Name { get; set; } = DefaultQueueName;
         public bool IsRunning { get; set; }
+        /// <summary>Start this queue by itself at <see cref="StartTime"/>.</summary>
+        public bool ScheduleEnabled { get; set; }
+        /// <summary>"HH:mm", local time.</summary>
+        public string StartTime { get; set; } = "02:00";
+        /// <summary>Every day; otherwise once (the schedule switches off after it ran).</summary>
+        public bool Daily { get; set; }
+        /// <summary>What to do when the queue has finished: "none", "shutdown", "sleep" or "exit".</summary>
+        public string WhenDone { get; set; } = "none";
+        /// <summary>The day the schedule last started the queue (yyyy-MM-dd), so it starts once a day.</summary>
+        public string? LastScheduledRun { get; set; }
+
+        /// <summary>True when the schedule should start the queue now.</summary>
+        public bool IsDue(DateTime now)
+        {
+            if (!ScheduleEnabled || !TimeSpan.TryParse(StartTime, System.Globalization.CultureInfo.InvariantCulture, out var at)) return false;
+            var today = now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            // Started at the time, or later the same day if the computer was off then (up to 6 hours late).
+            return LastScheduledRun != today && now.TimeOfDay >= at && now.TimeOfDay - at < TimeSpan.FromHours(6);
+        }
+
+        public void MarkScheduledRun(DateTime now)
+        {
+            LastScheduledRun = now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            if (!Daily) ScheduleEnabled = false;
+        }
     }
 
     /// <summary>Named waiting lists. Existing installs get a default queue automatically.</summary>
@@ -88,6 +113,8 @@ public sealed class Settings
         catch (Exception) { return true; }
     }
     public bool CheckUpdatesOnStart { get; set; } = true;
+    /// <summary>Update the video engine (yt-dlp) by itself once a day, and right away when a video cannot be read.</summary>
+    public bool AutoUpdateEngine { get; set; } = true;
     public bool StartWithWindows { get; set; } = true;
     public bool MinimizeToTray { get; set; } = true;
     public bool NotifyOnComplete { get; set; } = true;
