@@ -854,7 +854,13 @@ public static class Ui
             {
                 // Real glass: Windows 11 draws a blurred view of what is behind the window under its
                 // half-transparent content. When it cannot, the window gets the solid glass background.
-                if (!(Theme.Backdrop && SeeThrough(w, hwnd))) w.Background = Theme.SolidBg;
+                var blurred = Theme.Backdrop && SeeThrough(w, hwnd);
+                if (!blurred) w.Background = Theme.SolidBg;
+                if (!_glassLogged)
+                {
+                    _glassLogged = true;
+                    IbdmPro.Core.Log.Write($"real glass: {(blurred ? "on" : "off")} (Windows build {Environment.OSVersion.Version.Build}, transparency effects {(Theme.WindowsTransparencyOn() ? "on" : "off")}, style {Theme.Mode})");
+                }
                 return;
             }
             var bg = Theme.Solid(Theme.Bg);
@@ -872,6 +878,8 @@ public static class Ui
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref Margins margins);
+
+    private static bool _glassLogged;
 
     private static bool SeeThrough(Window w, IntPtr hwnd)
     {
@@ -1005,7 +1013,10 @@ public sealed class PropertiesWindow : Window
             copy.Margin = new Thickness(8, 0, 0, 0);
             DockPanel.SetDock(copy, Dock.Right);
             row.Children.Add(copy);
-            var box = Ui.Input(value);
+            // Links are shown readable (Arabic letters instead of %D8%…); the copy button copies the real link.
+            string shown = value;
+            if (value.StartsWith("http", StringComparison.OrdinalIgnoreCase)) try { shown = Uri.UnescapeDataString(value); } catch (Exception) { }
+            var box = Ui.Input(shown);
             box.IsReadOnly = true;
             if (ltr) box.FlowDirection = FlowDirection.LeftToRight;
             row.Children.Add(box);
