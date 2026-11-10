@@ -6,6 +6,11 @@ name: Send a message (إرسال رسالة للمستخدمين)
 on:
   workflow_dispatch:
     inputs:
+      kind:
+        description: "النوع: message = رسالة عادية، ad = إعلان لبرنامج (يبقى بجانب البرنامج)، app = برنامج جديد على القناة"
+        type: choice
+        options: [message, ad, app]
+        default: message
       title:
         description: "العنوان / Title"
         required: false
@@ -49,6 +54,7 @@ jobs:
           LANG_FOR: ${{ inputs.lang }}
           DAYS: ${{ inputs.days }}
           ACTION: ${{ inputs.action }}
+          KIND: ${{ inputs.kind }}
         run: python3 .github/scripts/send_message.py
       - name: Publish
         run: |

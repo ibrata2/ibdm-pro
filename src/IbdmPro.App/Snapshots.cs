@@ -41,6 +41,10 @@ public static class Snapshots
         Item("صورة الغلاف.png", 2_100_000, 1, DownloadStatus.Completed, minutesAgo: 200);
 
         app.Main.ShowUpdateBadge("1.0.99");
+        MessageCenter.SetForPreview(MessageFeed.Parse("""
+            [{"id":"ad1","kind":"app","title":"IBRA LENS","text":"برنامج جديد للبحث عن الصور بالحاسبة بالوصف.","url":"https://t.me/ibraprogram","date":"2026-11-10 09:00"}]
+            """));
+        app.Main.RefreshAd();
         app.Main.Sync();
         Save(app.Main, Path.Combine(dir, "1-main.png"));
 

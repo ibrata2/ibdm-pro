@@ -34,6 +34,7 @@ else:
         "date": now.strftime("%Y-%m-%d %H:%M"),
         "expires": (now + datetime.timedelta(days=days)).strftime("%Y-%m-%d") if days > 0 else None,
         "lang": os.environ.get("LANG_FOR", "all") or "all",
+        "kind": os.environ.get("KIND", "message") or "message",
     }
     msgs.append(msg)
     print("added:", json.dumps(msg, ensure_ascii=False))

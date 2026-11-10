@@ -316,6 +316,10 @@ Check(mine.Select(m => m.Id).OrderBy(x => x).SequenceEqual(["a", "b", "e"]), "me
 Check(MessageFeed.FirstRun && MessageFeed.Unseen(mine).Count == 3, "messages: all new before anything was shown");
 MessageFeed.MarkSeen(["a", "e"]);
 Check(!MessageFeed.FirstRun && MessageFeed.Unseen(mine).Select(m => m.Id).SequenceEqual(["b"]), "messages: a shown message is not shown again");
+var ads = MessageFeed.Parse("""[{"id":"x1","kind":"ad","title":"old ad","date":"2026-11-01 10:00"},{"id":"x2","kind":"app","title":"IBRA LENS","date":"2026-11-09 10:00"},{"id":"x3","title":"plain","date":"2026-11-10 10:00"}]""");
+Check(MessageFeed.CurrentAd(ads)?.Id == "x2", "ads: the side bar shows the newest ad / new program, not plain messages");
+MessageFeed.CloseAd("x2");
+Check(MessageFeed.CurrentAd(ads)?.Id == "x1", "ads: a closed ad gives way to the next one");
 
 manager.Dispose();
 Console.WriteLine(failures == 0 ? "\nALL PASSED" : $"\n{failures} FAILED");

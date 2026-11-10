@@ -11,6 +11,7 @@ public static class MessageCenter
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
     public static List<AppMessage> Latest { get; private set; } = [];
+    public static void SetForPreview(List<AppMessage> list) => Latest = list;
 
     public static async Task RunInBackground()
     {
@@ -29,6 +30,7 @@ public static class MessageCenter
         var all = await MessageFeed.FetchAsync(Http);
         var current = MessageFeed.Current(all, L.Lang, DateTime.UtcNow);
         Latest = current;
+        IbdmApp.Instance.Dispatcher.Invoke(() => IbdmApp.Instance.Main.RefreshAd());
         if (MessageFeed.FirstRun)
         {
             // A new install: only messages from the last week are shown, older ones count as read.
@@ -45,7 +47,8 @@ public static class MessageCenter
     private static void Show(AppMessage m)
     {
         var app = IbdmApp.Instance;
-        var title = m.Title.Length > 0 ? m.Title : L.F("رسالة من {0}", Program.ProductName);
+        var title = m.Kind == "app" ? (m.Title.Length > 0 ? L.F("برنامج جديد: {0}", m.Title) : L.T("برنامج جديد على قناة البرامج"))
+            : m.Title.Length > 0 ? m.Title : L.F("رسالة من {0}", Program.ProductName);
         var text = m.Text.Length > 0 ? m.Text : title;
         if (m.HasLink) text += "\n" + L.T("اضغط هنا لفتح الرابط");
         app.Tray?.NotifyAction(title, text, () =>

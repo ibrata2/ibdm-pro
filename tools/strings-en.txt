@@ -461,3 +461,8 @@ Decrypting the MEGA file…
 Real glass is on: what is behind the window shows blurred in the glass styles.
 Real glass (seeing what is behind the window, blurred) needs Windows 11 with "Transparency effects" on in Windows Settings › Personalization › Colors.
 Open Windows transparency settings
+New program: {0}
+A new program on the programs channel
+New program
+Ad
+Hide

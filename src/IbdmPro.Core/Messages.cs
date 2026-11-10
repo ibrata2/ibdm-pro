@@ -19,6 +19,11 @@ public sealed class AppMessage
     public string? Expires { get; set; }
     /// <summary>"all", "ar" or "en": which language's users see it.</summary>
     public string? Lang { get; set; } = "all";
+    /// <summary>"message" (a notice), "ad" (an ad for a program — also kept in the app's side bar) or
+    /// "app" (a new program is out — also kept in the side bar).</summary>
+    public string? Kind { get; set; } = "message";
+
+    public bool IsAd => Kind is "ad" or "app";
 
     public bool HasLink => Url is { Length: > 0 } u && (u.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || u.StartsWith("http://", StringComparison.OrdinalIgnoreCase));
 
@@ -83,6 +88,26 @@ public static class MessageFeed
     /// <summary>New messages (not shown before), oldest first so they are shown in order.</summary>
     public static List<AppMessage> Unseen(IEnumerable<AppMessage> current) =>
         current.Where(m => !Seen().Contains(m.Id)).OrderBy(m => m.When).ToList();
+
+    private static string DismissedFile => Path.Combine(Paths.AppData, "ads-closed.json");
+
+    /// <summary>The ad shown in the side bar: the newest ad / new-program message the user has not closed.</summary>
+    public static AppMessage? CurrentAd(IEnumerable<AppMessage> current)
+    {
+        HashSet<string> closed;
+        try { closed = File.Exists(DismissedFile) ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(DismissedFile)) ?? [] : []; }
+        catch (Exception) { closed = []; }
+        return current.Where(m => m.IsAd && !closed.Contains(m.Id)).OrderByDescending(m => m.When).FirstOrDefault();
+    }
+
+    public static void CloseAd(string id)
+    {
+        HashSet<string> closed;
+        try { closed = File.Exists(DismissedFile) ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(DismissedFile)) ?? [] : []; }
+        catch (Exception) { closed = []; }
+        closed.Add(id);
+        try { Json.SaveAtomic(DismissedFile, closed); } catch (Exception) { }
+    }
 
     /// <summary>On a first run nothing old pops up: everything already published counts as seen.</summary>
     public static bool FirstRun => !File.Exists(SeenFile);

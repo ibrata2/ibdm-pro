@@ -390,6 +390,47 @@ public sealed class MainWindow : Window
         openRoot.FontSize = 12;
         openRoot.Padding = new Thickness(8, 6, 8, 6);
         _nav.Children.Add(openRoot);
+        _nav.Children.Add(_adHost);
+        RefreshAd();
+    }
+
+    private readonly ContentControl _adHost = new() { Margin = new Thickness(0, 16, 0, 0) };
+
+    /// <summary>The ad card at the bottom of the side bar (the newest ad / new program the developer sent).</summary>
+    public void RefreshAd()
+    {
+        var ad = MessageFeed.CurrentAd(MessageCenter.Latest.Count > 0 ? MessageCenter.Latest : MessageFeed.Current(MessageFeed.Cached(), L.Lang, DateTime.UtcNow));
+        if (ad is null) { _adHost.Content = null; return; }
+        var card = new StackPanel();
+        var top = new DockPanel();
+        var close = Ui.Button("", "\uE711", Theme.ToolButton, () => { MessageFeed.CloseAd(ad.Id); RefreshAd(); });
+        close.Padding = new Thickness(3);
+        close.ToolTip = L.T("إخفاء");
+        DockPanel.SetDock(close, Dock.Right);
+        top.Children.Add(close);
+        top.Children.Add(Ui.Text(ad.Kind == "app" ? L.T("برنامج جديد") : L.T("إعلان"), 11, Theme.Gold, bold: true));
+        card.Children.Add(top);
+        if (ad.Title.Length > 0) card.Children.Add(Ui.Text(ad.Title, 13, Theme.Ink, bold: true, wrap: TextWrapping.Wrap));
+        if (ad.Text.Length > 0)
+        {
+            var body = Ui.Text(ad.Text, 12, Theme.Muted, wrap: TextWrapping.Wrap);
+            body.Margin = new Thickness(0, 4, 0, 0);
+            body.MaxHeight = 90;
+            body.TextTrimming = TextTrimming.CharacterEllipsis;
+            card.Children.Add(body);
+        }
+        if (ad.HasLink)
+        {
+            var url = ad.Url!;
+            var open = Ui.Button(L.T("فتح"), "\uE8A7", Theme.PrimaryButton, () => Ui.Open(url));
+            open.Margin = new Thickness(0, 8, 0, 0);
+            open.FontSize = 12;
+            open.HorizontalAlignment = HorizontalAlignment.Stretch;
+            card.Children.Add(open);
+        }
+        var box = Ui.Card(card, new Thickness(10, 8, 10, 10));
+        box.BorderBrush = Theme.Gold;
+        _adHost.Content = box;
     }
 
     private UIElement NavItem(string key, string text, string glyph, Brush color)
