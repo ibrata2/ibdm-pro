@@ -123,7 +123,13 @@ public sealed class MainWindow : Window
         DockPanel.SetDock(status, Dock.Bottom);
         root.Children.Add(status);
 
-        var sidebar = new Border { Width = 180, Background = Theme.Panel, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 1, 0), Child = new ScrollViewer { Content = _nav, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
+        // The ad card stays pinned at the bottom of the side bar (always visible); the rest scrolls above it.
+        var side = new DockPanel();
+        _adHost.Margin = new Thickness(10, 6, 10, 10);
+        DockPanel.SetDock(_adHost, Dock.Bottom);
+        side.Children.Add(_adHost);
+        side.Children.Add(new ScrollViewer { Content = _nav, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        var sidebar = new Border { Width = 180, Background = Theme.Panel, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 1, 0), Child = side };
         DockPanel.SetDock(sidebar, Dock.Left);
         root.Children.Add(sidebar);
         BuildNav();
@@ -385,16 +391,15 @@ public sealed class MainWindow : Window
         newQueue.Margin = new Thickness(0, 6, 0, 0);
         newQueue.FontSize = 12;
         _nav.Children.Add(newQueue);
-        var openRoot = Ui.Button(L.T("فتح مجلد IBDM Pro"), "", Theme.Button, () => { Directory.CreateDirectory(Settings.Current.DownloadRoot); Ui.Open(Settings.Current.DownloadRoot); });
+        var openRoot = Ui.Button(L.T("فتح مجلد التحميلات"), "", Theme.Button, () => { Directory.CreateDirectory(Settings.Current.DownloadRoot); Ui.Open(Settings.Current.DownloadRoot); });
         openRoot.Margin = new Thickness(0, 16, 0, 0);
         openRoot.FontSize = 12;
         openRoot.Padding = new Thickness(8, 6, 8, 6);
         _nav.Children.Add(openRoot);
-        _nav.Children.Add(_adHost);
         RefreshAd();
     }
 
-    private readonly ContentControl _adHost = new() { Margin = new Thickness(0, 16, 0, 0) };
+    private readonly ContentControl _adHost = new();
 
     /// <summary>The ad card at the bottom of the side bar (the newest ad / new program the developer sent).</summary>
     public void RefreshAd()
