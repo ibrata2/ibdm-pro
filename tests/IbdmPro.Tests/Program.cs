@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using IbdmPro.Core;
 
 // Real end-to-end tests of the engine against tests/server.js.
@@ -97,7 +98,7 @@ await WaitFor(() => big.Status is DownloadStatus.Completed or DownloadStatus.Err
 Check(big.Status == DownloadStatus.Completed, $"resumed and completed ({big.Error}) in {sw.Elapsed.TotalSeconds:0.0}s");
 Check(File.Exists(big.FullPath) && !File.Exists(big.PartPath), $"saved to {big.FullPath}");
 Check(File.Exists(big.FullPath) && Sha(big.FullPath) == Sha(Path.Combine(data, "file.bin")), "SHA-256 identical to the original");
-Check(Path.GetDirectoryName(big.FullPath)!.EndsWith(Path.Combine("IBDM Pro", Settings.OtherCategory)), "saved inside IBDM Pro\\<category>");
+Check(Path.GetDirectoryName(big.FullPath)!.EndsWith(Path.Combine("IBDM Pro", "Other")), "saved inside <downloads folder>\\Other (English folder names)");
 
 // fast parallel download, check the connections split work
 settings.Connections = 8;
@@ -224,6 +225,31 @@ async Task<int> Post(string path, string? origin, bool marked)
 Check(await Post("/add", "https://evil.example", true) == 403 && got is null, "a normal website is refused");
 Check(await Post("/add", "chrome-extension://abc", false) == 404 && got is null, "a request without the extension header is refused");
 Check(await Post("/add", "chrome-extension://abc", true) == 200 && await WaitFor(() => got?.FileName == "a.zip" && got.Size == 123, 3), "the extension's download reaches the app");
+
+// ---------- renamed folders (Arabic type folders → English, list repointed) ----------
+{
+    var root = Path.Combine(work, "rename-test");
+    Directory.CreateDirectory(Path.Combine(root, "فيديو"));
+    File.WriteAllText(Path.Combine(root, "فيديو", "clip.mp4"), "x");
+    File.WriteAllText(Path.Combine(root, "فيديو", "half.mkv.ibdmpart"), "x");
+    var listFile = Path.Combine(Paths.AppData, "downloads.json");
+    var before = File.Exists(listFile) ? File.ReadAllText(listFile) : null;
+    File.WriteAllText(listFile, JsonSerializer.Serialize(new[]
+    {
+        new { FileName = "clip.mp4", Folder = Path.Combine(root, "فيديو") },
+        new { FileName = "half.mkv", Folder = Path.Combine(root, "فيديو") },
+        new { FileName = "elsewhere.zip", Folder = Path.Combine(work, "custom") },
+    }));
+    var old = new Settings { DownloadRoot = root, FoldersRenamed = false };
+    old.Categories.First(c => c.Name == "فيديو").Folder = "فيديو";
+    old.RenameFolders();
+    var after = File.ReadAllText(listFile);
+    Check(File.Exists(Path.Combine(root, "Video", "clip.mp4")) && File.Exists(Path.Combine(root, "Video", "half.mkv.ibdmpart")) && !Directory.Exists(Path.Combine(root, "فيديو")),
+        "rename: the Arabic type folder becomes English with its files (finished and unfinished)");
+    Check(old.Categories.First(c => c.Name == "فيديو").Folder == "Video" && old.FoldersRenamed, "rename: settings point at the new folder");
+    Check(after.Contains(JsonSerializer.Serialize(Path.Combine(root, "Video")).Trim('"')) && after.Contains("custom"), "rename: the download list follows the files, other folders untouched");
+    if (before is null) File.Delete(listFile); else File.WriteAllText(listFile, before);
+}
 
 // ---------- messages from the developer ----------
 var feed = MessageFeed.Parse("""

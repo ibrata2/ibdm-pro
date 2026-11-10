@@ -28,7 +28,7 @@ public static class Updater
     public static async Task<Release?> LatestAsync(CancellationToken ct = default)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, Api);
-        req.Headers.TryAddWithoutValidation("User-Agent", "IBDM-Pro/" + Program.Version);
+        req.Headers.TryAddWithoutValidation("User-Agent", "IBRA-Download-Manager/" + Program.Version);
         req.Headers.TryAddWithoutValidation("Accept", "application/vnd.github+json");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(20));
@@ -93,9 +93,9 @@ public static class Updater
     /// <summary>Downloads the installer next to the other temporary files and reports progress.</summary>
     public static async Task<string> DownloadAsync(Release r, Action<long, long, double> progress, CancellationToken ct)
     {
-        var file = Path.Combine(Path.GetTempPath(), $"IBDM-Pro-Setup-{r.Version}.exe");
+        var file = Path.Combine(Path.GetTempPath(), $"IBRA-Download-Manager-Setup-{r.Version}.exe");
         using var req = new HttpRequestMessage(HttpMethod.Get, r.SetupUrl);
-        req.Headers.TryAddWithoutValidation("User-Agent", "IBDM-Pro/" + Program.Version);
+        req.Headers.TryAddWithoutValidation("User-Agent", "IBRA-Download-Manager/" + Program.Version);
         using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode();
         var total = resp.Content.Headers.ContentLength ?? r.Size;

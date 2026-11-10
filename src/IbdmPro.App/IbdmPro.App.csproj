@@ -7,7 +7,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
-    <AssemblyName>IBDMPro</AssemblyName>
+    <AssemblyName>IBRADownloadManager</AssemblyName>
     <RootNamespace>IbdmPro.App</RootNamespace>
     <ApplicationIcon>..\..\assets\ibdm.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>

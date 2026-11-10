@@ -388,7 +388,7 @@ public sealed class SettingsWindow : Window
         var browse = Ui.Button(L.T("تغيير…"), "", Theme.Button, () =>
         {
             var d = new Microsoft.Win32.OpenFolderDialog { Title = L.T("اختر المجلد الرئيسي للتحميلات") };
-            if (d.ShowDialog(this) == true) _root.Text = Path.Combine(d.FolderName, Path.GetFileName(d.FolderName).Equals("IBDM Pro", StringComparison.OrdinalIgnoreCase) ? "" : "IBDM Pro").TrimEnd('\\');
+            if (d.ShowDialog(this) == true) _root.Text = Path.Combine(d.FolderName, Path.GetFileName(d.FolderName).Equals(Paths.FolderName, StringComparison.OrdinalIgnoreCase) ? "" : Paths.FolderName).TrimEnd('\\');
         });
         browse.Margin = new Thickness(8, 0, 0, 0);
         var row = new DockPanel();

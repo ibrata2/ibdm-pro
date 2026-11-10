@@ -33,7 +33,7 @@ public sealed class Settings
     public List<DownloadQueue> Queues { get; set; } = [new() { Name = DefaultQueueName, IsRunning = true }];
 
     /// <summary>Everything IBDM Pro downloads goes inside this folder, sorted into one folder per kind.</summary>
-    public string DownloadRoot { get; set; } = Path.Combine(Paths.UserDownloads, "IBDM Pro");
+    public string DownloadRoot { get; set; } = Path.Combine(Paths.UserDownloads, Paths.FolderName);
     public List<Category> Categories { get; set; } = DefaultCategories();
 
     // Capture from the browser
@@ -64,6 +64,9 @@ public sealed class Settings
     public string Theme { get; set; } = "glass";
     /// <summary>Set once the red glass style has been made the default for an existing install.</summary>
     public bool GlassDefaultApplied { get; set; } = true;
+    /// <summary>Set once the downloads folder got the new name ("IBRA Download Manager") and the type folders their
+    /// English names on disk.</summary>
+    public bool FoldersRenamed { get; set; } = true;
 
     /// <summary>The style told to the browser extension: "glass" (white glass), "glass-dark" (red and black glass),
     /// "dark" or "light" (classic).</summary>
@@ -107,20 +110,20 @@ public sealed class Settings
 
     public static List<Category> DefaultCategories() =>
     [
-        new() { Name = "فيديو", Folder = "فيديو", Icon = "", Color = "#E5533D",
+        new() { Name = "فيديو", Folder = "Video", Icon = "", Color = "#E5533D",
             Extensions = ["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "3gp", "ts", "mpg", "mpeg", "vob"] },
-        new() { Name = "صوتيات", Folder = "صوتيات", Icon = "", Color = "#A86BF0",
+        new() { Name = "صوتيات", Folder = "Audio", Icon = "", Color = "#A86BF0",
             Extensions = ["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma", "amr", "weba"] },
-        new() { Name = "مضغوطات", Folder = "مضغوطات", Icon = "", Color = "#E8B23A",
+        new() { Name = "مضغوطات", Folder = "Compressed", Icon = "", Color = "#E8B23A",
             Extensions = ["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "tgz", "cab"] },
-        new() { Name = "برامج", Folder = "برامج", Icon = "", Color = "#3B9BF0",
+        new() { Name = "برامج", Folder = "Programs", Icon = "", Color = "#3B9BF0",
             Extensions = ["exe", "msi", "msix", "appx", "apk", "xapk", "bat", "dmg", "iso", "img"] },
-        new() { Name = "مستندات", Folder = "مستندات", Icon = "", Color = "#2DB7A3",
+        new() { Name = "مستندات", Folder = "Documents", Icon = "", Color = "#2DB7A3",
             Extensions = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "epub", "rtf", "odt"] },
-        new() { Name = "صور", Folder = "صور", Icon = "", Color = "#4CC26B",
+        new() { Name = "صور", Folder = "Images", Icon = "", Color = "#4CC26B",
             Extensions = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "psd", "tif", "tiff", "heic", "ico"] },
-        new() { Name = "تورنت", Folder = "تورنت", Icon = "", Color = "#8BC34A", Extensions = ["torrent"] },
-        new() { Name = OtherCategory, Folder = OtherCategory, Icon = "", Color = "#9AA0A6", Extensions = [] },
+        new() { Name = "تورنت", Folder = "Torrent", Icon = "", Color = "#8BC34A", Extensions = ["torrent"] },
+        new() { Name = OtherCategory, Folder = "Other", Icon = "", Color = "#9AA0A6", Extensions = [] },
     ];
 
     public static List<string> DefaultCaptureExtensions() =>
@@ -181,6 +184,7 @@ public sealed class Settings
                 var text = File.ReadAllText(FilePath);
                 var s = JsonSerializer.Deserialize<Settings>(text, Json.Options);
                 if (s is not null && !text.Contains("\"GlassDefaultApplied\"")) s.GlassDefaultApplied = false;
+                if (s is not null && !text.Contains("\"FoldersRenamed\"")) s.FoldersRenamed = false;
                 // A first install in English (the installer writes only the language): English folder names.
                 if (s is not null && s.Language == "en" && !text.Contains("\"Categories\"")) s.Categories = DefaultCategories(englishFolders: true);
                 if (s is not null) L.Lang = s.Language == "en" ? "en" : "ar";
@@ -200,6 +204,7 @@ public sealed class Settings
                         try { Json.SaveAtomic(FilePath, s); } catch (Exception) { }
                     }
                     if (s.Categories.All(c => c.Name != OtherCategory)) s.Categories.Add(DefaultCategories().Last());
+                    if (!s.FoldersRenamed && OperatingSystem.IsWindows() && Paths.AppDataOverride is null) s.RenameFolders();
                     s.Connections = Math.Clamp(s.Connections, 1, 32);
                     s.MaxParallel = Math.Clamp(s.MaxParallel, 1, 10);
                     return s;
@@ -208,6 +213,77 @@ public sealed class Settings
         }
         catch (Exception e) { Log.Write($"settings: {e.Message}"); }
         return new Settings();
+    }
+
+    /// <summary>One time, after the app was renamed: "Downloads\IBDM Pro" becomes "Downloads\IBRA Download Manager" and
+    /// the type folders inside get English names (فيديو → Video…). The files move with their folders and the
+    /// download list is pointed at the new places, so finished and unfinished downloads keep working.
+    /// If a folder cannot be moved now (a file in use), it is tried again at the next start.</summary>
+    public void RenameFolders()
+    {
+        var moves = new List<(string From, string To)>();
+        var ok = true;
+        foreach (var c in Categories)
+        {
+            if (Path.IsPathRooted(c.Folder) || !EnglishFolders.TryGetValue(c.Folder, out var en)) continue;
+            var from = Path.Combine(DownloadRoot, c.Folder);
+            var to = Path.Combine(DownloadRoot, en);
+            if (Paths.MoveFolder(from, to)) { moves.Add((from, to)); c.Folder = en; }
+            else ok = false;
+        }
+        var oldRoot = Path.Combine(Paths.UserDownloads, Paths.OldFolderName);
+        var newRoot = Path.Combine(Paths.UserDownloads, Paths.FolderName);
+        if (SamePath(DownloadRoot, oldRoot))
+        {
+            if (Paths.MoveFolder(oldRoot, newRoot)) { moves.Add((oldRoot, newRoot)); DownloadRoot = newRoot; }
+            else ok = false;
+        }
+        if (moves.Count > 0) RepointDownloads(moves);
+        FoldersRenamed = ok;
+        try { Json.SaveAtomic(FilePath, this); } catch (Exception) { }
+        Log.Write($"folders renamed: {moves.Count} moved, complete={ok}");
+    }
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.GetFullPath(a).TrimEnd('\\', '/'), Path.GetFullPath(b).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Points the saved downloads at their folders' new places (only where the file really is there now).</summary>
+    private static void RepointDownloads(List<(string From, string To)> moves)
+    {
+        var file = Path.Combine(Paths.AppData, "downloads.json");
+        try
+        {
+            if (!File.Exists(file)) return;
+            if (System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(file)) is not System.Text.Json.Nodes.JsonArray list) return;
+            var changed = 0;
+            foreach (var node in list)
+            {
+                if (node?["Folder"]?.GetValue<string>() is not { Length: > 0 } folder) continue;
+                var name = node["FileName"]?.GetValue<string>() ?? "";
+                var moved = folder;
+                foreach (var (from, to) in moves)
+                {
+                    if (SamePath(moved, from)) moved = to;
+                    else
+                    {
+                        var prefix = from.TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+                        if (moved.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) moved = Path.Combine(to, moved[prefix.Length..]);
+                    }
+                }
+                if (moved == folder) continue;
+                var oldFull = Path.Combine(folder, name);
+                var newFull = Path.Combine(moved, name);
+                var there = File.Exists(newFull) || File.Exists(newFull + ".ibdmpart");
+                var stillOld = File.Exists(oldFull) || File.Exists(oldFull + ".ibdmpart");
+                if (there || !stillOld) { node["Folder"] = moved; changed++; }
+            }
+            if (changed > 0)
+            {
+                File.Copy(file, file + ".before-rename", true);
+                Json.SaveAtomic(file, list);
+            }
+        }
+        catch (Exception e) { Log.Write($"repoint downloads: {e.Message}"); }
     }
 
     public void Save()

@@ -41,4 +41,5 @@ var IBDM_EN = {
   'ابراهيم الخزرجي': 'Ibrahim Al-Khazraji',
 };
 var IBDM_LANG = 'ar';
-function t(ar) { return IBDM_LANG === 'en' && IBDM_EN[ar] !== undefined ? IBDM_EN[ar] : ar; }
+var IBDM_BRAND = 'IBRA Download Manager';
+function t(ar) { return (IBDM_LANG === 'en' && IBDM_EN[ar] !== undefined ? IBDM_EN[ar] : ar).replace(/IBDM Pro/g, IBDM_BRAND); }

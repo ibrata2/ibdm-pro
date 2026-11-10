@@ -11,13 +11,58 @@ public static class Paths
     /// <summary>Tests point this somewhere else so they never touch the real settings.</summary>
     public static string? AppDataOverride { get; set; }
 
+    public const string FolderName = "IBRA Download Manager";
+    /// <summary>The folder name used before the app was renamed (moved to the new name on first start).</summary>
+    public const string OldFolderName = "IBDM Pro";
+    private static bool _appDataMoved;
+
     public static string AppData
     {
         get
         {
-            var dir = AppDataOverride ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "IBDM Pro");
+            if (AppDataOverride is { } o) { Directory.CreateDirectory(o); return o; }
+            var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var dir = Path.Combine(roaming, FolderName);
+            if (!_appDataMoved)
+            {
+                _appDataMoved = true;
+                MoveFolder(Path.Combine(roaming, OldFolderName), dir);
+            }
             Directory.CreateDirectory(dir);
             return dir;
+        }
+    }
+
+    /// <summary>Renames a folder (settings, the downloads folder…) to its new name. If the new one already exists the
+    /// old files are moved into it one by one (nothing is overwritten). Returns true when nothing is left behind.</summary>
+    public static bool MoveFolder(string from, string to)
+    {
+        try
+        {
+            if (!Directory.Exists(from) || string.Equals(Path.GetFullPath(from).TrimEnd('\\', '/'), Path.GetFullPath(to).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!Directory.Exists(to))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+                Directory.Move(from, to);
+                return true;
+            }
+            var ok = true;
+            foreach (var file in Directory.GetFiles(from))
+            {
+                var target = Path.Combine(to, Path.GetFileName(file));
+                try { if (!File.Exists(target)) File.Move(file, target); else ok = false; }
+                catch (Exception) { ok = false; }
+            }
+            foreach (var sub in Directory.GetDirectories(from))
+                ok &= MoveFolder(sub, Path.Combine(to, Path.GetFileName(sub)));
+            if (ok) try { Directory.Delete(from, false); } catch (Exception) { }
+            return ok;
+        }
+        catch (Exception e)
+        {
+            Log.Write($"move folder {from} -> {to}: {e.Message}");
+            return false;
         }
     }
 

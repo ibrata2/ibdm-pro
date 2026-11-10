@@ -1,4 +1,4 @@
-name: Build IBDM Pro
+name: Build IBRA Download Manager
 
 on:
   push:
@@ -57,14 +57,14 @@ jobs:
         run: |
           $version = "1.0.${{ github.run_number }}"
           "version=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "IBDM Pro $version"
+          Write-Host "IBRA Download Manager $version"
 
       - name: Publish the app
         run: |
           $out = "build/publish"
           dotnet publish src/IbdmPro.App/IbdmPro.App.csproj -c Release -r win-x64 --self-contained -p:Version=${{ steps.v.outputs.version }} -p:DebugType=none -o $out
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          if (!(Test-Path "$out/IBDMPro.exe")) { throw "IBDMPro.exe was not built" }
+          if (!(Test-Path "$out/IBRADownloadManager.exe")) { throw "IBRADownloadManager.exe was not built" }
 
       - name: Browser extension (same version as the app)
         run: |
@@ -74,7 +74,7 @@ jobs:
           $m = $m -replace '"version":\s*"[^"]*"', '"version": "${{ steps.v.outputs.version }}"'
           [IO.File]::WriteAllText((Resolve-Path "$ext/manifest.json"), $m, (New-Object Text.UTF8Encoding $false))
           New-Item -ItemType Directory -Force build/installer | Out-Null
-          Compress-Archive -Path "$ext/*" -DestinationPath build/installer/IBDM-Pro-Extension.zip -Force
+          Compress-Archive -Path "$ext/*" -DestinationPath build/installer/IBRA-Download-Manager-Extension.zip -Force
           # Firefox copy: background scripts instead of a service worker, and a Firefox add-on id.
           $ff = "build/publish/extension-firefox"
           Copy-Item $ext $ff -Recurse -Force
@@ -127,7 +127,7 @@ jobs:
 
       - name: Check the app starts and talks to the extension
         run: |
-          $p = Start-Process build/publish/IBDMPro.exe -ArgumentList "--background" -PassThru
+          $p = Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--background" -PassThru
           $ok = $false
           for ($i = 0; $i -lt 30 -and -not $ok; $i++) {
             Start-Sleep 1
@@ -135,12 +135,49 @@ jobs:
           }
           $alive = -not $p.HasExited
           Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-          if (-not $ok) { Get-Content "$env:APPDATA/IBDM Pro/log.txt" -ErrorAction SilentlyContinue; throw "the app did not answer on 127.0.0.1:39401 (alive: $alive)" }
+          if (-not $ok) { Get-Content "$env:APPDATA/IBRA Download Manager/log.txt" -ErrorAction SilentlyContinue; throw "the app did not answer on 127.0.0.1:39401 (alive: $alive)" }
           Write-Host "App started and answered the extension ping."
+
+      - name: Rename from IBDM Pro (an older install's folders move to the new names)
+        run: |
+          $dl = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+          $oldCfg = "$env:APPDATA\IBDM Pro"; $newCfg = "$env:APPDATA\IBRA Download Manager"
+          $oldRoot = Join-Path $dl "IBDM Pro"; $newRoot = Join-Path $dl "IBRA Download Manager"
+          Remove-Item -Recurse -Force $newCfg, $newRoot, $oldCfg, $oldRoot -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $oldCfg, "$oldRoot\فيديو", "$oldRoot\مضغوطات" | Out-Null
+          Set-Content "$oldRoot\فيديو\clip.mp4" "finished video" -Encoding utf8
+          Set-Content "$oldRoot\مضغوطات\half.zip.ibdmpart" "unfinished" -Encoding utf8
+          $settings = [ordered]@{ DownloadRoot = $oldRoot; Language = "ar"; HasSeenWelcome = $true; StartWithWindows = $false; GlassDefaultApplied = $true; Theme = "glass-dark";
+            Categories = @(@{ Name = "فيديو"; Folder = "فيديو"; Extensions = @("mp4") }, @{ Name = "مضغوطات"; Folder = "مضغوطات"; Extensions = @("zip") }) }
+          [IO.File]::WriteAllText("$oldCfg\settings.json", ($settings | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
+          $list = @(@{ FileName = "clip.mp4"; Folder = "$oldRoot\فيديو"; TotalBytes = 15; Downloaded = 15 }, @{ FileName = "half.zip"; Folder = "$oldRoot\مضغوطات"; TotalBytes = 100; Downloaded = 10 })
+          [IO.File]::WriteAllText("$oldCfg\downloads.json", (ConvertTo-Json -InputObject $list -Depth 5), (New-Object Text.UTF8Encoding $false))
+          $p = Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--background" -PassThru
+          Start-Sleep 10
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          Start-Sleep 2
+          $s = Get-Content "$newCfg\settings.json" -Raw -Encoding utf8 | ConvertFrom-Json
+          $d = Get-Content "$newCfg\downloads.json" -Raw -Encoding utf8 | ConvertFrom-Json
+          $checks = [ordered]@{
+            "settings moved to the new folder" = (Test-Path "$newCfg\settings.json") -and -not (Test-Path $oldCfg)
+            "downloads folder renamed" = (Test-Path $newRoot) -and -not (Test-Path $oldRoot) -and ($s.DownloadRoot -eq $newRoot)
+            "finished file in Video" = Test-Path "$newRoot\Video\clip.mp4"
+            "unfinished part in Compressed" = Test-Path "$newRoot\Compressed\half.zip.ibdmpart"
+            "type folders English in settings" = (($s.Categories | Where-Object { $_.Name -eq "فيديو" }).Folder -eq "Video")
+            "download list follows the files" = ((($d | Where-Object { $_.FileName -eq "clip.mp4" }).Folder) -eq "$newRoot\Video") -and ((($d | Where-Object { $_.FileName -eq "half.zip" }).Folder) -eq "$newRoot\Compressed")
+            "rename done once" = $s.FoldersRenamed -eq $true
+          }
+          New-Item -ItemType Directory -Force build/snapshots | Out-Null
+          $report = $checks.GetEnumerator() | ForEach-Object { "$(if ($_.Value) { 'PASS' } else { 'FAIL' })  $($_.Key)" }
+          $report += Get-Content "$newCfg\log.txt" -ErrorAction SilentlyContinue | Select-Object -Last 8
+          $report | Set-Content build/snapshots/rename-check.txt -Encoding utf8
+          $report | ForEach-Object { Write-Host $_ }
+          Remove-Item -Recurse -Force $newCfg, $newRoot -ErrorAction SilentlyContinue
+          if ($checks.Values -contains $false) { throw "rename from IBDM Pro failed" }
 
       - name: Check the "search for update" reads GitHub
         run: |
-          Start-Process build/publish/IBDMPro.exe -ArgumentList "--check-update", "update.txt" -Wait
+          Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--check-update", "update.txt" -Wait
           $t = Get-Content update.txt
           Write-Host $t
           if ($t -notmatch "^current=") { throw "update check failed: $t" }
@@ -164,10 +201,10 @@ jobs:
           Set-ItemProperty "HKLM:\SOFTWARE\Policies\Microsoft\Edge" BrowserSignin 0 -Type DWord
           choco install brave -y --no-progress | Out-Null
           $ext = (Resolve-Path build/publish/extension).Path
-          $app = Start-Process build/publish/IBDMPro.exe -ArgumentList "--background" -PassThru
+          $app = Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--background" -PassThru
           Start-Sleep 6
           foreach ($b in "chrome", "msedge", "brave") {
-            $job = Start-Job { param($exe, $b, $ext, $out) Start-Process $exe -ArgumentList "--install-extension", $b, $out, $ext -Wait } -ArgumentList (Resolve-Path build/publish/IBDMPro.exe).Path, $b, $ext, "$PWD/install-$b.txt"
+            $job = Start-Job { param($exe, $b, $ext, $out) Start-Process $exe -ArgumentList "--install-extension", $b, $out, $ext -Wait } -ArgumentList (Resolve-Path build/publish/IBRADownloadManager.exe).Path, $b, $ext, "$PWD/install-$b.txt"
             Start-Sleep 12; Shot "build/snapshots/extension-install/$b-during.png"
             Wait-Job $job -Timeout 120 | Out-Null
             Shot "build/snapshots/extension-install/$b-after.png"
@@ -183,7 +220,7 @@ jobs:
           $m = Get-Content "$old/manifest.json" -Raw -Encoding utf8
           [IO.File]::WriteAllText("$old/manifest.json", ($m -replace '"version":\s*"[^"]*"', '"version": "1.0.0"'), (New-Object Text.UTF8Encoding $false))
           # -Wait would also wait for Chrome (started by the installer) to close, so wait for the installer only.
-          $p = Start-Process (Resolve-Path build/publish/IBDMPro.exe).Path -ArgumentList "--install-extension", "chrome", "$PWD/install-old.txt", $old -PassThru
+          $p = Start-Process (Resolve-Path build/publish/IBRADownloadManager.exe).Path -ArgumentList "--install-extension", "chrome", "$PWD/install-old.txt", $old -PassThru
           $p.WaitForExit(150000) | Out-Null
           Get-Content install-old.txt
           Shot "build/snapshots/extension-install/selfupdate-1-old.png"
@@ -205,7 +242,7 @@ jobs:
             $g = [System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
             $bmp.Save($file); $g.Dispose(); $bmp.Dispose()
           }
-          $cfg = "$env:APPDATA\IBDM Pro"
+          $cfg = "$env:APPDATA\IBRA Download Manager"
           New-Item -ItemType Directory -Force $cfg | Out-Null
           foreach ($run in "ar:glass", "en:glass", "ar:glass-clear", "ar:glass-dark", "ar:dark", "ar:glass-white") {
             $lang, $theme = $run.Split(":")
@@ -214,7 +251,7 @@ jobs:
             $s | Add-Member -NotePropertyName Theme -NotePropertyValue $theme -Force
             $s | Add-Member -NotePropertyName HasSeenWelcome -NotePropertyValue $true -Force
             $s | ConvertTo-Json -Depth 10 | Set-Content "$cfg\settings.json" -Encoding utf8
-            $p = Start-Process build/publish/IBDMPro.exe -PassThru
+            $p = Start-Process build/publish/IBRADownloadManager.exe -PassThru
             Start-Sleep 8
             Shot "build/snapshots/screen/window-$lang-$theme.png"
             # Open the first menu (Alt, then Down) to check its text can be read in this style.
@@ -232,14 +269,14 @@ jobs:
         continue-on-error: true
         run: |
           New-Item -ItemType Directory -Force build/snapshots/dark, build/snapshots/light, build/snapshots/glass | Out-Null
-          Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/glass", "--theme", "glass" -Wait
+          Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--snapshot", "build/snapshots/glass", "--theme", "glass" -Wait
           New-Item -ItemType Directory -Force build/snapshots/english | Out-Null
-          Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/english", "--theme", "glass", "--lang", "en" -Wait
-          Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/dark", "--theme", "dark" -Wait
-          Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/light", "--theme", "light" -Wait
+          Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--snapshot", "build/snapshots/english", "--theme", "glass", "--lang", "en" -Wait
+          Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--snapshot", "build/snapshots/dark", "--theme", "dark" -Wait
+          Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--snapshot", "build/snapshots/light", "--theme", "light" -Wait
           foreach ($t in "glass-white", "glass-dark", "glass-clear", "auto") {
             New-Item -ItemType Directory -Force "build/snapshots/$t" | Out-Null
-            Start-Process build/publish/IBDMPro.exe -ArgumentList "--snapshot", "build/snapshots/$t", "--theme", $t, "--lang", "ar" -Wait
+            Start-Process build/publish/IBRADownloadManager.exe -ArgumentList "--snapshot", "build/snapshots/$t", "--theme", $t, "--lang", "ar" -Wait
           }
           Get-ChildItem build/snapshots -Recurse | Format-Table FullName, Length
           Get-ChildItem build/snapshots -Recurse -Filter *.txt | ForEach-Object { Get-Content $_ }
@@ -273,23 +310,24 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: IBDM-Pro-Setup
+          name: IBRA-Download-Manager-Setup
           path: build/installer/*
 
       - name: Publish a release
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.v.outputs.version }}
-          name: IBDM Pro ${{ steps.v.outputs.version }}
+          name: IBRA Download Manager ${{ steps.v.outputs.version }}
           make_latest: true
           files: |
-            build/installer/IBDM-Pro-Setup.exe
-            build/installer/IBDM-Pro-Extension.zip
+            build/installer/IBRA-Download-Manager-Setup.exe
+            build/installer/IBRA-Download-Manager-Extension.zip
           body: |
-            ## IBDM Pro ${{ steps.v.outputs.version }}
+            ## IBRA Download Manager ${{ steps.v.outputs.version }}
             مدير تحميل — برمجة و تطوير **ابراهيم الخزرجي**
 
-            **التثبيت:** حمّل **IBDM-Pro-Setup.exe** وشغّله. إذا طلع تحذير Windows: More info ← Run anyway.
+            **التثبيت:** حمّل **IBRA-Download-Manager-Setup.exe** وشغّله. إذا طلع تحذير Windows: More info ← Run anyway.
 
-            **إضافة المتصفح:** موجودة داخل البرنامج (زر «الإضافة» بالأعلى يشرح الخطوات)، أو حمّل **IBDM-Pro-Extension.zip** وفكّه ثم من `chrome://extensions` فعّل Developer mode ← Load unpacked.
+            **إضافة المتصفح:** موجودة داخل البرنامج (زر «الإضافة» بالأعلى يشرح الخطوات)، أو حمّل **IBRA-Download-Manager-Extension.zip** وفكّه ثم من `chrome://extensions` فعّل Developer mode ← Load unpacked.
             بعد كل تحديث اضغط ⟳ على بطاقة الإضافة.

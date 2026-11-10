@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "IBDM Pro",
-  "short_name": "IBDM Pro",
+  "name": "IBRA Download Manager",
+  "short_name": "IBRA DM",
   "version": "1.0.0",
-  "description": "يلتقط التحميلات والفيديوهات من أي موقع ويرسلها لبرنامج IBDM Pro — برمجة و تطوير ابراهيم الخزرجي",
+  "description": "يلتقط التحميلات والفيديوهات من أي موقع ويرسلها لبرنامج IBRA Download Manager — برمجة و تطوير ابراهيم الخزرجي",
   "permissions": [
     "downloads",
     "contextMenus",
@@ -33,7 +33,7 @@
     }
   ],
   "action": {
-    "default_title": "IBDM Pro",
+    "default_title": "IBRA Download Manager",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

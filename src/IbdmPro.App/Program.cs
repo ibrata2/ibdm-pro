@@ -239,8 +239,8 @@ public static class AutoStart
         try
         {
             using var k = Registry.CurrentUser.OpenSubKey(Key, true) ?? Registry.CurrentUser.CreateSubKey(Key);
-            if (on && Environment.ProcessPath is { } exe) k.SetValue("IBDM Pro", $"\"{exe}\" --background");
-            else k.DeleteValue("IBDM Pro", false);
+            if (on && Environment.ProcessPath is { } exe) { k.SetValue(Program.ProductName, $"\"{exe}\" --background"); k.DeleteValue("IBDM Pro", false); }
+            else { k.DeleteValue(Program.ProductName, false); k.DeleteValue("IBDM Pro", false); }
         }
         catch (Exception e) { Log.Write($"startup: {e.Message}"); }
     }

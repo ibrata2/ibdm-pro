@@ -67,7 +67,7 @@
       <div class="b" title="${t('IBDM Pro — اختر الجودة وحمّل')}">
         <span class="g" title="${t('اسحب لتغيير المكان — نقرتين للرجوع للمكان الأصلي')}">⠿</span>
         <img class="i" alt="" src="${api.runtime.getURL('icons/icon48.png')}">
-        <span class="t">${t('تحميل هذا الفيديو')}</span><span class="s">IBDM Pro</span><span class="x" title="${t('إخفاء')}">✕</span>
+        <span class="t">${t('تحميل هذا الفيديو')}</span><span class="s">IBRA Download Manager</span><span class="x" title="${t('إخفاء')}">✕</span>
         <span class="r" title="${t('اسحب لتكبير أو تصغير الزر')}"></span>
       </div>`;
     button = root.querySelector('.b');

@@ -1,4 +1,4 @@
-; IBDM Pro — Windows installer (per user, no administrator rights), Arabic first.
+; IBRA Download Manager — Windows installer (per user, no administrator rights), Arabic first.
 ; برمجة و تطوير ابراهيم الخزرجي
 ; Built by the GitHub workflow (or BUILD-ON-WINDOWS.ps1), which passes /DAppVersion=1.0.N /DSource=<published folder>
 
@@ -21,7 +21,7 @@ AppUpdatesURL=https://t.me/ibraprogram
 AppCopyright=برمجة و تطوير ابراهيم الخزرجي
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription=IBRA Download Manager — مدير التحميل
-DefaultDirName={autopf}\IBDM Pro
+DefaultDirName={autopf}\IBRA Download Manager
 DefaultGroupName=IBRA Download Manager
 DisableProgramGroupPage=yes
 DisableDirPage=auto
@@ -29,10 +29,10 @@ PrivilegesRequired=lowest
 SetupIconFile=..\assets\ibdm.ico
 WizardImageFile=wizard-side-100.bmp,wizard-side-150.bmp,wizard-side-200.bmp
 WizardSmallImageFile=wizard-corner-100.bmp,wizard-corner-150.bmp,wizard-corner-200.bmp
-UninstallDisplayIcon={app}\IBDMPro.exe
+UninstallDisplayIcon={app}\IBRADownloadManager.exe
 UninstallDisplayName=IBRA Download Manager
 OutputDir=..\build\installer
-OutputBaseFilename=IBDM-Pro-Setup
+OutputBaseFilename=IBRA-Download-Manager-Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
@@ -68,38 +68,51 @@ Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Ext
 [Files]
 Source: "{#Source}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[InstallDelete]
+; Before the rename the program file and its shortcuts were called "IBDM Pro".
+Type: files; Name: "{app}\IBDMPro.exe"
+Type: files; Name: "{app}\IBDMPro.dll"
+Type: files; Name: "{app}\IBDMPro.deps.json"
+Type: files; Name: "{app}\IBDMPro.runtimeconfig.json"
+Type: files; Name: "{autoprograms}\IBDM Pro.lnk"
+Type: files; Name: "{autoprograms}\IBDM Pro — إضافة المتصفح.lnk"
+Type: files; Name: "{autodesktop}\IBDM Pro.lnk"
+
 [Icons]
-Name: "{autoprograms}\IBRA Download Manager"; Filename: "{app}\IBDMPro.exe"
+Name: "{autoprograms}\IBRA Download Manager"; Filename: "{app}\IBRADownloadManager.exe"
 Name: "{autoprograms}\IBRA Download Manager — إضافة المتصفح"; Filename: "{app}\extension"
-Name: "{autodesktop}\IBRA Download Manager"; Filename: "{app}\IBDMPro.exe"; Tasks: desktopicon
+Name: "{autodesktop}\IBRA Download Manager"; Filename: "{app}\IBRADownloadManager.exe"; Tasks: desktopicon
 
 [Registry]
+; The start-with-Windows entry of the old name.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "IBDM Pro"; Flags: deletevalue
 ; The same value the app's "start with Windows" setting writes.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "IBDM Pro"; ValueData: """{app}\IBDMPro.exe"" --background"; Tasks: startup; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "IBRA Download Manager"; ValueData: """{app}\IBRADownloadManager.exe"" --background"; Tasks: startup; Flags: uninsdeletevalue
 ; ibdmpro:// opens the app (used by the browser extension)
-Root: HKCU; Subkey: "Software\Classes\ibdmpro"; ValueType: string; ValueName: ""; ValueData: "URL:IBDM Pro"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\ibdmpro"; ValueType: string; ValueName: ""; ValueData: "URL:IBRA Download Manager"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\ibdmpro"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
-Root: HKCU; Subkey: "Software\Classes\ibdmpro\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\IBDMPro.exe"",0"
-Root: HKCU; Subkey: "Software\Classes\ibdmpro\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\IBDMPro.exe"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\ibdmpro\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\IBRADownloadManager.exe"",0"
+Root: HKCU; Subkey: "Software\Classes\ibdmpro\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\IBRADownloadManager.exe"" ""%1"""
 
 [Run]
-Filename: "{app}\IBDMPro.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent; Tasks: not extension
-Filename: "{app}\IBDMPro.exe"; Parameters: "--setup-extensions"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent; Tasks: extension
+Filename: "{app}\IBRADownloadManager.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent; Tasks: not extension
+Filename: "{app}\IBRADownloadManager.exe"; Parameters: "--setup-extensions"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent; Tasks: extension
 ; After an update from inside the app (silent install), start it again.
-Filename: "{app}\IBDMPro.exe"; Flags: nowait; Check: WizardSilent
+Filename: "{app}\IBRADownloadManager.exe"; Flags: nowait; Check: WizardSilent
 
 [UninstallRun]
-Filename: "{sys}\taskkill.exe"; Parameters: "/im IBDMPro.exe /f"; Flags: runhidden; RunOnceId: "StopIbdmPro"
+Filename: "{sys}\taskkill.exe"; Parameters: "/im IBRADownloadManager.exe /f"; Flags: runhidden; RunOnceId: "StopIbdmPro"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
 
 [Code]
-{ Closes a running IBDM Pro so every file can be replaced. Downloads in progress resume when it starts again. }
+{ Closes a running IBRA Download Manager (or the older IBDM Pro) so every file can be replaced. Downloads in progress resume when it starts again. }
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   Code: Integer;
 begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im IBRADownloadManager.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im IBDMPro.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im yt-dlp.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
   Sleep(500);
@@ -114,8 +127,9 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    Folder := ExpandConstant('{userappdata}\IBDM Pro');
-    if (ActiveLanguage = 'en') and not FileExists(Folder + '\settings.json') then
+    Folder := ExpandConstant('{userappdata}\IBRA Download Manager');
+    if (ActiveLanguage = 'en') and not FileExists(Folder + '\settings.json')
+       and not FileExists(ExpandConstant('{userappdata}\IBDM Pro\settings.json')) then
     begin
       ForceDirectories(Folder);
       SaveStringToFile(Folder + '\settings.json', '{"Language":"en"}', False);

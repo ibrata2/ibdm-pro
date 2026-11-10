@@ -19,7 +19,6 @@ public static partial class L
     {
         var text = En && English.TryGetValue(arabic, out var e) ? e : arabic;
         if (Brand == "IBDM Pro" || !text.Contains("IBDM Pro")) return text;
-        if (text.Contains("مجلد IBDM Pro") || text.Contains("IBDM Pro folder")) return text;
         return text.Replace("IBDM Pro", Brand);
     }
 
