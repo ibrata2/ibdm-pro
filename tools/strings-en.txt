@@ -467,3 +467,25 @@ New program
 Ad
 Hide
 No song is playing that the app can identify. Play the song on Suno, then press the download button above the player — or open the song's page and copy its link.
+Pinterest album
+Pinterest album…
+Download a whole Pinterest album
+Paste the link of a Pinterest album (board). Every picture is downloaded at the highest resolution and every video at the best quality, into a folder named after the album.
+Album link
+Read album
+Saved in the folder
+Download the whole album
+Paste the album's link first.
+Reading the album…
+Collecting the pictures and videos of “{0}”…
+Collecting the pictures and videos of “{0}”… ({1})
+No pictures or videos were found in this album (it may be empty or private).
+{0} pictures and {1} videos
+{0} sections (each in its own folder inside the album)
+Album owner: {0}
+Couldn't read the album: {0}
+Couldn't create the folder
+{0} files added to the downloads
+The album isn't on Pinterest (the link may be wrong, or the album is private).
+Pinterest refused the request ({0})
+This isn't a Pinterest album (board) link. Open the album and copy the link from the address bar.

@@ -177,6 +177,7 @@ public sealed class MainWindow : Window
         tasks.Items.Add(Command("تحميل جديد", AddUrl));
         tasks.Items.Add(Command("تحميل فيديو من رابط…", AddVideo));
         tasks.Items.Add(Command("روابط متعددة…", () => BatchWindow.ShowLinks(this, _manager)));
+        tasks.Items.Add(Command("ألبوم Pinterest…", () => PinterestWindow.Show(this, _manager)));
         tasks.Items.Add(Command("قائمة انتظار جديدة…", NewQueue));
         tasks.Items.Add(new Separator());
         tasks.Items.Add(Command("خروج", Close));
@@ -226,6 +227,7 @@ public sealed class MainWindow : Window
         buttons.Children.Add(Ui.Tool(L.T("إضافة رابط"), "", AddUrl));
         buttons.Children.Add(Ui.Tool(L.T("تحميل فيديو"), "\uE714", AddVideo, Theme.Red));
         buttons.Children.Add(Ui.Tool(L.T("روابط متعددة"), "\uE8FD", () => BatchWindow.ShowLinks(this, _manager), Theme.Ink));
+        buttons.Children.Add(Ui.Tool(L.T("ألبوم Pinterest"), "\uE91B", () => PinterestWindow.Show(this, _manager), Theme.Red));
         buttons.Children.Add(Ui.Tool(L.T("استئناف"), "", () => ForSelected(i => _manager.Resume(i)), Theme.Green));
         buttons.Children.Add(Ui.Tool(L.T("إيقاف"), "", () => ForSelected(i => _manager.Pause(i)), Theme.Ink));
         buttons.Children.Add(Ui.Tool(L.T("إيقاف الكل"), "", _manager.PauseAll, Theme.Ink));
@@ -767,6 +769,7 @@ public sealed class MainWindow : Window
         var url = AddUrlDialog.Ask(this);
         if (url is null) return;
         if (url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase) && YtDlp.IsPlaylistUrl(url)) { BatchWindow.ShowPlaylist(this, _manager, url); return; }
+        if (Pinterest.IsBoardLink(url)) { PinterestWindow.Show(this, _manager, url); return; }
         Capture.Handle(new CaptureRequest { Kind = "link", Url = url, QueueName = CurrentQueueName() });
     }
 
@@ -777,6 +780,7 @@ public sealed class MainWindow : Window
         var url = AddUrlDialog.Ask(this, video: true);
         if (url is null) return;
         if (url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase) && YtDlp.IsPlaylistUrl(url)) { BatchWindow.ShowPlaylist(this, _manager, url); return; }
+        if (Pinterest.IsBoardLink(url)) { PinterestWindow.Show(this, _manager, url); return; }
         Capture.Handle(new CaptureRequest { Kind = "media", Url = url, PageUrl = url, QueueName = CurrentQueueName() });
     }
 
@@ -871,6 +875,7 @@ public sealed class MainWindow : Window
         {
             var text = Clipboard.ContainsText() ? Clipboard.GetText().Trim() : "";
             if (BatchWindow.Links(text).Count > 1) { BatchWindow.ShowLinks(this, _manager, string.Join(Environment.NewLine, BatchWindow.Links(text))); e.Handled = true; return; }
+            if (Pinterest.IsBoardLink(text)) { PinterestWindow.Show(this, _manager, text); e.Handled = true; return; }
             if (Uri.TryCreate(text, UriKind.Absolute, out var u) && u.Scheme.StartsWith("http"))
             {
                 Capture.Handle(new CaptureRequest { Kind = "link", Url = text });

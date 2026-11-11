@@ -34,6 +34,8 @@ jobs:
           if [ -n "$missing" ]; then echo "Missing English for:"; echo "$missing"; exit 1; fi
       - name: Run tests
         run: tests/run.sh
+        env:
+          IBDM_LIVE: "1"
 
   build:
     name: Windows app + installer

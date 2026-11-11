@@ -328,6 +328,47 @@ Check(Suno.FileUrl("https://suno.com/song/A616F223-4ad3-4699-a953-a83d9a0e0411?s
     && Suno.FileUrl("https://suno.com/create") is null && Suno.FileUrl("https://notsuno.com/song/a616f223-4ad3-4699-a953-a83d9a0e0411") is null, "Suno: song id → cdn1 MP3");
 Check(Suno.NameFromPage("<meta property=\"og:title\" content=\"Super Mario Bros Theme (Ibrata2) | Suno\">") == "Super Mario Bros Theme (Ibrata2)"
     && Suno.NameFromPage("<title>أغنية &amp; لحن</title>") == "أغنية & لحن" && Suno.NameFromPage("<title>Suno</title>") is null, "Suno: song name from the page");
+// Pinterest albums: board links, and the best file of each pin.
+Check(Pinterest.IsBoardLink("https://www.pinterest.com/mashal0407/cool-diys/") && Pinterest.IsBoardLink("https://ca.pinterest.com/fudohub/videos")
+    && Pinterest.IsBoardLink("https://www.pinterest.co.uk/user/board/section-one/?invite=1")
+    && !Pinterest.IsBoardLink("https://www.pinterest.com/pin/123456/") && !Pinterest.IsBoardLink("https://www.pinterest.com/user/")
+    && !Pinterest.IsBoardLink("https://www.pinterest.com/user/_saved/") && !Pinterest.IsBoardLink("https://www.pinterest.com/search/pins/?q=cats")
+    && Pinterest.Parse("https://ca.pinterest.com/fudohub/videos/")!.Value == ("https://ca.pinterest.com", "fudohub", "videos", null)
+    && Pinterest.Parse("https://www.pinterest.co.uk/user/board/section-one/")!.Value.Section == "section-one", "Pinterest: board links");
+{
+    using var pins = JsonDocument.Parse("""
+    [
+      {"type":"pin","id":"111","title":"Knitting DIY","images":{"orig":{"url":"https://i.pinimg.com/originals/dd/d7/0e/ddd7.png","width":736}},
+       "videos":{"video_list":{"V_HLSV4":{"url":"https://v1.pinimg.com/videos/mc/hls/85/a.m3u8","width":720},"V_720P":{"url":"https://v1.pinimg.com/videos/mc/720p/85/a.mp4","width":720},"V_HLSV3_MOBILE":{"url":"https://v1.pinimg.com/x.m3u8","width":240}}}},
+      {"type":"pin","id":"222","title":"","grid_title":"","images":{"236x":{"url":"https://i.pinimg.com/236x/aa/b.jpg","width":236},"orig":{"url":"https://i.pinimg.com/originals/aa/b.jpg","width":1200}}},
+      {"type":"pin","id":"333","title":"Only HLS","videos":{"video_list":{"V_HLSV4":{"url":"https://v1.pinimg.com/hls/c.m3u8","width":1080},"V_720P":{"url":"https://v1.pinimg.com/720p/c.mp4","width":720}}}},
+      {"type":"pin","id":"444","title":"Carousel","carousel_data":{"carousel_slots":[{"id":"1","images":{"345x":{"url":"https://i.pinimg.com/345x/01/x.jpg"}}},{"id":"2","images":{"345x":{"url":"https://i.pinimg.com/345x/02/y.png"}}}]}},
+      {"type":"story","id":"555"}
+    ]
+    """);
+    var media = pins.RootElement.EnumerateArray().SelectMany(p => Pinterest.FromPin(p, "https://www.pinterest.com", null)).ToList();
+    Check(media.Count == 5 && media[0] is { IsVideo: true, Hls: false, Extension: ".mp4", Name: "Knitting DIY" } && media[0].Url.EndsWith("/720p/85/a.mp4")
+        && media[1] is { IsVideo: false, Extension: ".jpg", Name: "Pinterest 222" } && media[1].Url.Contains("/originals/")
+        && media[2] is { IsVideo: true, Hls: true } && media[2].Url.EndsWith("c.m3u8")
+        && media[3].Url == "https://i.pinimg.com/originals/01/x.jpg" && media[4].Extension == ".png" && media[0].PinUrl == "https://www.pinterest.com/pin/111/",
+        $"Pinterest: original pictures, best videos, carousels ({media.Count})");
+}
+// Live (CI only, never fails the build: Pinterest may limit servers): read a real public board.
+if (Environment.GetEnvironmentVariable("IBDM_LIVE") == "1")
+{
+    foreach (var link in new[] { "https://ca.pinterest.com/mashal0407/cool-diys/", "https://ca.pinterest.com/fudohub/videos/" })
+    {
+        try
+        {
+            var board = await Pinterest.GetBoardAsync(Http.Client, link, CancellationToken.None);
+            var files = await Pinterest.GetMediaAsync(Http.Client, board);
+            Console.WriteLine($"LIVE  Pinterest {link}: «{board.Name}» by {board.Owner}, {board.PinCount} pins → {files.Count} files ({files.Count(f => f.IsVideo)} videos, {files.Count(f => f.Hls)} streams); first: {files.FirstOrDefault()?.Url}");
+            var probe = await Http.ProbeAsync(files[0].Url, new RequestInfo { Referrer = board.Root + "/" });
+            Console.WriteLine($"LIVE  first file: {probe.Error ?? "ok"} {probe.Size} bytes {probe.ContentType}");
+        }
+        catch (Exception e) { Console.WriteLine($"LIVE  Pinterest {link}: {e.GetType().Name} {e.Message}"); }
+    }
+}
 Console.WriteLine(failures == 0 ? "\nALL PASSED" : $"\n{failures} FAILED");
 try { Directory.Delete(work, true); } catch (Exception) { }
 return failures == 0 ? 0 : 1;
