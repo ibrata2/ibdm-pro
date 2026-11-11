@@ -213,7 +213,7 @@ public sealed class InfoDialog : Window
                     ShowMedia();
                     return;
                 }
-                ShowError(_probe.Error ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
+                ShowError(_probe.Error is { } err && err.Contains("403") ? L.T("سونو صار يحمي ملفات الأغاني ويسمح بتحميلها فقط من زر التحميل مالته (وحسب عدد التحميلات المتاح باشتراكك). اضغط زر التحميل ⬇ بصفحة الأغنية في سونو، والبرنامج يلتقط التحميل من المتصفح ويكمله.") : _probe.Error ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
                 return;
             }
             // A song playing on a music site (Suno…): its own file, named after the song as the site shows it.
