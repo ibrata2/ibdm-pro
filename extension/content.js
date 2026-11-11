@@ -268,14 +268,13 @@
   function sunoFile(a, name) {
     if (!/(^|\.)suno\.(com|ai)$/i.test(location.hostname)) return '';
     const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    let m = uuid.exec(a.src || '');
+    let m = /^https?:/i.test(a.src || '') ? uuid.exec(a.src) : null; // a blob: address has a random id of its own
     if (!m && name) {
       for (const link of document.querySelectorAll('a[href*="/song/"]')) {
         const text = cleanName((link.innerText || link.textContent || '').trim().split('\n')[0]);
         if (text && text === name) { m = uuid.exec(link.href); if (m) break; }
       }
     }
-    if (!m && /\/song\//.test(location.pathname)) m = uuid.exec(location.pathname);
     return m ? 'https://cdn1.suno.ai/' + m[0].toLowerCase() + '.mp3' : '';
   }
   function soundExt(src) {
@@ -359,7 +358,7 @@
     const done = text => { label.textContent = text; setTimeout(() => { sending = false; if (label) label.textContent = labelText(); }, 3500); };
     const guard = setTimeout(() => done(t('لم يصل رد — حدّث الصفحة وحاول مرة ثانية')), 15000);
     if (!alive()) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); return; }
-    try { api.runtime.sendMessage({ cmd: 'media', kind: src ? 'audio' : 'media', src, pageUrl: location.href, title: name || document.title,
+    try { api.runtime.sendMessage({ cmd: 'media', sound: true, name, kind: src ? 'audio' : 'media', src, pageUrl: location.href, title: name || document.title,
       fileName: name && src ? name + soundExt(src) : '' }).then(res => {
       clearTimeout(guard);
       done(res && res.ok ? t('✓ تم') : t('شغّل برنامج IBDM Pro أولاً'));

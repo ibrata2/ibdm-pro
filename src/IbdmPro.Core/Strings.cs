@@ -471,6 +471,7 @@ public static partial class L
         ["برنامج جديد"] = "New program",
         ["إعلان"] = "Ad",
         ["إخفاء"] = "Hide",
+        ["لم يُعرف أي أغنية تعمل الآن. شغّل الأغنية في سونو ثم اضغط زر التحميل الذي يظهر فوق المشغّل، أو افتح صفحة الأغنية وانسخ رابطها."] = "No song is playing that the app can identify. Play the song on Suno, then press the download button above the player — or open the song's page and copy its link.",
         ["صوتيات"] = "Audio",
         ["مضغوطات"] = "Compressed",
         ["برامج"] = "Programs",

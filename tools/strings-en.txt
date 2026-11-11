@@ -466,3 +466,4 @@ A new program on the programs channel
 New program
 Ad
 Hide
+No song is playing that the app can identify. Play the song on Suno, then press the download button above the player — or open the song's page and copy its link.

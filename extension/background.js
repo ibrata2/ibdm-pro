@@ -252,10 +252,21 @@ api.webRequest.onHeadersReceived.addListener(details => {
   }
 }, { urls: ['<all_urls>'], types: ['media', 'xmlhttprequest', 'other', 'object'] }, ['responseHeaders']);
 
+// Suno plays songs through the page's own player (blob: address), so the page cannot tell which song it is.
+// The song's id is in the requests the player makes (cdn1.suno.ai/<id>.mp3, audiopipe…?item_id=<id>, …):
+// remember the last one per tab.
+const SUNO_ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const sunoPlaying = new Map(); // tabId -> song id
+api.webRequest.onBeforeRequest.addListener(d => {
+  if (d.tabId < 0 || /image_|\.(jpe?g|png|webp|gif)(\?|$)/i.test(d.url)) return;
+  const m = SUNO_ID.exec(d.url);
+  if (m) sunoPlaying.set(d.tabId, m[0].toLowerCase());
+}, { urls: ['*://*.suno.ai/*', '*://*.suno.com/*'], types: ['media', 'xmlhttprequest', 'other'] });
+
 api.tabs.onUpdated.addListener((tabId, change) => {
   if (change.url) { tabMedia.delete(tabId); refreshBadge(tabId); }
 });
-api.tabs.onRemoved.addListener(tabId => tabMedia.delete(tabId));
+api.tabs.onRemoved.addListener(tabId => { tabMedia.delete(tabId); sunoPlaying.delete(tabId); });
 api.tabs.onActivated.addListener(({ tabId }) => refreshBadge(tabId));
 
 async function refreshBadge(tabId) {
@@ -311,15 +322,23 @@ async function handle(msg, sender, reply) {
         frameUrl = page;
         page = tabUrl;
       }
-      const src = msg.src && /^https?:/i.test(msg.src) ? msg.src : '';
+      let src = msg.src && /^https?:/i.test(msg.src) ? msg.src : '';
+      let kind = msg.kind || 'media';
+      let fileName = msg.fileName || '';
+      // A Suno song played from a blob: address: the song the tab's player last asked Suno for.
+      if (msg.sound && !SUNO_ID.test(src) && sender.tab && /(^|\.)suno\.(com|ai)$/i.test(new URL(tabUrl || page).hostname) && sunoPlaying.has(sender.tab.id)) {
+        src = 'https://cdn1.suno.ai/' + sunoPlaying.get(sender.tab.id) + '.mp3';
+        kind = 'audio';
+        if (msg.name) fileName = msg.name + '.mp3';
+      }
       const url = src || frameUrl || page;
       const ok = /^https?:/i.test(url) && await sendToApp({
-        kind: msg.kind || 'media',
+        kind,
         url,
         pageUrl: page,
         referrer: tabUrl || page,
         title: msg.title || '',
-        fileName: msg.fileName || '',
+        fileName,
         cookies: await cookiesFor(url),
         userAgent: navigator.userAgent,
       });

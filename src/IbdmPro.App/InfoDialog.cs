@@ -222,7 +222,8 @@ public sealed class InfoDialog : Window
                     _probe = await Http.ProbeAsync(_req.Url, info, ct);
                     if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
                 }
-                ShowError(lastError ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
+                ShowError(Suno.IsSuno(_req.PageUrl) ? L.T("لم يُعرف أي أغنية تعمل الآن. شغّل الأغنية في سونو ثم اضغط زر التحميل الذي يظهر فوق المشغّل، أو افتح صفحة الأغنية وانسخ رابطها.")
+                    : lastError ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
                 return;
             }
 
