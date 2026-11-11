@@ -322,6 +322,12 @@ MessageFeed.CloseAd("x2");
 Check(MessageFeed.CurrentAd(ads)?.Id == "x1", "ads: a closed ad gives way to the next one");
 
 manager.Dispose();
+// Suno: song page / sound address → the MP3 file; the name from the page.
+Check(Suno.FileUrl("https://suno.com/song/A616F223-4ad3-4699-a953-a83d9a0e0411?sh=x") == "https://cdn1.suno.ai/a616f223-4ad3-4699-a953-a83d9a0e0411.mp3"
+    && Suno.FileUrl("https://audiopipe.suno.ai/?item_id=a616f223-4ad3-4699-a953-a83d9a0e0411") == "https://cdn1.suno.ai/a616f223-4ad3-4699-a953-a83d9a0e0411.mp3"
+    && Suno.FileUrl("https://suno.com/create") is null && Suno.FileUrl("https://notsuno.com/song/a616f223-4ad3-4699-a953-a83d9a0e0411") is null, "Suno: song id → cdn1 MP3");
+Check(Suno.NameFromPage("<meta property=\"og:title\" content=\"Super Mario Bros Theme (Ibrata2) | Suno\">") == "Super Mario Bros Theme (Ibrata2)"
+    && Suno.NameFromPage("<title>أغنية &amp; لحن</title>") == "أغنية & لحن" && Suno.NameFromPage("<title>Suno</title>") is null, "Suno: song name from the page");
 Console.WriteLine(failures == 0 ? "\nALL PASSED" : $"\n{failures} FAILED");
 try { Directory.Delete(work, true); } catch (Exception) { }
 return failures == 0 ? 0 : 1;

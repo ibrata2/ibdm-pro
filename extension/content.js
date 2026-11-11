@@ -263,6 +263,21 @@
       return id.length >= 8 ? id : '';
     } catch (e) { return ''; }
   }
+  // Suno: every song is a plain MP3 at cdn1.suno.ai/<song id>.mp3. The id comes from the sound's address, else from
+  // the link to the song with the same name (the player bar), else from the song page the user is on.
+  function sunoFile(a, name) {
+    if (!/(^|\.)suno\.(com|ai)$/i.test(location.hostname)) return '';
+    const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    let m = uuid.exec(a.src || '');
+    if (!m && name) {
+      for (const link of document.querySelectorAll('a[href*="/song/"]')) {
+        const text = cleanName((link.innerText || link.textContent || '').trim().split('\n')[0]);
+        if (text && text === name) { m = uuid.exec(link.href); if (m) break; }
+      }
+    }
+    if (!m && /\/song\//.test(location.pathname)) m = uuid.exec(location.pathname);
+    return m ? 'https://cdn1.suno.ai/' + m[0].toLowerCase() + '.mp3' : '';
+  }
   function soundExt(src) {
     try { const m = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|weba|webm|mp4)$/i.exec(new URL(src).pathname); return m ? '.' + m[1].toLowerCase() : ''; }
     catch (e) { return ''; }
@@ -337,7 +352,8 @@
     const a = audio;
     if (!a) return;
     const name = cleanName(soundName(a) || '');
-    const src = /^https?:/i.test(a.src) ? a.src : '';
+    const suno = sunoFile(a, name);
+    const src = suno || (/^https?:/i.test(a.src) ? a.src : '');
     sending = true;
     label.textContent = t('جاري الإرسال…');
     const done = text => { label.textContent = text; setTimeout(() => { sending = false; if (label) label.textContent = labelText(); }, 3500); };

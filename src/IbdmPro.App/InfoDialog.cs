@@ -174,6 +174,26 @@ public sealed class InfoDialog : Window
                 ShowError(L.T("روابط مجلدات MEGA غير مدعومة حالياً. افتح المجلد على MEGA، وانسخ رابط الملف الذي تريده (Share link) وألصقه هنا."));
                 return;
             }
+            // Suno: yt-dlp refuses the site, but every song is a plain MP3 named by the id in its page address.
+            var sunoFile = Suno.FileUrl(_req.Url) ?? Suno.FileUrl(_req.PageUrl);
+            if (sunoFile is not null)
+            {
+                _headSub.Text = "suno.com";
+                _probe = await Http.ProbeAsync(sunoFile, info, ct);
+                if (_probe.Error is null && !_probe.LooksLikeWebPage)
+                {
+                    if (string.IsNullOrWhiteSpace(_req.FileName))
+                    {
+                        var page = new[] { _req.Url, _req.PageUrl }.FirstOrDefault(u => u is not null && u.Contains("/song/", StringComparison.OrdinalIgnoreCase));
+                        var song = page is null ? null : await Suno.NameAsync(Http.Client, page, ct);
+                        if (song is not null) _req.FileName = FileNames.Clean(song) + ".mp3";
+                    }
+                    ShowFile();
+                    return;
+                }
+                ShowError(_probe.Error ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
+                return;
+            }
             // A song playing on a music site (Suno…): its own file, named after the song as the site shows it.
             if (_req.Kind == "audio" && _req.Url.StartsWith("http"))
             {
