@@ -199,6 +199,7 @@ async function injectIntoOpenTabs() {
     const tabs = await api.tabs.query({ url: ['http://*/*', 'https://*/*'] });
     for (const tab of tabs) {
       api.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['i18n.js', 'content.js'] }).catch(() => { });
+      api.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['media-hook.js'], world: 'MAIN' }).catch(() => { });
     }
   } catch (e) { }
 }

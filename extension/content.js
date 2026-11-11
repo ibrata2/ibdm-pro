@@ -23,14 +23,24 @@
   let sending = false;
   // Where the user put the button on the video (fractions of the free space, 1,0 = top-right) and its size.
   let pos = { fx: 1, fy: 0 }, scale = 1, dragging = false;
+  // A song playing on a music site (Suno, SoundCloud…) has no video to sit on: its button sits over the page,
+  // just above the player bar at the bottom (centred by default; it can be dragged too).
+  let apos = { fx: 0.5, fy: 1 };
+  const AUDIO = {
+    isConnected: true,
+    getBoundingClientRect() { const h = Math.max(140, innerHeight - 96); return { left: 0, top: 0, width: innerWidth, height: h, right: innerWidth, bottom: h }; },
+  };
+  const P = () => current === AUDIO ? apos : pos;
+  const setP = v => { if (current === AUDIO) apos = v; else pos = v; };
   try {
-    api.storage.local.get({ btnPos: null, btnScale: 1 }).then(v => {
+    api.storage.local.get({ btnPos: null, btnScale: 1, audioPos: null }).then(v => {
       if (v.btnPos && isFinite(v.btnPos.fx) && isFinite(v.btnPos.fy)) pos = v.btnPos;
+      if (v.audioPos && isFinite(v.audioPos.fx) && isFinite(v.audioPos.fy)) apos = v.audioPos;
       scale = Math.min(1.8, Math.max(0.6, +v.btnScale || 1));
       applyScale(); place();
     });
   } catch (e) { }
-  function savePlace() { try { api.storage.local.set({ btnPos: pos, btnScale: scale }); } catch (e) { } }
+  function savePlace() { try { api.storage.local.set({ btnPos: pos, btnScale: scale, audioPos: apos }); } catch (e) { } }
   function applyScale() { if (button) button.style.zoom = scale; }
 
   function makeButton() {
@@ -75,6 +85,7 @@
     label = root.querySelector('.t');
     root.querySelector('.x').addEventListener('click', e => {
       e.stopPropagation();
+      if (current === AUDIO) { if (audio) closedSounds.add(audio.id + '|' + audio.src); current = null; host.style.display = 'none'; return; }
       if (current) current.__ibdmHidden = true;
       hide();
     });
@@ -98,7 +109,7 @@
         if (!current) return;
         const r = current.getBoundingClientRect(), b = button.getBoundingClientRect();
         const freeX = Math.max(1, r.width - b.width - 20), freeY = Math.max(1, r.height - b.height - 20);
-        pos = { fx: Math.min(1, Math.max(0, (ev.clientX - ox - r.left - 10) / freeX)), fy: Math.min(1, Math.max(0, (ev.clientY - oy - r.top - 10) / freeY)) };
+        setP({ fx: Math.min(1, Math.max(0, (ev.clientX - ox - r.left - 10) / freeX)), fy: Math.min(1, Math.max(0, (ev.clientY - oy - r.top - 10) / freeY)) });
         place();
       };
       const up = () => { dragging = false; grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); savePlace(); };
@@ -106,7 +117,7 @@
       grip.addEventListener('pointerup', up);
       grip.addEventListener('pointercancel', up);
     });
-    grip.addEventListener('dblclick', e => { e.stopPropagation(); e.preventDefault(); pos = { fx: 1, fy: 0 }; scale = 1; applyScale(); place(); savePlace(); });
+    grip.addEventListener('dblclick', e => { e.stopPropagation(); e.preventDefault(); setP(current === AUDIO ? { fx: 0.5, fy: 1 } : { fx: 1, fy: 0 }); scale = 1; applyScale(); place(); savePlace(); });
     // Resize: drag the corner.
     const grow = root.querySelector('.r');
     grow.addEventListener('pointerdown', e => {
@@ -138,7 +149,7 @@
     button.classList.toggle('gdark', theme === 'glass-dark');
     button.style.direction = IBDM_LANG === 'en' ? 'ltr' : 'rtl';
     button.title = t('IBDM Pro — اختر الجودة وحمّل');
-    if (label && !sending) label.textContent = t('تحميل هذا الفيديو');
+    if (label && !sending) label.textContent = labelText();
   }
   function loadTheme() {
     try {
@@ -168,7 +179,8 @@
   function place() {
     if (!current || !host) return;
     const r = current.getBoundingClientRect();
-    if (r.width < MIN_W || r.height < MIN_H || r.bottom < 0 || r.top > innerHeight) { hide(); return; }
+    if (current !== AUDIO && (r.width < MIN_W || r.height < MIN_H || r.bottom < 0 || r.top > innerHeight)) { hide(); return; }
+    const pos = P();
     // where the user put it on the video (top-right by default), kept on screen
     const b = button.getBoundingClientRect();
     const w = b.width || 220, h = b.height || 36;
@@ -183,15 +195,85 @@
     const fsParent = document.fullscreenElement || document.documentElement;
     if (host.parentNode !== fsParent) fsParent.appendChild(host);
     current = v;
-    label.textContent = t('تحميل هذا الفيديو');
+    if (!sending) label.textContent = labelText();
+    button.title = v === AUDIO ? (soundName(audio) || t('IBDM Pro — اختر الجودة وحمّل')) : t('IBDM Pro — اختر الجودة وحمّل');
     host.style.display = 'block';
     place();
     clearTimeout(hideTimer);
   }
 
   function hide() {
-    if (host) host.style.display = 'none';
     current = null;
+    // Back to the song's button when the mouse leaves a video and a song is still on.
+    if (soundShown()) { show(AUDIO); return; }
+    if (host) host.style.display = 'none';
+  }
+
+  // ---------- songs and sounds (reported by media-hook.js, which runs inside the page) ----------
+
+  let audio = null;                 // {id, src, title, duration, playing}
+  const closedSounds = new Set();   // songs whose button the user closed (✕)
+  let metaTitle = '';
+  const soundShown = () => !!audio && !closedSounds.has(audio.id + '|' + audio.src) && /^(https?|blob):/i.test(audio.src)
+    && (audio.duration >= 15 || audio.duration === -1) && !document.fullscreenElement;
+
+  document.addEventListener('__ibdm_media', e => {
+    let m; try { m = JSON.parse(e.detail); } catch (x) { return; }
+    if (m.state === 'emptied') { if (audio && audio.id === m.id) { audio = null; if (current === AUDIO) hide(); } return; }
+    if (m.state !== 'playing' && (!audio || audio.id !== m.id)) return; // only the song that is (or was last) playing
+    const changed = !audio || audio.src !== m.src;
+    audio = { id: m.id, src: m.src, title: m.title || (changed ? '' : audio.title), duration: m.duration, playing: m.state === 'playing' };
+    if (m.title) metaTitle = m.title;
+    else if (changed) metaTitle = '';
+    if (current === AUDIO) { if (soundShown()) show(AUDIO); else hide(); }
+    else if (!current && soundShown()) show(AUDIO);
+  }, on);
+  document.addEventListener('__ibdm_meta', e => {
+    try { const m = JSON.parse(e.detail); metaTitle = m.title || ''; if (audio && m.title) audio.title = m.title; } catch (x) { }
+    if (current === AUDIO) show(AUDIO);
+  }, on);
+
+  // The name written on the song: the name the site gives the player (shown on the lock screen / media keys),
+  // else the link to the song on the page (on Suno the song's address has the same id as its sound file),
+  // else the page title.
+  function soundName(a) {
+    if (!a) return '';
+    if (a.title) return a.title.trim();
+    const id = soundId(a.src);
+    if (id) {
+      try {
+        for (const link of document.querySelectorAll('a[href*="' + CSS.escape(id) + '"]')) {
+          const text = (link.innerText || link.textContent || '').trim().split('\n')[0].trim();
+          if (text.length > 0 && text.length <= 150) return text;
+        }
+      } catch (e) { }
+    }
+    let title = (document.title || '').trim();
+    const site = location.hostname.replace(/^www\./, '').split('.')[0];
+    if (site.length >= 3) title = title.replace(new RegExp('\\s*[|\\-–—•·]\\s*[^|\\-–—•·]*' + site.replace(/[^\w]/g, '') + '[^|\\-–—•·]*$', 'i'), '').trim();
+    return title;
+  }
+  function soundId(src) {
+    try {
+      const u = new URL(src);
+      const q = u.searchParams.get('item_id') || u.searchParams.get('id');
+      if (q && q.length >= 8) return q;
+      const last = u.pathname.split('/').filter(Boolean).pop() || '';
+      const id = last.replace(/\.[a-z0-9]{2,5}$/i, '');
+      return id.length >= 8 ? id : '';
+    } catch (e) { return ''; }
+  }
+  function soundExt(src) {
+    try { const m = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|weba|webm|mp4)$/i.exec(new URL(src).pathname); return m ? '.' + m[1].toLowerCase() : ''; }
+    catch (e) { return ''; }
+  }
+  const cleanName = n => n.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150).replace(/[. ]+$/, '');
+
+  function labelText() {
+    if (current !== AUDIO) return t('تحميل هذا الفيديو');
+    const n = soundName(audio);
+    if (!n) return t('تحميل هذه الأغنية');
+    return t('تحميل') + ': \u2068' + (n.length > 38 ? n.slice(0, 36) + '…' : n) + '\u2069'; // the name keeps its own direction
   }
 
   function scheduleHide() {
@@ -229,6 +311,7 @@
   function download() {
     const v = current;
     if (!v) return;
+    if (v === AUDIO) { downloadSound(); return; }
     let src = v.currentSrc || v.src || '';
     if (!src) { const s = v.querySelector('source[src]'); if (s) src = s.src; }
     // blob:/MediaSource players (YouTube and most big sites): the page address is what can be downloaded.
@@ -249,6 +332,25 @@
     } catch (e) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); }
   }
 
+  // The song's own file when the player has a normal address (named after the song); otherwise (a stream) the page.
+  function downloadSound() {
+    const a = audio;
+    if (!a) return;
+    const name = cleanName(soundName(a) || '');
+    const src = /^https?:/i.test(a.src) ? a.src : '';
+    sending = true;
+    label.textContent = t('جاري الإرسال…');
+    const done = text => { label.textContent = text; setTimeout(() => { sending = false; if (label) label.textContent = labelText(); }, 3500); };
+    const guard = setTimeout(() => done(t('لم يصل رد — حدّث الصفحة وحاول مرة ثانية')), 15000);
+    if (!alive()) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); return; }
+    try { api.runtime.sendMessage({ cmd: 'media', kind: src ? 'audio' : 'media', src, pageUrl: location.href, title: name || document.title,
+      fileName: name && src ? name + soundExt(src) : '' }).then(res => {
+      clearTimeout(guard);
+      done(res && res.ok ? t('✓ تم') : t('شغّل برنامج IBDM Pro أولاً'));
+    }).catch(() => { clearTimeout(guard); done(t('أعد تحميل الصفحة')); });
+    } catch (e) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); }
+  }
+
   let lastMove = 0;
   document.addEventListener('mousemove', e => {
     if (!alive()) { destroy(); return; }
@@ -258,11 +360,11 @@
     const v = videoAt(e.clientX, e.clientY);
     if (dragging) return;
     if (v) { if (v !== current) show(v); else clearTimeout(hideTimer); }
-    else if (current && host && !host.matches(':hover')) scheduleHide();
+    else if (current && current !== AUDIO && host && !host.matches(':hover')) scheduleHide();
   }, { passive: true, signal: stop.signal });
 
   addEventListener('scroll', place, { passive: true, capture: true, signal: stop.signal });
   addEventListener('resize', place, { passive: true, signal: stop.signal });
-  document.addEventListener('fullscreenchange', () => { if (current) show(current); }, on);
+  document.addEventListener('fullscreenchange', () => { if (current === AUDIO && !soundShown()) hide(); else if (current) show(current); else if (soundShown()) show(AUDIO); }, on);
   timers.push(setInterval(() => { if (current && !current.isConnected) hide(); else place(); }, 800));
 })();

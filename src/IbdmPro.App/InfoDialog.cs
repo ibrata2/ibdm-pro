@@ -13,7 +13,7 @@ public static class Capture
 {
     public static void Handle(CaptureRequest req)
     {
-        if (req.Kind == "media" || Settings.Current.ShowInfoBeforeDownload) { InfoDialog.Open(req); return; }
+        if (req.Kind is "media" or "audio" || Settings.Current.ShowInfoBeforeDownload) { InfoDialog.Open(req); return; }
         _ = Quick(req);
     }
 
@@ -174,7 +174,14 @@ public sealed class InfoDialog : Window
                 ShowError(L.T("روابط مجلدات MEGA غير مدعومة حالياً. افتح المجلد على MEGA، وانسخ رابط الملف الذي تريده (Share link) وألصقه هنا."));
                 return;
             }
-            if (_req.Kind == "media")
+            // A song playing on a music site (Suno…): its own file, named after the song as the site shows it.
+            if (_req.Kind == "audio" && _req.Url.StartsWith("http"))
+            {
+                _probe = await Http.ProbeAsync(_req.Url, info, ct);
+                if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
+                _probe = null;
+            }
+            if (_req.Kind is "media" or "audio")
             {
                 // A video on a page: the page address gives yt-dlp every quality (YouTube, Facebook…);
                 // otherwise the stream itself (m3u8/mp4); otherwise download the file as it is.
@@ -269,7 +276,9 @@ public sealed class InfoDialog : Window
     {
         var p = _probe!;
         var name = !string.IsNullOrWhiteSpace(_req.FileName) ? FileNames.Clean(Path.GetFileName(_req.FileName)) : p.FileName;
-        if (Path.GetExtension(name).Length == 0 && Path.GetExtension(p.FileName).Length > 0) name += Path.GetExtension(p.FileName);
+        var ext = Path.GetExtension(p.FileName);
+        // A song's name can have a dot in it ("Song v2.5"): it gets the file's own type after it.
+        if (ext.Length > 0 && !name.EndsWith(ext, StringComparison.OrdinalIgnoreCase) && (Path.GetExtension(name).Length == 0 || _req.Kind == "audio")) name += ext;
         var size = p.Size > 0 ? p.Size : _req.Size;
         _category = _s.CategoryFor(name);
         SetHead(_category, L.T("معلومات الملف"), Host(p.FinalUrl));
