@@ -1,0 +1,8 @@
+name: pinterest probe
+on: { push: { branches: [pinterest-probe] } }
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 probe.py
