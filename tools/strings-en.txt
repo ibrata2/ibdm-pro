@@ -489,3 +489,4 @@ Couldn't create the folder
 The album isn't on Pinterest (the link may be wrong, or the album is private).
 Pinterest refused the request ({0})
 This isn't a Pinterest album (board) link. Open the album and copy the link from the address bar.
+Song video — MP4

@@ -65,6 +65,7 @@ public sealed class InfoDialog : Window
     private bool _folderEdited;
 
     private ProbeResult? _probe;
+    private bool _preferAudio; // a song (Suno): MP3 is chosen first
     private MediaInfo? _media;
     private MediaOption? _option;
 
@@ -189,6 +190,27 @@ public sealed class InfoDialog : Window
                         if (song is not null) _req.FileName = FileNames.Clean(song) + ".mp3";
                     }
                     ShowFile();
+                    return;
+                }
+                // Suno keeps the MP3 for paying members now; the song's video is public: take its sound.
+                var video = Suno.VideoUrl(sunoFile)!;
+                var check = await Http.ProbeAsync(video, info, ct);
+                if (check.Error is null && !check.LooksLikeWebPage)
+                {
+                    var song = Path.GetFileNameWithoutExtension(_req.FileName ?? "");
+                    if (string.IsNullOrWhiteSpace(song))
+                    {
+                        var page = new[] { _req.Url, _req.PageUrl }.FirstOrDefault(u => u is not null && u.Contains("/song/", StringComparison.OrdinalIgnoreCase));
+                        song = (page is null ? null : await Suno.NameAsync(Http.Client, page, ct)) ?? "Suno " + Path.GetFileNameWithoutExtension(new Uri(video).AbsolutePath);
+                    }
+                    _req.FileName = null;
+                    _probe = null;
+                    _preferAudio = true;
+                    _media = new MediaInfo { Title = song, Url = video, Site = "Suno" };
+                    _media.Options.Add(new MediaOption { AudioOnly = true, AudioFormat = "mp3", Ext = "mp3", FormatSpec = "best", Label = L.T("صوت فقط — MP3") });
+                    _media.Options.Add(new MediaOption { AudioOnly = true, AudioFormat = "m4a", Ext = "m4a", FormatSpec = "best", Label = L.T("صوت فقط — M4A (الجودة الأصلية)") });
+                    _media.Options.Add(new MediaOption { Ext = "mp4", FormatSpec = "best", Size = check.Size, Label = L.T("فيديو الأغنية — MP4"), DirectUrl = video });
+                    ShowMedia();
                     return;
                 }
                 ShowError(_probe.Error ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
@@ -372,7 +394,8 @@ public sealed class InfoDialog : Window
 
         // qualities: one drop-down — the chosen quality shows, the rest open in a list under it
         _body.Children.Add(CompactLabel(L.T("الجودة")));
-        var defaultOption = m.Options.FirstOrDefault(o => !o.AudioOnly && o.Height is > 0 and <= 1080 && o.Ext == "mp4")
+        var defaultOption = (_preferAudio ? m.Options.FirstOrDefault(o => o.AudioOnly) : null)
+            ?? m.Options.FirstOrDefault(o => !o.AudioOnly && o.Height is > 0 and <= 1080 && o.Ext == "mp4")
             ?? m.Options.FirstOrDefault(o => !o.AudioOnly) ?? m.Options[0];
 
         UIElement OptionRow(MediaOption o, bool header)

@@ -326,6 +326,7 @@ manager.Dispose();
 Check(Suno.FileUrl("https://suno.com/song/A616F223-4ad3-4699-a953-a83d9a0e0411?sh=x") == "https://cdn1.suno.ai/a616f223-4ad3-4699-a953-a83d9a0e0411.mp3"
     && Suno.FileUrl("https://audiopipe.suno.ai/?item_id=a616f223-4ad3-4699-a953-a83d9a0e0411") == "https://cdn1.suno.ai/a616f223-4ad3-4699-a953-a83d9a0e0411.mp3"
     && Suno.FileUrl("https://suno.com/create") is null && Suno.FileUrl("https://notsuno.com/song/a616f223-4ad3-4699-a953-a83d9a0e0411") is null, "Suno: song id → cdn1 MP3");
+Check(Suno.VideoUrl("https://cdn1.suno.ai/a616f223-4ad3-4699-a953-a83d9a0e0411.mp3") == "https://cdn1.suno.ai/a616f223-4ad3-4699-a953-a83d9a0e0411.mp4", "Suno: the song's public video");
 Check(Suno.NameFromPage("<meta property=\"og:title\" content=\"Super Mario Bros Theme (Ibrata2) | Suno\">") == "Super Mario Bros Theme (Ibrata2)"
     && Suno.NameFromPage("<title>أغنية &amp; لحن</title>") == "أغنية & لحن" && Suno.NameFromPage("<title>Suno</title>") is null, "Suno: song name from the page");
 // Pinterest albums: board links, and the best file of each pin.
@@ -356,6 +357,11 @@ Check(Pinterest.IsBoardLink("https://www.pinterest.com/mashal0407/cool-diys/") &
 // Live (CI only, never fails the build: Pinterest may limit servers): read a real public board.
 if (Environment.GetEnvironmentVariable("IBDM_LIVE") == "1")
 {
+    foreach (var u in new[] { "https://cdn1.suno.ai/e26bb25f-5af0-4c7a-bb87-9de814048b63.mp3", "https://cdn1.suno.ai/e26bb25f-5af0-4c7a-bb87-9de814048b63.mp4" })
+    {
+        var pr = await Http.ProbeAsync(u, new RequestInfo { Referrer = "https://suno.com/" });
+        Console.WriteLine($"LIVE  Suno {u}: {pr.Error ?? "ok"} {pr.Size} bytes {pr.ContentType}");
+    }
     foreach (var link in new[] { "https://ca.pinterest.com/mashal0407/cool-diys/", "https://ca.pinterest.com/fudohub/videos/" })
     {
         try

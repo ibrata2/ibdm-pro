@@ -21,6 +21,10 @@ public static class Suno
         return m.Success ? $"https://cdn1.suno.ai/{m.Value.ToLowerInvariant()}.mp3" : null;
     }
 
+    /// <summary>The song's video (the picture with the song, made for sharing): Suno now refuses the MP3 to
+    /// anyone but paying members, but the video is public — its sound is the song.</summary>
+    public static string? VideoUrl(string? fileUrl) => fileUrl is null ? null : Regex.Replace(fileUrl, @"\.(mp3|m4a)$", ".mp4", RegexOptions.IgnoreCase);
+
     /// <summary>The song's name from its page (og:title / title, without "| Suno"), or null.</summary>
     public static string? NameFromPage(string html)
     {

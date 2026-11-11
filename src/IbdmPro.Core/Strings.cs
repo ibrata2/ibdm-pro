@@ -494,6 +494,7 @@ public static partial class L
         ["الألبوم غير موجود على Pinterest (ربما الرابط غلط أو الألبوم خاص)."] = "The album isn't on Pinterest (the link may be wrong, or the album is private).",
         ["رفض Pinterest الطلب ({0})"] = "Pinterest refused the request ({0})",
         ["هذا ليس رابط ألبوم (لوحة) على Pinterest. افتح الألبوم وانسخ الرابط من شريط العنوان."] = "This isn't a Pinterest album (board) link. Open the album and copy the link from the address bar.",
+        ["فيديو الأغنية — MP4"] = "Song video — MP4",
         ["صوتيات"] = "Audio",
         ["مضغوطات"] = "Compressed",
         ["برامج"] = "Programs",
