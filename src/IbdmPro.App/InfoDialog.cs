@@ -175,6 +175,13 @@ public sealed class InfoDialog : Window
                 ShowError(L.T("روابط مجلدات MEGA غير مدعومة حالياً. افتح المجلد على MEGA، وانسخ رابط الملف الذي تريده (Share link) وألصقه هنا."));
                 return;
             }
+            // A song playing on a music site (Suno…): its own file, named after the song as the site shows it.
+            if (_req.Kind == "audio" && _req.Url.StartsWith("http"))
+            {
+                _probe = await Http.ProbeAsync(_req.Url, info, ct);
+                if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
+                _probe = null;
+            }
             // Suno: yt-dlp refuses the site, but every song is a plain MP3 named by the id in its page address.
             var sunoFile = Suno.FileUrl(_req.Url) ?? Suno.FileUrl(_req.PageUrl);
             if (sunoFile is not null)
@@ -215,13 +222,6 @@ public sealed class InfoDialog : Window
                 }
                 ShowError(_probe.Error is { } err && err.Contains("403") ? L.T("سونو صار يحمي ملفات الأغاني ويسمح بتحميلها فقط من زر التحميل مالته (وحسب عدد التحميلات المتاح باشتراكك). اضغط زر التحميل ⬇ بصفحة الأغنية في سونو، والبرنامج يلتقط التحميل من المتصفح ويكمله.") : _probe.Error ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
                 return;
-            }
-            // A song playing on a music site (Suno…): its own file, named after the song as the site shows it.
-            if (_req.Kind == "audio" && _req.Url.StartsWith("http"))
-            {
-                _probe = await Http.ProbeAsync(_req.Url, info, ct);
-                if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
-                _probe = null;
             }
             if (_req.Kind is "media" or "audio")
             {

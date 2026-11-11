@@ -253,15 +253,20 @@ api.webRequest.onHeadersReceived.addListener(details => {
 }, { urls: ['<all_urls>'], types: ['media', 'xmlhttprequest', 'other', 'object'] }, ['responseHeaders']);
 
 // Suno plays songs through the page's own player (blob: address), so the page cannot tell which song it is.
-// The song's id is in the requests the player makes (cdn1.suno.ai/<id>.mp3, audiopipe…?item_id=<id>, …):
-// remember the last one per tab.
+// The player itself fetches the song's sound (a signed address on Suno's CloudFront, …/clip/<song id>/…m4a):
+// remember, per tab, the last sound file it fetched — the same file a download manager would catch.
 const SUNO_ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-const sunoPlaying = new Map(); // tabId -> song id
-api.webRequest.onBeforeRequest.addListener(d => {
-  if (d.tabId < 0 || /image_|\.(jpe?g|png|webp|gif)(\?|$)/i.test(d.url)) return;
+const sunoPlaying = new Map(); // tabId -> { id, file }
+const fromSuno = d => /^https?:\/\/([\w-]+\.)*suno\.(com|ai)(\/|$)/i.test(d.initiator || d.documentUrl || d.originUrl || '');
+api.webRequest.onHeadersReceived.addListener(d => {
+  if (d.tabId < 0 || d.statusCode >= 400 || !fromSuno(d) || /image_|\.(jpe?g|png|webp|gif|m3u8)(\?|$)/i.test(d.url)) return;
   const m = SUNO_ID.exec(d.url);
-  if (m) sunoPlaying.set(d.tabId, m[0].toLowerCase());
-}, { urls: ['*://*.suno.ai/*', '*://*.suno.com/*'], types: ['media', 'xmlhttprequest', 'other'] });
+  if (!m) return;
+  let type = '';
+  for (const x of d.responseHeaders || []) if (x.name.toLowerCase() === 'content-type') type = x.value.toLowerCase();
+  if (!/^audio\//.test(type) && !(d.type === 'media' && !/^(text|application\/json)/.test(type))) return;
+  sunoPlaying.set(d.tabId, { id: m[0].toLowerCase(), file: d.url });
+}, { urls: ['<all_urls>'], types: ['media', 'xmlhttprequest', 'other'] }, ['responseHeaders']);
 
 api.tabs.onUpdated.addListener((tabId, change) => {
   if (change.url) { tabMedia.delete(tabId); refreshBadge(tabId); }
@@ -325,11 +330,13 @@ async function handle(msg, sender, reply) {
       let src = msg.src && /^https?:/i.test(msg.src) ? msg.src : '';
       let kind = msg.kind || 'media';
       let fileName = msg.fileName || '';
-      // A Suno song played from a blob: address: the song the tab's player last asked Suno for.
-      if (msg.sound && !SUNO_ID.test(src) && sender.tab && /(^|\.)suno\.(com|ai)$/i.test(new URL(tabUrl || page).hostname) && sunoPlaying.has(sender.tab.id)) {
-        src = 'https://cdn1.suno.ai/' + sunoPlaying.get(sender.tab.id) + '.mp3';
+      // A Suno song: the sound file the tab's player fetched (Suno refuses its old MP3 addresses now).
+      if (msg.sound && sender.tab && /(^|\.)suno\.(com|ai)$/i.test(new URL(tabUrl || page).hostname) && sunoPlaying.has(sender.tab.id)) {
+        const p = sunoPlaying.get(sender.tab.id);
+        src = p.file;
         kind = 'audio';
-        if (msg.name) fileName = msg.name + '.mp3';
+        const ext = (/\.(m4a|mp3|mp4|aac|opus|ogg|wav|webm)(\?|$)/i.exec(new URL(p.file).pathname) || [, 'm4a'])[1].toLowerCase();
+        if (msg.name) fileName = msg.name + '.' + ext;
       }
       const url = src || frameUrl || page;
       const ok = /^https?:/i.test(url) && await sendToApp({
