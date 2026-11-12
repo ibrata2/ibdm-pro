@@ -235,6 +235,20 @@ public sealed class DownloadManager : IDisposable
                     item.Downloaded = p.Downloaded;
                     if (p.Total > item.TotalBytes) item.TotalBytes = p.Total;
                 }, ct);
+                // A plain file with no type in its name (or yt-dlp's "unknown_video"): name it after what it really is.
+                var ext = Path.GetExtension(path);
+                if (ext.Length == 0 || ext.Equals(".unknown_video", StringComparison.OrdinalIgnoreCase))
+                {
+                    var head = new byte[64];
+                    int read;
+                    using (var f = File.OpenRead(path)) read = f.Read(head, 0, head.Length);
+                    if (FileNames.ExtFromBytes(head.AsSpan(0, read)) is { } real)
+                    {
+                        var named = FileNames.Unique(Path.ChangeExtension(path, real));
+                        File.Move(path, named);
+                        path = named;
+                    }
+                }
                 item.Folder = Path.GetDirectoryName(path) ?? item.Folder;
                 item.FileName = Path.GetFileName(path);
                 item.TotalBytes = new FileInfo(path).Length;

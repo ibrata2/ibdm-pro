@@ -249,6 +249,35 @@ public static class FileNames
         };
     }
 
+    /// <summary>What a file really is, from its first bytes (when neither the name nor the server says):
+    /// a program, a video, an archive… Null when unknown.</summary>
+    public static string? ExtFromBytes(ReadOnlySpan<byte> head)
+    {
+        var b = head.ToArray();
+        bool At(int i, params byte[] sig) => b.Length >= i + sig.Length && b.AsSpan(i, sig.Length).SequenceEqual(sig);
+        if (At(0, 0x4D, 0x5A)) return "exe";
+        if (At(4, (byte)'f', (byte)'t', (byte)'y', (byte)'p'))
+        {
+            var brand = b.Length >= 12 ? System.Text.Encoding.ASCII.GetString(b, 8, 4) : "";
+            return brand is "M4A " or "M4B " ? "m4a" : brand.StartsWith("qt") ? "mov" : "mp4";
+        }
+        if (At(0, 0x1A, 0x45, 0xDF, 0xA3)) return head.IndexOf("webm"u8) is >= 0 and < 64 ? "webm" : "mkv";
+        if (At(0, (byte)'P', (byte)'K', 3, 4)) return "zip";
+        if (At(0, (byte)'R', (byte)'a', (byte)'r', (byte)'!')) return "rar";
+        if (At(0, (byte)'7', (byte)'z', 0xBC, 0xAF)) return "7z";
+        if (At(0, (byte)'%', (byte)'P', (byte)'D', (byte)'F')) return "pdf";
+        if (At(0, (byte)'I', (byte)'D', (byte)'3') || At(0, 0xFF, 0xFB) || At(0, 0xFF, 0xF3)) return "mp3";
+        if (At(0, (byte)'O', (byte)'g', (byte)'g', (byte)'S')) return "ogg";
+        if (At(0, (byte)'R', (byte)'I', (byte)'F', (byte)'F') && At(8, (byte)'W', (byte)'A', (byte)'V', (byte)'E')) return "wav";
+        if (At(0, (byte)'R', (byte)'I', (byte)'F', (byte)'F') && At(8, (byte)'W', (byte)'E', (byte)'B', (byte)'P')) return "webp";
+        if (At(0, (byte)'f', (byte)'L', (byte)'a', (byte)'C')) return "flac";
+        if (At(0, 0x89, (byte)'P', (byte)'N', (byte)'G')) return "png";
+        if (At(0, 0xFF, 0xD8, 0xFF)) return "jpg";
+        if (At(0, (byte)'G', (byte)'I', (byte)'F', (byte)'8')) return "gif";
+        if (At(0, 0x1F, 0x8B)) return "gz";
+        return null;
+    }
+
     /// <summary>The last part of a URL's path, decoded — what most sites use as the file's name.</summary>
     public static string? FromUrl(string url)
     {

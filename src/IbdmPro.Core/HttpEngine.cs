@@ -53,7 +53,16 @@ public static class Http
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(30));
             using var req = Request(url, info, 0, 0);
-            using var resp = await Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            var resp = await Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            // Some servers (APIs behind Cloudflare and the like) refuse a request for "the first byte only":
+            // ask once more for the whole file — only its headers are read — as a browser or IDM first does.
+            if ((int)resp.StatusCode is 400 or 403 or 405 or 406 or 416 or 501)
+            {
+                resp.Dispose();
+                using var plain = Request(url, info);
+                resp = await Client.SendAsync(plain, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            }
+            using var _ = resp;
             result.FinalUrl = resp.RequestMessage?.RequestUri?.ToString() ?? url;
             if (!resp.IsSuccessStatusCode)
             {

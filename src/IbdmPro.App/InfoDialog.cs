@@ -367,15 +367,20 @@ public sealed class InfoDialog : Window
         var m = _media!;
         if (!string.Equals(m.Site, "Generic", StringComparison.OrdinalIgnoreCase)) return;
         var video = m.Options.Where(o => !o.AudioOnly).ToList();
-        var given = !string.IsNullOrWhiteSpace(_req.FileName) ? FileNames.Clean(Path.GetFileName(_req.FileName)) : null;
-        var isMedia = given is not null && _s.CategoryFor(given).Name is "فيديو" or "صوتيات";
-        if (isMedia || video.Count == 0 || !(video.All(o => o.Ext is "unknown_video" or "") || given is not null && video.Count == 1)) return;
-        var name = given ?? FileNames.Clean(m.Title, "download");
+        // yt-dlp knows what the file is (a real video stream with its type): leave it as a video.
+        if (video.Count == 0 || !video.All(o => o.Ext is "unknown_video" or "")) return;
+        // The name the browser was given (from the server's own headers, like IDM shows); else yt-dlp's title.
+        var name = !string.IsNullOrWhiteSpace(_req.FileName) ? FileNames.Clean(Path.GetFileName(_req.FileName)) : FileNames.Clean(m.Title, "download");
+        if (Path.GetExtension(name).Length == 0 && FileNames.ExtForMime(_req.Mime) is { } mimeExt) name += "." + mimeExt;
         _directFile = name;
         m.Title = name;
         m.Options.Clear();
         var ext = Path.GetExtension(name).TrimStart('.');
-        m.Options.Add(new MediaOption { Label = L.T("الملف كما هو") + (ext.Length > 0 ? " — " + ext.ToUpperInvariant() : ""), FormatSpec = "best", Ext = ext, Size = video[0].Size });
+        m.Options.Add(new MediaOption
+        {
+            Label = L.T("الملف كما هو") + (ext.Length > 0 ? " — " + ext.ToUpperInvariant() : ""), FormatSpec = "best", Ext = ext,
+            Size = _req.Size > 0 ? _req.Size : video[0].Size,
+        });
     }
 
     private void ShowMedia()

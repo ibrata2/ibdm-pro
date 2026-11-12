@@ -363,6 +363,8 @@ Check(Pinterest.IsBoardLink("https://www.pinterest.com/mashal0407/cool-diys/") &
     Check(info2.Site == "Generic" && info2.Options.Where(o => !o.AudioOnly).All(o => o.Ext == "unknown_video") && Path.GetFileName(exePath) == "IBRA_DRIVE.exe" && Sha(exePath) == Sha(Path.Combine(data, "small.bin")),
         $"plain file through yt-dlp keeps its name: {Path.GetFileName(exePath)} ({info2.Site}, {string.Join(",", info2.Options.Select(o => o.Ext))})");
 }
+Check(FileNames.ExtFromBytes("MZ\u0090\0"u8) == "exe" && FileNames.ExtFromBytes(new byte[] { 0, 0, 0, 0x20, (byte)'f', (byte)'t', (byte)'y', (byte)'p', (byte)'i', (byte)'s', (byte)'o', (byte)'m' }) == "mp4"
+    && FileNames.ExtFromBytes("PK\u0003\u0004"u8) == "zip" && FileNames.ExtFromBytes("hello"u8) is null, "file type from its first bytes (exe, mp4, zip)");
 // Live (CI only, never fails the build: Pinterest may limit servers): read a real public board.
 if (Environment.GetEnvironmentVariable("IBDM_LIVE") == "1")
 {
