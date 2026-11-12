@@ -65,6 +65,7 @@ public sealed class InfoDialog : Window
     private bool _folderEdited;
 
     private ProbeResult? _probe;
+    private string? _directFile; // a plain file downloaded through yt-dlp (see AsDirectFile)
     private bool _preferAudio; // a song (Suno): MP3 is chosen first
     private MediaInfo? _media;
     private MediaOption? _option;
@@ -238,7 +239,7 @@ public sealed class InfoDialog : Window
                     // On YouTube the page address is the right one; a stream address after it would only hide its error.
                     if (YtDlp.IsYoutube(src!)) break;
                 }
-                if (_media is not null && _media.Options.Count > 0) { ShowMedia(); return; }
+                if (_media is not null && _media.Options.Count > 0) { AsDirectFile(); ShowMedia(); return; }
                 if (_req.Url.StartsWith("http"))
                 {
                     _probe = await Http.ProbeAsync(_req.Url, info, ct);
@@ -258,7 +259,7 @@ public sealed class InfoDialog : Window
             try
             {
                 _media = await YtDlp.GetInfoAsync(_req.Url, info, ct);
-                if (_media.Options.Count > 0) { ShowMedia(); return; }
+                if (_media.Options.Count > 0) { AsDirectFile(); ShowMedia(); return; }
             }
             catch (InvalidOperationException e) { Log.Write($"media {_req.Url}: {e.Message}"); mediaError = e.Message; }
 
@@ -358,11 +359,31 @@ public sealed class InfoDialog : Window
 
     // ---------- a video / audio page ----------
 
+    /// <summary>A plain file (a program, a ZIP…) that our own engine could not fetch — the site refuses download
+    /// programs (Cloudflare and the like) — but yt-dlp can: it is downloaded through yt-dlp as it is, under its own
+    /// name (the browser's name for it), not as an "unknown_video".</summary>
+    private void AsDirectFile()
+    {
+        var m = _media!;
+        if (!string.Equals(m.Site, "Generic", StringComparison.OrdinalIgnoreCase)) return;
+        var video = m.Options.Where(o => !o.AudioOnly).ToList();
+        var given = !string.IsNullOrWhiteSpace(_req.FileName) ? FileNames.Clean(Path.GetFileName(_req.FileName)) : null;
+        var isMedia = given is not null && _s.CategoryFor(given).Name is "فيديو" or "صوتيات";
+        if (isMedia || video.Count == 0 || !(video.All(o => o.Ext is "unknown_video" or "") || given is not null && video.Count == 1)) return;
+        var name = given ?? FileNames.Clean(m.Title, "download");
+        _directFile = name;
+        m.Title = name;
+        m.Options.Clear();
+        var ext = Path.GetExtension(name).TrimStart('.');
+        m.Options.Add(new MediaOption { Label = L.T("الملف كما هو") + (ext.Length > 0 ? " — " + ext.ToUpperInvariant() : ""), FormatSpec = "best", Ext = ext, Size = video[0].Size });
+    }
+
     private void ShowMedia()
     {
         var m = _media!;
         _body.Children.Clear();
-        SetHead(_s.CategoryNamed("فيديو") ?? _category, L.T("تحميل فيديو"), (m.Site is { Length: > 0 } site && site != "Generic" ? site + " — " : "") + Host(m.Url));
+        if (_directFile is not null) SetHead(_s.CategoryFor(_directFile), L.T("معلومات الملف"), Host(m.Url));
+        else SetHead(_s.CategoryNamed("فيديو") ?? _category, L.T("تحميل فيديو"), (m.Site is { Length: > 0 } site && site != "Generic" ? site + " — " : "") + Host(m.Url));
         var listUrl = new[] { _req.PageUrl, _req.Url }.FirstOrDefault(u => u is not null && YtDlp.IsPlaylistUrl(u));
         if (listUrl is not null && !_preview)
         {
@@ -493,8 +514,8 @@ public sealed class InfoDialog : Window
         _option = o;
         var stem = Path.GetFileNameWithoutExtension(_name.Text);
         if (string.IsNullOrWhiteSpace(stem) || _media is not null && _name.Text.Length == 0) stem = FileNames.Clean(_media?.Title, "video");
-        _name.Text = stem + "." + o.Ext;
-        var cat = o.AudioOnly ? _s.CategoryNamed("صوتيات") : _s.CategoryNamed("فيديو");
+        _name.Text = _directFile ?? stem + "." + o.Ext;
+        var cat = _directFile is not null ? _s.CategoryFor(_directFile) : o.AudioOnly ? _s.CategoryNamed("صوتيات") : _s.CategoryNamed("فيديو");
         if (cat is not null) SelectCategory(cat);
         UpdateSpace();
     }
@@ -667,7 +688,7 @@ public sealed class InfoDialog : Window
             {
                 Kind = DownloadKind.Media, Url = _media.Url, PageUrl = _req.PageUrl ?? _media.Url, Request = _req.ToRequestInfo(),
                 FileName = unique, Folder = folder, Category = _category.Name, QueueName = queueName, TotalBytes = o.Size,
-                FormatSpec = o.FormatSpec, AudioOnly = o.AudioOnly, AudioFormat = o.AudioFormat, Quality = o.Label,
+                FormatSpec = o.FormatSpec, AudioOnly = o.AudioOnly, AudioFormat = o.AudioFormat, Quality = o.Label, ExactName = _directFile is not null,
             };
         }
         else if (_probe is not null)

@@ -497,3 +497,4 @@ Save the album as one ZIP file (instead of a folder)
 {0} of the album's files couldn't be downloaded — only the missing ones will be tried again
 Packing the album into a ZIP file…
 Complete — {0}
+The file as it is

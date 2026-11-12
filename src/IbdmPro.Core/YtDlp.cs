@@ -427,7 +427,7 @@ public static class YtDlp
             "--progress-template", "download:[IBDM]%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s",
             "--print-to-file", "after_move:%(filepath)s", pathFile,
             "-f", string.IsNullOrEmpty(item.FormatSpec) ? "bv*+ba/b" : item.FormatSpec,
-            "-o", Path.Combine(item.Folder, stem.Replace("%", "%%") + ".%(ext)s"),
+            "-o", Path.Combine(item.Folder, item.ExactName ? item.FileName.Replace("%", "%%") : stem.Replace("%", "%%") + ".%(ext)s"),
         };
         var ffmpeg = Paths.Ffmpeg;
         if (Path.IsPathRooted(ffmpeg)) { args.Add("--ffmpeg-location"); args.Add(ffmpeg); }

@@ -61,6 +61,9 @@ public sealed class DownloadItem
     public string? Quality { get; set; }
     /// <summary>An album saved as one ZIP file (<see cref="FileName"/> ends in .zip) instead of a folder.</summary>
     public bool AlbumZip { get; set; }
+    /// <summary>A plain file fetched through yt-dlp (a site that refuses ordinary download programs): saved under
+    /// <see cref="FileName"/> exactly, not under the type yt-dlp guesses.</summary>
+    public bool ExactName { get; set; }
 
     public DownloadStatus Status { get; set; } = DownloadStatus.Queued;
     public string? Error { get; set; }

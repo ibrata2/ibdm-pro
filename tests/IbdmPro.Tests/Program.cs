@@ -354,6 +354,15 @@ Check(Pinterest.IsBoardLink("https://www.pinterest.com/mashal0407/cool-diys/") &
         && media[3].Url == "https://i.pinimg.com/originals/01/x.jpg" && media[4].Extension == ".png" && media[0].PinUrl == "https://www.pinterest.com/pin/111/",
         $"Pinterest: original pictures, best videos, carousels ({media.Count})");
 }
+// A plain file through yt-dlp (sites that refuse download programs): saved under its real name, byte for byte.
+{
+    var info2 = await YtDlp.GetInfoAsync($"{baseUrl}/noranges.bin", new RequestInfo(), CancellationToken.None);
+    var dir2 = Path.Combine(Path.GetTempPath(), "exact-" + Guid.NewGuid().ToString("N")[..6]);
+    var exe = new DownloadItem { Kind = DownloadKind.Media, Url = $"{baseUrl}/noranges.bin", FileName = "IBRA_DRIVE.exe", FormatSpec = "best", ExactName = true, Folder = dir2 };
+    var exePath = await YtDlp.DownloadAsync(exe, 4, 0, _ => { }, CancellationToken.None);
+    Check(info2.Site == "Generic" && info2.Options.Where(o => !o.AudioOnly).All(o => o.Ext == "unknown_video") && Path.GetFileName(exePath) == "IBRA_DRIVE.exe" && Sha(exePath) == Sha(Path.Combine(data, "small.bin")),
+        $"plain file through yt-dlp keeps its name: {Path.GetFileName(exePath)} ({info2.Site}, {string.Join(",", info2.Options.Select(o => o.Ext))})");
+}
 // Live (CI only, never fails the build: Pinterest may limit servers): read a real public board.
 if (Environment.GetEnvironmentVariable("IBDM_LIVE") == "1")
 {

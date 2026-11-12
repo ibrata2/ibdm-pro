@@ -502,6 +502,7 @@ public static partial class L
         ["تعذر تحميل {0} من ملفات الألبوم — سيُعاد المحاولة للناقص فقط"] = "{0} of the album's files couldn't be downloaded — only the missing ones will be tried again",
         ["جاري ضغط الألبوم بملف ZIP…"] = "Packing the album into a ZIP file…",
         ["مكتمل — {0}"] = "Complete — {0}",
+        ["الملف كما هو"] = "The file as it is",
         ["صوتيات"] = "Audio",
         ["مضغوطات"] = "Compressed",
         ["برامج"] = "Programs",
