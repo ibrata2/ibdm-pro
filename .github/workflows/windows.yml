@@ -404,13 +404,15 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             mkdir -p shots
+            adb shell wm size 1080x2400 ; adb shell wm density 420
             adb install -r -g apk/test-x86_64.apk
             adb shell am start -n com.ibrata2.ibradm/.MainActivity ; sleep 25 ; adb exec-out screencap -p > shots/1-start.png
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" --es mode mp3 --ez start true ; sleep 3
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" --es mode 720 --ez start true ; sleep 3
             adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://github.com/ibrata2/ibdm-pro/raw/main/assets/ibdm-512.png" --ez start true ; sleep 3
-            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.dailymotion.com/video/xbu9cma" --ez start true ; sleep 3
-            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" --es mode mp3 --ez start true ; sleep 40
-            adb exec-out screencap -p > shots/2-downloading.png ; sleep 100
-            adb exec-out screencap -p > shots/3-after.png ; sleep 80
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.dailymotion.com/video/xbu9cma" --es mode 480 --ez start true ; sleep 60
+            adb exec-out screencap -p > shots/2-downloading.png ; sleep 120
+            adb exec-out screencap -p > shots/3-after.png ; sleep 120
             adb shell am start -n com.ibrata2.ibradm/.MainActivity ; sleep 3
             adb exec-out screencap -p > shots/4-later.png
             adb shell content query --uri content://media/external/downloads --projection _display_name:_size:relative_path || true
@@ -448,12 +450,14 @@ jobs:
           ls -la ../../build/mobile
       - name: Screenshot on the simulator
         continue-on-error: true
+        timeout-minutes: 15
         working-directory: mobile/ios
         run: |
           xcodebuild -project IBRA.xcodeproj -scheme IBRA -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath simbuild CODE_SIGNING_ALLOWED=NO build | xcpretty
-          dev=$(xcrun simctl list devices available | grep -m1 -E "iPhone 1[5-7]" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
-          xcrun simctl boot "$dev"; sleep 20
+          dev=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k in sorted(d, reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
+          echo "simulator: $dev"
+          xcrun simctl bootstatus "$dev" -b
           xcrun simctl install "$dev" simbuild/Build/Products/Debug-iphonesimulator/IBRA.app
           xcrun simctl launch "$dev" com.ibrata2.ibradm; sleep 10
           mkdir -p ../../build/ios-shots
