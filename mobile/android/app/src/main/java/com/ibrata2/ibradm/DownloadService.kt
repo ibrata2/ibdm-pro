@@ -85,6 +85,7 @@ class DownloadService : Service() {
             addOption("--no-playlist")
             addOption("--no-mtime")
             addOption("--newline")
+            addOption("-N", "4") // streams (Dailymotion, Instagram…) come in pieces: 4 at a time
             addOption("-o", dir.absolutePath + "/%(title).120B.%(ext)s")
             when (job.mode) {
                 "mp3" -> { addOption("-f", "bestaudio/best"); addOption("-x"); addOption("--audio-format", "mp3"); addOption("--audio-quality", "0") }
@@ -213,6 +214,7 @@ fun cleanError(msg: String): String {
     val m = line.substringAfter("ERROR:").trim()
     return when {
         m.contains("Unsupported URL", true) -> L.t("هذا الرابط غير مدعوم (لا يوجد فيه فيديو أو ملف يمكن تحميله)", "This link isn't supported (no video or file to download in it)")
+        m.contains("not a bot", true) -> L.t("يوتيوب طلب التحقق من الشبكة الحالية — جرّب بعد قليل أو من شبكة ثانية (واي فاي/بيانات)", "YouTube asked to verify this network — try again later or on another network (Wi-Fi/data)")
         m.contains("login", true) || m.contains("sign in", true) || m.contains("private", true) -> L.t("هذا المحتوى خاص أو يحتاج تسجيل دخول", "This content is private or needs a login")
         m.contains("Unable to resolve host", true) || m.contains("Network", true) -> L.t("لا يوجد اتصال بالإنترنت", "No internet connection")
         else -> m.take(300)
