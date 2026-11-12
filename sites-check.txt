@@ -1,0 +1,8 @@
+https://www.dailymotion.com/video/xbu9cma => مسلسل ليل البنفسج الجزء الثاني الحلقة 1 | heights: 288 | formats: 3
+   hls-0_aac_q1-_original_ | ext=mp4 | v=none | a= | h= | proto=m3u8_native | aext=mp4 | vext=none | res=audio only
+   hls-0_aac_q2-_original_ | ext=mp4 | v=none | a= | h= | proto=m3u8_native | aext=mp4 | vext=none | res=audio only
+   hls-380 | ext=mp4 | v=avc1.42001e | a=none | h=288 | proto=m3u8_native | aext=none | vext=mp4 | res=512x288
+https://geo.dailymotion.com/player/xtv3w.html?video=xbu9cma => مسلسل ليل البنفسج الجزء الثاني الحلقة 1 | heights: 288 | formats: 3
+   hls-0_aac_q1-_original_ | ext=mp4 | v=none | a= | h= | proto=m3u8_native | aext=mp4 | vext=none | res=audio only
+   hls-0_aac_q2-_original_ | ext=mp4 | v=none | a= | h= | proto=m3u8_native | aext=mp4 | vext=none | res=audio only
+   hls-380 | ext=mp4 | v=avc1.42001e | a=none | h=288 | proto=m3u8_native | aext=none | vext=mp4 | res=512x288

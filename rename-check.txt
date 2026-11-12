@@ -1,0 +1,15 @@
+PASS  settings moved to the new folder
+PASS  downloads folder renamed
+PASS  finished file in Video
+PASS  unfinished part in Compressed
+PASS  type folders English in settings
+PASS  download list follows the files
+PASS  rename done once
+   at IbdmPro.Core.HttpDownloader.RunAsync(DownloadItem item, Int32 connections, SpeedLimiter limiter, CancellationToken ct)
+   at IbdmPro.Core.DownloadManager.Run(DownloadItem item, CancellationToken ct)
+2026-11-12 22:59:47 half.zip: System.InvalidOperationException: An invalid request URI was provided. Either the request URI must be an absolute URI or BaseAddress must be set.
+   at System.Net.Http.HttpClient.PrepareRequestMessage(HttpRequestMessage request)
+   at System.Net.Http.HttpClient.SendAsync(HttpRequestMessage request, HttpCompletionOption completionOption, CancellationToken cancellationToken)
+   at IbdmPro.Core.HttpDownloader.Single(DownloadItem item, SpeedLimiter limiter, CancellationToken ct)
+   at IbdmPro.Core.HttpDownloader.RunAsync(DownloadItem item, Int32 connections, SpeedLimiter limiter, CancellationToken ct)
+   at IbdmPro.Core.DownloadManager.Run(DownloadItem item, CancellationToken ct)
