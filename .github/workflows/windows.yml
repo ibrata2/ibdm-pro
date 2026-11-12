@@ -338,3 +338,147 @@ jobs:
 
             **إضافة المتصفح:** موجودة داخل البرنامج (زر «الإضافة» بالأعلى يشرح الخطوات)، أو حمّل **IBRA-Download-Manager-Extension.zip** وفكّه ثم من `chrome://extensions` فعّل Developer mode ← Load unpacked.
             بعد كل تحديث اضغط ⟳ على بطاقة الإضافة.
+
+            **أندرويد:** حمّل **IBRA-Download-Manager-Android-arm64.apk** (أغلب الهواتف)، أو **‑armv7.apk** للهواتف القديمة، وثبّته.
+            **آيفون:** **IBRA-Download-Manager-iPhone-unsigned.ipa** غير موقّع — وقّعه وثبّته بأداة مثل Sideloadly أو AltStore.
+
+  android:
+    name: Android app (APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+      - name: Build the APKs
+        working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ github.workspace }}/mobile/android/signing/ibra-release.p12
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ibra
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          # Without the key's password (a repository secret) the APKs are signed with a test key.
+          if [ -z "$ANDROID_KEYSTORE_PASSWORD" ]; then unset ANDROID_KEYSTORE_FILE; echo "::warning::ANDROID_KEYSTORE_PASSWORD is not set: test-signed APKs"; fi
+          gradle assembleRelease --no-daemon -PappVersion=1.0.${{ github.run_number }} -PappCode=${{ github.run_number }}
+          mkdir -p ../../build/mobile
+          out=app/build/outputs/apk/release
+          ls -la $out
+          # Only APKs signed with the app's own key go into the release (phones accept updates only with the same key).
+          pre=IBRA-Download-Manager-Android; [ -z "${ANDROID_KEYSTORE_FILE:-}" ] && pre=test-signed-IBRA-Download-Manager-Android
+          cp $out/app-arm64-v8a-release.apk ../../build/mobile/$pre-arm64.apk
+          cp $out/app-armeabi-v7a-release.apk ../../build/mobile/$pre-armv7.apk
+          cp $out/app-x86_64-release.apk ../../build/mobile/test-x86_64.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: build/mobile/*
+
+  android-check:
+    name: Android app on an emulator (real downloads)
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: android
+          path: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Run it
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            mkdir -p shots
+            adb install -r -g apk/test-x86_64.apk
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity ; sleep 25 ; adb exec-out screencap -p > shots/1-start.png
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://github.com/ibrata2/ibdm-pro/raw/main/assets/ibdm-512.png" --ez start true ; sleep 3
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.dailymotion.com/video/xbu9cma" --ez start true ; sleep 3
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" --es mode mp3 --ez start true ; sleep 40
+            adb exec-out screencap -p > shots/2-downloading.png ; sleep 120
+            adb exec-out screencap -p > shots/3-after.png
+            adb shell content query --uri content://media/external/downloads --projection _display_name:_size:relative_path || true
+            adb logcat -d | grep -iE "IBRA|youtubedl|AndroidRuntime" | tail -60 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-screens
+          path: shots/*
+
+  ios:
+    name: iPhone app (unsigned IPA)
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build
+        working-directory: mobile/ios
+        run: |
+          brew install xcodegen >/dev/null
+          sed -i '' "s/MARKETING_VERSION: \"1.0.0\"/MARKETING_VERSION: \"1.0.${{ github.run_number }}\"/; s/CURRENT_PROJECT_VERSION: \"1\"/CURRENT_PROJECT_VERSION: \"${{ github.run_number }}\"/" project.yml
+          xcodegen generate
+          xcodebuild -project IBRA.xcodeproj -scheme IBRA -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | xcpretty || exit ${PIPESTATUS[0]}
+          mkdir -p Payload ../../build/mobile
+          cp -R build/Build/Products/Release-iphoneos/IBRA.app Payload/
+          zip -qry ../../build/mobile/IBRA-Download-Manager-iPhone-unsigned.ipa Payload
+          ls -la ../../build/mobile
+      - name: Screenshot on the simulator
+        continue-on-error: true
+        working-directory: mobile/ios
+        run: |
+          xcodebuild -project IBRA.xcodeproj -scheme IBRA -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath simbuild CODE_SIGNING_ALLOWED=NO build | xcpretty
+          dev=$(xcrun simctl list devices available | grep -m1 -E "iPhone 1[5-7]" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          xcrun simctl boot "$dev"; sleep 20
+          xcrun simctl install "$dev" simbuild/Build/Products/Debug-iphonesimulator/IBRA.app
+          xcrun simctl launch "$dev" com.ibrata2.ibradm; sleep 10
+          mkdir -p ../../build/ios-shots
+          xcrun simctl io "$dev" screenshot ../../build/ios-shots/1-start.png
+          xcrun simctl openurl "$dev" "ibradm://download?url=https://www.youtube.com/watch?v=jNQXAC9IVRw"; sleep 5
+          xcrun simctl io "$dev" screenshot ../../build/ios-shots/2-link.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: build/mobile/*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-screens
+          path: build/ios-shots/*
+
+  mobile-release:
+    name: Put the phone apps in the release
+    needs: [build, android, ios]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: android
+          path: mobile
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios
+          path: mobile
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          files: |
+            mobile/IBRA-Download-Manager-Android-arm64.apk
+            mobile/IBRA-Download-Manager-Android-armv7.apk
+            mobile/IBRA-Download-Manager-iPhone-unsigned.ipa

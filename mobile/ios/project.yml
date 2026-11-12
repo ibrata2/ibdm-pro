@@ -1,0 +1,44 @@
+name: IBRA
+options:
+  bundleIdPrefix: com.ibrata2
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  YouTubeKit:
+    url: https://github.com/alexeichhorn/YouTubeKit
+    from: 0.4.9
+targets:
+  IBRA:
+    type: application
+    platform: iOS
+    sources: [IBRA]
+    dependencies:
+      - package: YouTubeKit
+    info:
+      path: IBRA/Info.plist
+      properties:
+        CFBundleDisplayName: IBRA DM
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSPhotoLibraryAddUsageDescription: "لحفظ الفيديوهات المحمّلة في الصور — To save downloaded videos to Photos"
+        LSSupportsOpeningDocumentsInPlace: true
+        UIFileSharingEnabled: true
+        UIUserInterfaceStyle: Dark
+        CFBundleURLTypes:
+          - CFBundleURLName: com.ibrata2.ibradm
+            CFBundleURLSchemes: [ibradm]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ibrata2.ibradm
+        PRODUCT_NAME: IBRA
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.9"
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
