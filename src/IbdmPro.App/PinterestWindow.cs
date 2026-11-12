@@ -12,6 +12,7 @@ public sealed class PinterestWindow : Window
     private readonly TextBox _link = Ui.Input();
     private readonly TextBox _folder = Ui.Input();
     private readonly ComboBox _queue = new() { MinWidth = 160 };
+    private readonly CheckBox _zip = Ui.Check(L.T("حفظ الألبوم بملف ZIP واحد (بدل مجلد)"), false);
     private readonly CheckBox _startNow = Ui.Check(L.T("ابدأ التحميل الآن (وإلا تُضاف إلى القائمة متوقفة)"), true);
     private readonly TextBlock _status = Ui.Text("", 12.5, Theme.Muted, wrap: TextWrapping.Wrap);
     private readonly StackPanel _result = new() { Visibility = Visibility.Collapsed };
@@ -91,6 +92,8 @@ public sealed class PinterestWindow : Window
         _queue.HorizontalAlignment = HorizontalAlignment.Left;
         queueBox.Children.Add(_queue);
         _result.Children.Add(queueBox);
+        _zip.Margin = new Thickness(0, 0, 0, 4);
+        _result.Children.Add(_zip);
         _result.Children.Add(_startNow);
         root.Children.Add(_result);
 
@@ -151,44 +154,30 @@ public sealed class PinterestWindow : Window
         finally { _read.IsEnabled = true; }
     }
 
+    /// <summary>The whole album is ONE download in the list (not one per picture): it downloads its files a few
+    /// at a time into the album's folder (or one ZIP), and carries on where it stopped.</summary>
     private void AddAll()
     {
         if (_board is null || _media.Count == 0) return;
-        var folder = _folder.Text.Trim();
-        if (folder.Length == 0) return;
-        try { Directory.CreateDirectory(folder); }
+        var target = _folder.Text.Trim().TrimEnd('\\', '/');
+        var parent = Path.GetDirectoryName(target);
+        var name = Path.GetFileName(target);
+        if (string.IsNullOrEmpty(parent) || string.IsNullOrEmpty(name)) return;
+        try { Directory.CreateDirectory(parent); }
         catch (Exception e) { Ui.Message(this, L.T("تعذر إنشاء المجلد"), e.Message); return; }
         var s = Settings.Current;
-        var queue = _queue.SelectedItem as string ?? Settings.DefaultQueueName;
-        var start = _startNow.IsChecked == true;
-        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var inList = _manager.Items.Select(i => Path.Combine(i.Folder, i.FileName)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var added = 0;
-        foreach (var m in _media)
+        var zip = _zip.IsChecked == true;
+        if (zip) name = Path.GetFileName(FileNames.Unique(Path.Combine(parent, name + ".zip")));
+        var cat = s.CategoryNamed("صور") ?? s.CategoryFor("a.jpg");
+        var item = new DownloadItem
         {
-            var dir = m.Section is null ? folder : Path.Combine(folder, FileNames.Clean(m.Section, "Section"));
-            var path = FileNames.Unique(Path.Combine(dir, FileNames.Clean(m.Name, "Pinterest") + m.Extension),
-                p => File.Exists(p) || File.Exists(p + ".ibdmpart") || inList.Contains(p) || used.Contains(p));
-            used.Add(path);
-            var name = Path.GetFileName(path);
-            var cat = s.CategoryFor(name);
-            var request = new RequestInfo { Referrer = _board.Root + "/", UserAgent = Http.DefaultUserAgent };
-            var item = m.Hls
-                ? new DownloadItem
-                {
-                    Kind = DownloadKind.Media, Url = m.Url, PageUrl = m.PinUrl, FileName = name, Folder = dir, Category = cat.Name, QueueName = queue,
-                    FormatSpec = YtDlp.SpecFor("best"), TotalBytes = -1, Quality = L.T("أفضل جودة"), Request = request,
-                }
-                : new DownloadItem
-                {
-                    Kind = DownloadKind.File, Url = m.Url, PageUrl = m.PinUrl, FileName = name, Folder = dir, Category = cat.Name, QueueName = queue,
-                    TotalBytes = -1, Resumable = false, Request = request,
-                };
-            _manager.Add(item, start);
-            added++;
-        }
-        Log.Write($"pinterest: {added} files from {_board.Name} → {folder}");
-        IbdmApp.Instance.Tray?.Notify(L.T("ألبوم Pinterest"), L.F("أُضيف {0} ملف إلى التحميلات", added), folder);
+            Kind = DownloadKind.Album, Url = _link.Text.Trim(), PageUrl = _link.Text.Trim(), FileName = name, Folder = parent,
+            Category = cat.Name, QueueName = _queue.SelectedItem as string ?? Settings.DefaultQueueName, AlbumZip = zip, TotalBytes = -1,
+            Quality = L.F("{0} ملف", _media.Count),
+        };
+        if (_startNow.IsChecked == true) _manager.Enqueue(item);
+        else _manager.Add(item, false);
+        Log.Write($"pinterest album: {_board.Name} ({_media.Count} files) → {item.FullPath}");
         Close();
     }
 }

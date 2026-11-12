@@ -491,3 +491,9 @@ Pinterest refused the request ({0})
 This isn't a Pinterest album (board) link. Open the album and copy the link from the address bar.
 Song video — MP4
 Suno now protects song files and only allows downloading them with its own download button (within the downloads your plan includes). Press the ⬇ download button on the song's page in Suno — the app catches the browser download and finishes it.
+Save the album as one ZIP file (instead of a folder)
+{0} files
+{0} of {1} files
+{0} of the album's files couldn't be downloaded — only the missing ones will be tried again
+Packing the album into a ZIP file…
+Complete — {0}

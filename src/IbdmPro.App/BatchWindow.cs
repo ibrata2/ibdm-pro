@@ -178,7 +178,7 @@ public sealed class BatchWindow : Window
             {
                 foreach (var e in _entries.Children.OfType<CheckBox>().Where(c => c.IsChecked == true).Select(c => (YtDlp.PlaylistEntry)c.Tag))
                 {
-                    _manager.Add(MediaItem(e.Url, e.Title, quality, queue, used), start);
+                    AddOne(MediaItem(e.Url, e.Title, quality, queue, used), start);
                     added++;
                 }
             }
@@ -195,18 +195,18 @@ public sealed class BatchWindow : Window
                         if (YtDlp.IsPlaylistUrl(url) && !url.Contains("v=", StringComparison.Ordinal) || url.Contains("/playlist?", StringComparison.OrdinalIgnoreCase))
                         {
                             var pl = await YtDlp.GetPlaylistAsync(url, new RequestInfo(), ct);
-                            foreach (var e in pl.Entries) { _manager.Add(MediaItem(e.Url, e.Title, quality, queue, used), start); added++; }
+                            foreach (var e in pl.Entries) { AddOne(MediaItem(e.Url, e.Title, quality, queue, used), start); added++; }
                             continue;
                         }
                         var probe = await Http.ProbeAsync(url, new RequestInfo(), ct);
                         if (probe.Error is null && !probe.LooksLikeWebPage)
                         {
-                            _manager.Add(FileItem(probe, url, queue, used), start);
+                            AddOne(FileItem(probe, url, queue, used), start);
                             added++;
                             continue;
                         }
                         var media = await YtDlp.GetInfoAsync(url, new RequestInfo(), ct);
-                        _manager.Add(MediaItem(media.Url, media.Title, quality, queue, used), start);
+                        AddOne(MediaItem(media.Url, media.Title, quality, queue, used), start);
                         added++;
                     }
                     catch (OperationCanceledException) { throw; }
@@ -223,6 +223,13 @@ public sealed class BatchWindow : Window
         }
         catch (OperationCanceledException) { }
         finally { _add.IsEnabled = true; }
+    }
+
+    /// <summary>Many downloads: they wait their turn (the parallel limit), with no progress window for each one.</summary>
+    private void AddOne(DownloadItem item, bool start)
+    {
+        if (start) _manager.Enqueue(item);
+        else _manager.Add(item, false);
     }
 
     private static DownloadItem MediaItem(string url, string title, string quality, string queue, HashSet<string> used)

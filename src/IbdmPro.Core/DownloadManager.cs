@@ -93,6 +93,17 @@ public sealed class DownloadManager : IDisposable
         }
     }
 
+    /// <summary>Adds a download that waits its turn (the parallel limit applies; no progress window pops up).
+    /// For many downloads added at once.</summary>
+    public void Enqueue(DownloadItem item)
+    {
+        item.Status = DownloadStatus.Queued;
+        lock (Store.Items) Store.Items.Insert(0, item);
+        Save();
+        ListChanged?.Invoke();
+        Pump();
+    }
+
     /// <summary>Starts now, even if the parallel limit is reached (the person asked for this one).</summary>
     public void Start(DownloadItem item)
     {
@@ -210,6 +221,10 @@ public sealed class DownloadManager : IDisposable
                 }
                 else File.Move(item.PartPath, final);
                 item.FileName = Path.GetFileName(final);
+            }
+            else if (item.Kind == DownloadKind.Album)
+            {
+                await Pinterest.DownloadAlbumAsync(item, Limiter, ct);
             }
             else
             {

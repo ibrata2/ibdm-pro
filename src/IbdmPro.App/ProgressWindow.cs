@@ -49,8 +49,13 @@ public sealed class ProgressWindow : Window
         }
         w = new ProgressWindow(item, manager);
         OpenWindows[item.Id] = w;
-        w.Show();
-        if (activate) Ui.ForceFront(w);
+        // A small file can finish (and its window close itself) before the window is shown: never an error box.
+        try
+        {
+            w.Show();
+            if (activate) Ui.ForceFront(w);
+        }
+        catch (InvalidOperationException) { OpenWindows.Remove(item.Id); }
     }
 
     /// <summary>For the build's snapshots.</summary>

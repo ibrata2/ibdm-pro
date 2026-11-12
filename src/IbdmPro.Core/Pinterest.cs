@@ -137,6 +137,128 @@ public static class Pinterest
         return all;
     }
 
+    // ---------- the album as one download ----------
+
+    /// <summary>Downloads a whole board as one download: every file into the album's folder, a few at a time,
+    /// skipping files already there (so a stopped album carries on where it stopped); then, if asked, one ZIP.
+    /// item.Url = the board link; item.Folder/item.FileName = where the album goes (a folder, or a .zip).</summary>
+    public static async Task DownloadAlbumAsync(DownloadItem item, SpeedLimiter limiter, CancellationToken ct)
+    {
+        item.Status = DownloadStatus.Processing;
+        item.Phase = L.T("جاري قراءة الألبوم…");
+        var board = await GetBoardAsync(Http.Client, item.Url, ct);
+        var media = await GetMediaAsync(Http.Client, board, null, ct);
+        if (media.Count == 0) throw new InvalidOperationException(L.T("لم يتم العثور على صور أو فيديوهات في هذا الألبوم (ربما فارغ أو خاص)."));
+        var dir = item.AlbumZip ? Path.Combine(item.Folder, Path.GetFileNameWithoutExtension(item.FileName)) : item.FullPath;
+        Directory.CreateDirectory(dir);
+
+        // The same names every time (board order), so files already downloaded are recognised.
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var jobs = new List<(Media M, string Path)>();
+        foreach (var m in media)
+        {
+            var sub = m.Section is null ? dir : System.IO.Path.Combine(dir, FileNames.Clean(m.Section, "Section"));
+            var path = FileNames.Unique(System.IO.Path.Combine(sub, FileNames.Clean(m.Name, "Pinterest") + m.Extension), used.Contains);
+            used.Add(path);
+            jobs.Add((m, path));
+        }
+
+        var total = jobs.Count;
+        var done = jobs.Count(j => File.Exists(j.Path));
+        long bytes = jobs.Where(j => File.Exists(j.Path)).Sum(j => new FileInfo(j.Path).Length);
+        item.Downloaded = bytes;
+        void Report()
+        {
+            item.Quality = L.F("{0} من {1} ملف", done, total);
+            // The size is known file by file: estimated from the files so far.
+            item.TotalBytes = done > 0 ? Math.Max(item.Downloaded, item.Downloaded * total / Math.Max(1, done)) : -1;
+        }
+        item.Phase = null;
+        item.Status = DownloadStatus.Downloading;
+        Report();
+        var failed = 0;
+        var referer = board.Root + "/";
+        await Parallel.ForEachAsync(jobs.Where(j => !File.Exists(j.Path)), new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct }, async (job, token) =>
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(job.Path)!);
+            var part = job.Path + ".ibdmpart";
+            for (var attempt = 1; ; attempt++)
+            {
+                long got = 0;
+                try
+                {
+                    if (job.M.Hls)
+                    {
+                        // A video only as a stream: yt-dlp joins it into one MP4.
+                        var v = new DownloadItem
+                        {
+                            Kind = DownloadKind.Media, Url = job.M.Url, PageUrl = job.M.PinUrl, FileName = System.IO.Path.GetFileName(job.Path),
+                            Folder = System.IO.Path.GetDirectoryName(job.Path)!, FormatSpec = "best", Request = new RequestInfo { Referrer = referer },
+                        };
+                        var path = await YtDlp.DownloadAsync(v, 4, limiter.BytesPerSecond, _ => { }, token);
+                        if (!string.Equals(path, job.Path, StringComparison.OrdinalIgnoreCase)) File.Move(path, job.Path, true);
+                        got = new FileInfo(job.Path).Length;
+                        item.AddDownloaded(got);
+                    }
+                    else
+                    {
+                        using var req = Http.Request(job.M.Url, new RequestInfo { Referrer = referer, UserAgent = Http.DefaultUserAgent });
+                        using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, token);
+                        resp.EnsureSuccessStatusCode();
+                        await using (var src = await resp.Content.ReadAsStreamAsync(token))
+                        await using (var dst = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024, true))
+                        {
+                            var buf = new byte[64 * 1024];
+                            int n;
+                            while ((n = await src.ReadAsync(buf, token)) > 0)
+                            {
+                                await limiter.WaitAsync(n, token);
+                                await dst.WriteAsync(buf.AsMemory(0, n), token);
+                                got += n;
+                                item.AddDownloaded(n);
+                            }
+                        }
+                        File.Move(part, job.Path, true);
+                    }
+                    Interlocked.Increment(ref done);
+                    Report();
+                    return;
+                }
+                catch (Exception e) when (e is not OperationCanceledException || !token.IsCancellationRequested)
+                {
+                    item.AddDownloaded(-got);
+                    try { File.Delete(part); } catch (Exception) { }
+                    if (attempt >= 3)
+                    {
+                        Log.Write($"album {item.FileName}: {job.M.Url}: {e.Message}");
+                        Interlocked.Increment(ref failed);
+                        return;
+                    }
+                    await Task.Delay(TimeSpan.FromSeconds(2 * attempt), token);
+                }
+            }
+        });
+        // Some files failed (the network, or the site said no for now): the album is retried by itself and only
+        // the missing files are downloaded again.
+        if (failed > 0) throw new IOException(L.F("تعذر تحميل {0} من ملفات الألبوم — سيُعاد المحاولة للناقص فقط", failed));
+
+        item.TotalBytes = item.Downloaded;
+        if (item.AlbumZip)
+        {
+            item.Status = DownloadStatus.Processing;
+            item.Phase = L.T("جاري ضغط الألبوم بملف ZIP…");
+            var zip = item.FullPath;
+            var tmp = zip + ".ibdmpart";
+            if (File.Exists(tmp)) File.Delete(tmp);
+            await Task.Run(() => System.IO.Compression.ZipFile.CreateFromDirectory(dir, tmp, System.IO.Compression.CompressionLevel.NoCompression, false), ct);
+            File.Move(tmp, zip, true);
+            Directory.Delete(dir, true);
+            item.TotalBytes = item.Downloaded = new FileInfo(zip).Length;
+            item.Phase = null;
+        }
+        item.Quality = L.F("{0} ملف", total);
+    }
+
     private static string? NextBookmark(JsonElement res)
     {
         if (!res.TryGetProperty("resource", out var r) || !r.TryGetProperty("options", out var o) || !o.TryGetProperty("bookmarks", out var b)

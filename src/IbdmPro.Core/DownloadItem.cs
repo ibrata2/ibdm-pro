@@ -5,7 +5,8 @@ namespace IbdmPro.Core;
 
 public enum DownloadStatus { Queued, Downloading, Processing, Paused, Completed, Error }
 
-public enum DownloadKind { File, Media }
+/// <summary>Album: a whole Pinterest board as ONE download (its files land in one folder, or one ZIP).</summary>
+public enum DownloadKind { File, Media, Album }
 
 /// <summary>A byte range fetched over its own connection. <see cref="End"/> is inclusive and can shrink while running
 /// when the range is split to give a finished connection more work.</summary>
@@ -58,6 +59,8 @@ public sealed class DownloadItem
     public bool AudioOnly { get; set; }
     public string? AudioFormat { get; set; }
     public string? Quality { get; set; }
+    /// <summary>An album saved as one ZIP file (<see cref="FileName"/> ends in .zip) instead of a folder.</summary>
+    public bool AlbumZip { get; set; }
 
     public DownloadStatus Status { get; set; } = DownloadStatus.Queued;
     public string? Error { get; set; }
@@ -78,10 +81,10 @@ public sealed class DownloadItem
     public string StatusText => Status switch
     {
         DownloadStatus.Queued => L.T("بالانتظار"),
-        DownloadStatus.Downloading => L.T("جاري التحميل"),
+        DownloadStatus.Downloading => Kind == DownloadKind.Album && Quality is not null ? L.F("جاري التحميل — {0}", Quality) : L.T("جاري التحميل"),
         DownloadStatus.Processing => Phase ?? L.T("جاري المعالجة"),
         DownloadStatus.Paused => L.T("متوقف"),
-        DownloadStatus.Completed => L.T("مكتمل"),
+        DownloadStatus.Completed => Kind == DownloadKind.Album && Quality is not null ? L.F("مكتمل — {0}", Quality) : L.T("مكتمل"),
         DownloadStatus.Error => L.T("خطأ"),
         _ => "",
     };

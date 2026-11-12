@@ -357,6 +357,16 @@ Check(Pinterest.IsBoardLink("https://www.pinterest.com/mashal0407/cool-diys/") &
 // Live (CI only, never fails the build: Pinterest may limit servers): read a real public board.
 if (Environment.GetEnvironmentVariable("IBDM_LIVE") == "1")
 {
+    try
+    {
+        var albumDir = Path.Combine(Path.GetTempPath(), "album-" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(albumDir);
+        var album = new DownloadItem { Kind = DownloadKind.Album, Url = "https://ca.pinterest.com/mashal0407/cool-diys/", Folder = albumDir, FileName = "cool diys.zip", AlbumZip = true };
+        await Pinterest.DownloadAlbumAsync(album, new SpeedLimiter(), CancellationToken.None);
+        using var z = System.IO.Compression.ZipFile.OpenRead(album.FullPath);
+        Console.WriteLine($"LIVE  Pinterest album → ZIP {new FileInfo(album.FullPath).Length} bytes, {z.Entries.Count} files: {string.Join(" | ", z.Entries.Select(e => e.FullName))}; folder left: {Directory.Exists(Path.Combine(albumDir, "cool diys"))}; {album.Quality}");
+    }
+    catch (Exception e) { Console.WriteLine($"LIVE  Pinterest album: {e.GetType().Name} {e.Message}"); }
     foreach (var u in new[] { "https://cdn1.suno.ai/e26bb25f-5af0-4c7a-bb87-9de814048b63.mp3", "https://cdn1.suno.ai/e26bb25f-5af0-4c7a-bb87-9de814048b63.mp4" })
     {
         var pr = await Http.ProbeAsync(u, new RequestInfo { Referrer = "https://suno.com/" });
