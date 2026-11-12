@@ -147,7 +147,8 @@ class MainActivity : Activity() {
 
     /** A link shared from another app (YouTube "Share", the browser…) or opened from the test tools. */
     private fun handle(intent: Intent?) {
-        val shared = intent?.getStringExtra(Intent.EXTRA_TEXT) ?: intent?.dataString ?: return
+        if (intent == null) return
+        val shared = intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.dataString ?: return
         val url = Regex("https?://\\S+").find(shared)?.value ?: return
         link.setText(url)
         intent.getStringExtra("mode")?.let { mode = it; paintModes() }
