@@ -409,8 +409,10 @@ jobs:
             adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://github.com/ibrata2/ibdm-pro/raw/main/assets/ibdm-512.png" --ez start true ; sleep 3
             adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.dailymotion.com/video/xbu9cma" --ez start true ; sleep 3
             adb shell am start -n com.ibrata2.ibradm/.MainActivity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" --es mode mp3 --ez start true ; sleep 40
-            adb exec-out screencap -p > shots/2-downloading.png ; sleep 120
-            adb exec-out screencap -p > shots/3-after.png
+            adb exec-out screencap -p > shots/2-downloading.png ; sleep 100
+            adb exec-out screencap -p > shots/3-after.png ; sleep 80
+            adb shell am start -n com.ibrata2.ibradm/.MainActivity ; sleep 3
+            adb exec-out screencap -p > shots/4-later.png
             adb shell content query --uri content://media/external/downloads --projection _display_name:_size:relative_path || true
             adb logcat -d | grep -iE "IBRA|youtubedl|AndroidRuntime" | tail -60 || true
       - uses: actions/upload-artifact@v4
@@ -418,6 +420,13 @@ jobs:
         with:
           name: android-screens
           path: shots/*
+      - name: Keep the screenshots on the mobile-snapshots branch
+        if: always()
+        run: |
+          cd shots
+          git init -q && git checkout -q -b mobile-android
+          git -c user.name=ci -c user.email=ci@local add -A && git -c user.name=ci -c user.email=ci@local commit -qm "android screenshots ${{ github.run_number }}"
+          git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:mobile-android
 
   ios:
     name: iPhone app (unsigned IPA)
@@ -460,6 +469,13 @@ jobs:
         with:
           name: ios-screens
           path: build/ios-shots/*
+      - name: Keep the screenshots on the mobile-snapshots branch
+        if: always()
+        run: |
+          cd build/ios-shots
+          git init -q && git checkout -q -b mobile-ios
+          git -c user.name=ci -c user.email=ci@local add -A && git -c user.name=ci -c user.email=ci@local commit -qm "ios screenshots ${{ github.run_number }}"
+          git push -qf https://x-access-token:${{ github.token }}@github.com/${{ github.repository }} HEAD:mobile-ios
 
   mobile-release:
     name: Put the phone apps in the release
