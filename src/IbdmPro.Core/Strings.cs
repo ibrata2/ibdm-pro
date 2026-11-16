@@ -503,6 +503,7 @@ public static partial class L
         ["جاري ضغط الألبوم بملف ZIP…"] = "Packing the album into a ZIP file…",
         ["مكتمل — {0}"] = "Complete — {0}",
         ["الملف كما هو"] = "The file as it is",
+        ["البحث عن تحديث"] = "Check for updates",
         ["صوتيات"] = "Audio",
         ["مضغوطات"] = "Compressed",
         ["برامج"] = "Programs",

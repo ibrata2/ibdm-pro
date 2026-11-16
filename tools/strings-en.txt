@@ -498,3 +498,4 @@ Save the album as one ZIP file (instead of a folder)
 Packing the album into a ZIP file…
 Complete — {0}
 The file as it is
+Check for updates

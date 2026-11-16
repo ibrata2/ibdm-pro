@@ -234,6 +234,7 @@ public sealed class MainWindow : Window
         buttons.Children.Add(Ui.Tool(L.T("حذف"), "", Delete, Theme.Red));
         buttons.Children.Add(Ui.Tool(L.T("حذف المكتملة"), "", DeleteCompleted, Theme.Red));
         buttons.Children.Add(Separator());
+        buttons.Children.Add(Ui.Tool(L.T("البحث عن تحديث"), "\uE895", () => Updater.ShowWindow(this), Theme.Green));
         buttons.Children.Add(Ui.Tool(L.T("خيارات"), "", OpenSettings, Theme.Ink));
         buttons.Children.Add(QueueTools());
         var searchBox = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 12, 0) };

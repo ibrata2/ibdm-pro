@@ -6,25 +6,25 @@ root = sys.argv[1]
 src = Image.open(f"{root}/assets/source/ibdm-icon-original.png").convert("RGBA")
 w, h = src.size
 px = src.load()
-# Alpha from brightness for the near-black surroundings; the tile itself is bright, so it stays opaque.
-out = Image.new("RGBA", (w, h))
-op = out.load()
-for y in range(h):
-    for x in range(w):
-        r, g, b, a = px[x, y]
-        m = max(r, g, b)
-        if m < 60:
-            alpha = int(max(0, (m - 18)) / 42 * 255)
-        else:
-            alpha = 255
-        op[x, y] = (r, g, b, min(a, alpha))
-# Opaque inside the tile no matter how dark (the black B): fill the tile's rounded square.
-mask = Image.new("L", (w, h), 0)
-# The tile of the current artwork (measured): x 61–1186, y 51–1159 of 1254.
-ImageDraw.Draw(mask).rounded_rectangle([int(w*0.058), int(h*0.048), int(w*0.942), int(h*0.918)], radius=int(w*0.11), fill=255)
-alpha = out.getchannel("A")
-alpha = Image.composite(Image.new("L", (w, h), 255), alpha, mask)
-out.putalpha(alpha)
+# Artwork that already has a transparent background (the corners are see-through) is used as it is.
+already_cut = px[0, 0][3] == 0 and px[w - 1, h - 1][3] == 0
+def cut_out_black():
+    # Alpha from brightness for the near-black surroundings; the tile itself is bright, so it stays opaque.
+    out = Image.new("RGBA", (w, h))
+    op = out.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            m = max(r, g, b)
+            alpha = int(max(0, (m - 18)) / 42 * 255) if m < 60 else 255
+            op[x, y] = (r, g, b, min(a, alpha))
+    # Opaque inside the tile no matter how dark (the black B): fill the tile's rounded square.
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([int(w*0.058), int(h*0.048), int(w*0.942), int(h*0.918)], radius=int(w*0.11), fill=255)
+    alpha = Image.composite(Image.new("L", (w, h), 255), out.getchannel("A"), mask)
+    out.putalpha(alpha)
+    return out
+out = src.copy() if already_cut else cut_out_black()
 bbox = out.getchannel("A").point(lambda v: 255 if v > 24 else 0).getbbox()
 out = out.crop(bbox)
 side = max(out.size)
