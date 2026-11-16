@@ -77,7 +77,7 @@
       <div class="b" title="${t('IBDM Pro — اختر الجودة وحمّل')}">
         <span class="g" title="${t('اسحب لتغيير المكان — نقرتين للرجوع للمكان الأصلي')}">⠿</span>
         <img class="i" alt="" src="${api.runtime.getURL('icons/icon48.png')}">
-        <span class="t">${t('تحميل هذا الفيديو')}</span><span class="s">IBRA Download Manager</span><span class="x" title="${t('إخفاء')}">✕</span>
+        <span class="t">${t('تحميل الفيديو بواسطة')}</span><span class="s">IBDM</span><span class="x" title="${t('إخفاء')}">✕</span>
         <span class="r" title="${t('اسحب لتكبير أو تصغير الزر')}"></span>
       </div>`;
     button = root.querySelector('.b');
@@ -283,12 +283,11 @@
   }
   const cleanName = n => n.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150).replace(/[. ]+$/, '');
 
+  // "تحميل الفيديو بواسطة IBDM" on a video, "تحميل الصوت بواسطة IBDM" on a song (its name shows on the tooltip).
   function labelText() {
-    if (current !== AUDIO) return t('تحميل هذا الفيديو');
-    const n = soundName(audio);
-    if (!n) return t('تحميل هذه الأغنية');
-    return t('تحميل') + ': \u2068' + (n.length > 38 ? n.slice(0, 36) + '…' : n) + '\u2069'; // the name keeps its own direction
+    return current === AUDIO ? t('تحميل الصوت بواسطة') : t('تحميل الفيديو بواسطة');
   }
+
 
   function scheduleHide() {
     clearTimeout(hideTimer);
@@ -335,7 +334,7 @@
     if (post && post !== location.href) src = '';
     sending = true;
     label.textContent = t('جاري الإرسال…');
-    const done = text => { label.textContent = text; setTimeout(() => { sending = false; if (label) label.textContent = t('تحميل هذا الفيديو'); }, 3500); };
+    const done = text => { label.textContent = text; setTimeout(() => { sending = false; if (label) label.textContent = labelText(); }, 3500); };
     // Never stay on "sending…": no answer in 15 seconds means something went wrong.
     const guard = setTimeout(() => done(t('لم يصل رد — حدّث الصفحة وحاول مرة ثانية')), 15000);
     if (!alive()) { clearTimeout(guard); done(t('أعد تحميل الصفحة')); return; }
