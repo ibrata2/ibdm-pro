@@ -485,6 +485,8 @@ public sealed class MainWindow : Window
                     AdImages[ad.Image!] = bmp;
                 }
                 img.Source = bmp;
+                // no empty box while the picture is still coming
+                if (bmp.IsDownloading) { frame.Visibility = Visibility.Collapsed; bmp.DownloadCompleted += (_, _) => frame.Visibility = Visibility.Visible; }
                 card.Children.Add(frame);
             }
             catch (Exception e) { Log.Write($"ad image: {e.Message}"); }

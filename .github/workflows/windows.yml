@@ -484,20 +484,37 @@ jobs:
   mobile-release:
     name: Put the phone apps in the release
     needs: [build, android, ios]
-    if: github.ref == 'refs/heads/main'
+    # Also when a phone build failed or was cancelled: the release then gets that phone's file from the previous
+    # release, so the "latest" download links never break.
+    if: always() && github.ref == 'refs/heads/main' && needs.build.result == 'success'
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: android
           path: mobile
       - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: ios
           path: mobile
+      - name: Fill in what is missing from the previous release
+        run: |
+          mkdir -p mobile
+          prev=$(gh release list -R ${{ github.repository }} --limit 10 --json tagName --jq '.[].tagName' | grep -v "^v1.0.${{ github.run_number }}$" | head -1)
+          for f in IBRA-Download-Manager-Android-arm64.apk IBRA-Download-Manager-Android-armv7.apk IBRA-Download-Manager-iPhone-unsigned.ipa; do
+            if [ ! -f "mobile/$f" ] && [ -n "$prev" ]; then
+              gh release download "$prev" -R ${{ github.repository }} -p "$f" -D mobile && echo "$f taken from $prev" || echo "$f is not in $prev either"
+            fi
+          done
+          ls -la mobile
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
+          fail_on_unmatched_files: false
           files: |
             mobile/IBRA-Download-Manager-Android-arm64.apk
             mobile/IBRA-Download-Manager-Android-armv7.apk
