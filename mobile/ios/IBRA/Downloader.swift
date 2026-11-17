@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Photos
 import YouTubeKit
@@ -95,19 +96,42 @@ final class Downloader: NSObject, ObservableObject {
             if Downloader.isYouTube(job.url) {
                 let yt = YouTube(url: source, methods: [.local, .remote])
                 let streams = try await yt.streams
-                let pick: YouTubeKit.Stream?
-                if job.mode == "audio" {
-                    pick = streams.filterAudioOnly().filter { $0.fileExtension == .m4a }.highestAudioBitrateStream()
-                        ?? streams.filterAudioOnly().highestAudioBitrateStream()
-                } else {
-                    pick = streams.filterVideoAndAudio().filter { $0.isNativelyPlayable }.highestResolutionStream()
-                        ?? streams.filterVideoAndAudio().highestResolutionStream()
+                if streams.isEmpty {
+                    throw Failure(t("يوتيوب ما أعطى أي جودة لهذا الفيديو — جرّب بعد قليل أو من شبكة ثانية", "YouTube gave no qualities for this video — try again later or on another network"))
                 }
-                guard let stream = pick else { throw Failure(t("لم يتم العثور على جودة يمكن تحميلها", "No downloadable quality was found")) }
-                source = stream.url
                 let title = (try? await yt.metadata)?.title ?? yt.videoID
-                name = Downloader.clean(title) + "." + stream.fileExtension.rawValue
                 update(job.id) { $0.title = title }
+                if job.mode != "audio" {
+                    // Best picture: YouTube keeps sound and picture apart above 360p, so take the best phone-playable
+                    // MP4 picture (up to 1080p) and the M4A sound, and put them together on the phone.
+                    let combined = streams.filterVideoAndAudio().filter { $0.isNativelyPlayable }.highestResolutionStream()
+                    let picture = streams.filterVideoOnly().filter { $0.isNativelyPlayable && $0.fileExtension == .mp4 && ($0.videoResolution ?? 0) <= 1080 }.highestResolutionStream()
+                    let sound = streams.filterAudioOnly().filter { $0.fileExtension == .m4a }.highestAudioBitrateStream()
+                    if let picture, let sound, (picture.videoResolution ?? 0) > (combined?.videoResolution ?? 0) {
+                        update(job.id) { $0.detail = t("تحميل الصورة…", "Downloading the picture…") }
+                        let (v, _) = try await download(picture.url)
+                        if jobs.first(where: { $0.id == job.id })?.status == .cancelled { return finished() }
+                        update(job.id) { $0.detail = t("تحميل الصوت…", "Downloading the sound…") }
+                        let (a, _) = try await download(sound.url)
+                        if jobs.first(where: { $0.id == job.id })?.status == .cancelled { return finished() }
+                        update(job.id) { $0.detail = t("جاري دمج الصورة والصوت…", "Putting picture and sound together…") }
+                        let target = Downloader.unique(Downloader.folder.appendingPathComponent(Downloader.clean(title) + ".mp4"))
+                        try await Downloader.merge(video: v, audio: a, to: target)
+                        try? FileManager.default.removeItem(at: v); try? FileManager.default.removeItem(at: a)
+                        complete(job, target)
+                        return finished()
+                    }
+                    guard let combined else { throw Failure(t("لم يتم العثور على جودة يمكن تحميلها", "No downloadable quality was found")) }
+                    source = combined.url
+                    name = Downloader.clean(title) + "." + combined.fileExtension.rawValue
+                } else {
+                    guard let sound = streams.filterAudioOnly().filter({ $0.fileExtension == .m4a }).highestAudioBitrateStream()
+                        ?? streams.filterAudioOnly().highestAudioBitrateStream() else {
+                        throw Failure(t("لم يتم العثور على صوت يمكن تحميله", "No downloadable sound was found"))
+                    }
+                    source = sound.url
+                    name = Downloader.clean(title) + "." + sound.fileExtension.rawValue
+                }
             }
             let (temp, response) = try await download(source)
             if jobs.first(where: { $0.id == job.id })?.status == .cancelled { return finished() }
@@ -118,12 +142,7 @@ final class Downloader: NSObject, ObservableObject {
             if (fileName as NSString).pathExtension.isEmpty, let ext = Downloader.sniff(temp) { fileName += "." + ext }
             let target = Downloader.unique(Downloader.folder.appendingPathComponent(fileName))
             try FileManager.default.moveItem(at: temp, to: target)
-            let size = (try? FileManager.default.attributesOfItem(atPath: target.path)[.size] as? Int64) ?? 0
-            update(job.id) {
-                $0.status = .done; $0.progress = 1; $0.file = target.lastPathComponent
-                if $0.title.isEmpty { $0.title = (target.lastPathComponent as NSString).deletingPathExtension }
-                $0.detail = target.lastPathComponent + " — " + ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
-            }
+            complete(job, target)
         } catch {
             if jobs.first(where: { $0.id == job.id })?.status != .cancelled {
                 let message = (error as? Failure)?.message ?? (error as? URLError)?.localizedDescription ?? error.localizedDescription
@@ -131,6 +150,41 @@ final class Downloader: NSObject, ObservableObject {
             }
         }
         finished()
+    }
+
+    private func complete(_ job: Job, _ target: URL) {
+        let size = (try? FileManager.default.attributesOfItem(atPath: target.path)[.size] as? Int64) ?? 0
+        update(job.id) {
+            $0.status = .done; $0.progress = 1; $0.file = target.lastPathComponent
+            if $0.title.isEmpty { $0.title = (target.lastPathComponent as NSString).deletingPathExtension }
+            $0.detail = target.lastPathComponent + " — " + ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+        }
+    }
+
+    /// Picture + sound into one MP4, without re-encoding (fast, same quality).
+    static func merge(video: URL, audio: URL, to out: URL) async throws {
+        let v = video.deletingPathExtension().appendingPathExtension("mp4"), a = audio.deletingPathExtension().appendingPathExtension("m4a")
+        try? FileManager.default.moveItem(at: video, to: v); try? FileManager.default.moveItem(at: audio, to: a)
+        defer { try? FileManager.default.removeItem(at: v); try? FileManager.default.removeItem(at: a) }
+        let comp = AVMutableComposition()
+        let va = AVURLAsset(url: v), aa = AVURLAsset(url: a)
+        guard let vt = try await va.loadTracks(withMediaType: .video).first,
+              let at = try await aa.loadTracks(withMediaType: .audio).first,
+              let cv = comp.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
+              let ca = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            throw Failure(t("تعذر قراءة الصورة أو الصوت", "Couldn't read the picture or the sound"))
+        }
+        let vd = try await va.load(.duration), ad = try await aa.load(.duration)
+        try cv.insertTimeRange(CMTimeRange(start: .zero, duration: vd), of: vt, at: .zero)
+        try ca.insertTimeRange(CMTimeRange(start: .zero, duration: CMTimeMinimum(vd, ad)), of: at, at: .zero)
+        cv.preferredTransform = try await vt.load(.preferredTransform)
+        guard let ex = AVAssetExportSession(asset: comp, presetName: AVAssetExportPresetPassthrough) else {
+            throw Failure(t("تعذر دمج الصورة والصوت", "Couldn't put picture and sound together"))
+        }
+        ex.outputURL = out
+        ex.outputFileType = .mp4
+        await ex.export()
+        if ex.status != .completed { throw Failure(ex.error?.localizedDescription ?? t("تعذر دمج الصورة والصوت", "Couldn't put picture and sound together")) }
     }
 
     private func finished() {

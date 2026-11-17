@@ -74,8 +74,8 @@ struct ContentView: View {
             Button(action: download) {
                 Label(t("تحميل", "Download"), systemImage: "arrow.down.circle.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
             }.buttonStyle(.borderedProminent).tint(red)
-            Text(t("على الآيفون: يوتيوب (فيديو مع الصوت حتى 720p أو الصوت فقط) وأي رابط ملف مباشر. الملفات في تطبيق «الملفات» ← على iPhone ← IBRA.",
-                   "On iPhone: YouTube (video with sound up to 720p, or audio only) and any direct file link. Files are in the Files app → On My iPhone → IBRA."))
+            Text(t("على الآيفون: يوتيوب (فيديو مع الصوت حتى 1080p أو الصوت فقط) وأي رابط ملف مباشر. الملفات في تطبيق «الملفات» ← على iPhone ← IBRA.",
+                   "On iPhone: YouTube (video with sound up to 1080p, or audio only) and any direct file link. Files are in the Files app → On My iPhone → IBRA."))
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(14).background(card).clipShape(RoundedRectangle(cornerRadius: 16))
