@@ -42,7 +42,8 @@ public static class Snapshots
 
         app.Main.ShowUpdateBadge("1.0.99");
         MessageCenter.SetForPreview(MessageFeed.Parse("""
-            [{"id":"ad1","kind":"app","title":"IBRA LENS","text":"برنامج جديد للبحث عن الصور بالحاسبة بالوصف.","url":"https://t.me/ibraprogram","date":"2026-11-10 09:00"}]
+            [{"id":"ad1","kind":"app","title":"IBRA LENS","text":"برنامج جديد للبحث عن الصور بالحاسبة بالوصف.","url":"https://ibraprogram.netlify.app/","date":"2026-11-10 09:00","image":"https://raw.githubusercontent.com/ibrata2/ibdm-pro/main/assets/ibdm-512.png"},
+             {"id":"ad2","kind":"ad","title":"IBRA PLAYER","text":"مشغل ميديا بستايل زجاجي.","url":"https://ibraprogram.netlify.app/","date":"2026-11-09 09:00"}]
             """));
         app.Main.RefreshAd();
         app.Main.Sync();

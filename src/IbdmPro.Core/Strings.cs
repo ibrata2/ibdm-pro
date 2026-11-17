@@ -508,6 +508,8 @@ public static partial class L
         ["موقع البرامج: ibraprogram.netlify.app"] = "Apps website: ibraprogram.netlify.app",
         ["تيك توك: ibraprogram"] = "TikTok: ibraprogram",
         ["تيك توك"] = "TikTok",
+        ["كل برامج ابراهيم الخزرجي بمكان واحد — تحميل مباشر"] = "All of Ibrahim Al-Khazraji's apps in one place — direct downloads",
+        ["برامجنا"] = "Our apps",
         ["صوتيات"] = "Audio",
         ["مضغوطات"] = "Compressed",
         ["برامج"] = "Programs",

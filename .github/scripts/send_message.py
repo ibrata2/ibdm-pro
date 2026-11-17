@@ -21,6 +21,9 @@ else:
     title = os.environ.get("TITLE", "").strip()
     text = os.environ.get("TEXT", "").strip().replace("\\n", "\n")
     link = os.environ.get("LINK", "").strip()
+    image = os.environ.get("IMAGE", "").strip()
+    if image and not image.startswith("https://"):
+        image = "https://" + image.split("://")[-1]
     if link and not link.startswith(("http://", "https://")):
         link = "https://" + link
     days = int((os.environ.get("DAYS") or "0").strip() or 0)
@@ -35,6 +38,7 @@ else:
         "expires": (now + datetime.timedelta(days=days)).strftime("%Y-%m-%d") if days > 0 else None,
         "lang": os.environ.get("LANG_FOR", "all") or "all",
         "kind": os.environ.get("KIND", "message") or "message",
+        "image": image or None,
     }
     msgs.append(msg)
     print("added:", json.dumps(msg, ensure_ascii=False))

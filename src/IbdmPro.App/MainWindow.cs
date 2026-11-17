@@ -406,33 +406,101 @@ public sealed class MainWindow : Window
 
     private readonly ContentControl _adHost = new();
 
-    /// <summary>The ad card at the bottom of the side bar (the newest ad / new program the developer sent).</summary>
+    /// <summary>The changing card at the bottom of the side bar: the developer's ads and new programs, one after
+    /// another (every 8 seconds), each with its picture if it has one. A click on the picture, the title or the
+    /// text opens its link. With no ads it shows the apps website.</summary>
+    private List<AppMessage> _ads = [];
+    private int _adIndex;
+    private DispatcherTimer? _adTimer;
+    private static readonly Dictionary<string, System.Windows.Media.Imaging.BitmapImage> AdImages = [];
+
     public void RefreshAd()
     {
-        var ad = MessageFeed.CurrentAd(MessageCenter.Latest.Count > 0 ? MessageCenter.Latest : MessageFeed.Current(MessageFeed.Cached(), L.Lang, DateTime.UtcNow));
-        if (ad is null) { _adHost.Content = null; return; }
+        _ads = MessageFeed.CurrentAds(MessageCenter.Latest.Count > 0 ? MessageCenter.Latest : MessageFeed.Current(MessageFeed.Cached(), L.Lang, DateTime.UtcNow));
+        if (_ads.Count == 0)
+            _ads = [new AppMessage { Id = "_site", Kind = "site", Title = L.T("موقع البرامج"), Text = L.T("كل برامج ابراهيم الخزرجي بمكان واحد — تحميل مباشر"), Url = Updater.Page }];
+        if (_adIndex >= _ads.Count) _adIndex = 0;
+        ShowAd(animate: false);
+        if (_adTimer is null)
+        {
+            _adTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+            _adTimer.Tick += (_, _) =>
+            {
+                if (_ads.Count < 2 || _adHost.IsMouseOver) return; // stays while the mouse is on it
+                _adIndex = (_adIndex + 1) % _ads.Count;
+                ShowAd(animate: true);
+            };
+            _adTimer.Start();
+        }
+    }
+
+    private void ShowAd(bool animate)
+    {
+        var ad = _ads[_adIndex];
+        var url = ad.HasLink ? ad.Url! : null;
+        void Go() { if (url is not null) Ui.Open(url); }
         var card = new StackPanel();
         var top = new DockPanel();
-        var close = Ui.Button("", "\uE711", Theme.ToolButton, () => { MessageFeed.CloseAd(ad.Id); RefreshAd(); });
-        close.Padding = new Thickness(3);
-        close.ToolTip = L.T("إخفاء");
-        DockPanel.SetDock(close, Dock.Right);
-        top.Children.Add(close);
-        top.Children.Add(Ui.Text(ad.Kind == "app" ? L.T("برنامج جديد") : L.T("إعلان"), 11, Theme.Gold, bold: true));
+        if (ad.Kind != "site")
+        {
+            var close = Ui.Button("", "\uE711", Theme.ToolButton, () => { MessageFeed.CloseAd(ad.Id); RefreshAd(); });
+            close.Padding = new Thickness(3);
+            close.ToolTip = L.T("إخفاء");
+            DockPanel.SetDock(close, Dock.Right);
+            top.Children.Add(close);
+        }
+        if (_ads.Count > 1)
+        {
+            // dots: which one of the ads this is (a click shows that one)
+            var dots = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) };
+            for (var k = 0; k < _ads.Count; k++)
+            {
+                var n = k;
+                var dot = new Border { Width = k == _adIndex ? 14 : 6, Height = 6, CornerRadius = new CornerRadius(3), Margin = new Thickness(2, 0, 2, 0),
+                    Background = k == _adIndex ? Theme.Gold : Theme.Line, Cursor = Cursors.Hand };
+                dot.MouseLeftButtonUp += (_, e) => { e.Handled = true; _adIndex = n; ShowAd(animate: true); };
+                dots.Children.Add(dot);
+            }
+            DockPanel.SetDock(dots, Dock.Right);
+            top.Children.Add(dots);
+        }
+        top.Children.Add(Ui.Text(ad.Kind switch { "app" => L.T("برنامج جديد"), "site" => L.T("برامجنا"), _ => L.T("إعلان") }, 11, Theme.Gold, bold: true));
         card.Children.Add(top);
+        if (ad.HasImage)
+        {
+            var img = new Image { Stretch = Stretch.UniformToFill, MaxHeight = 120 };
+            var frame = new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, Margin = new Thickness(0, 6, 0, 2), Child = img, Background = Theme.Card };
+            frame.Clip = null;
+            try
+            {
+                if (!AdImages.TryGetValue(ad.Image!, out var bmp))
+                {
+                    bmp = new System.Windows.Media.Imaging.BitmapImage();
+                    bmp.BeginInit();
+                    bmp.UriSource = new Uri(ad.Image!);
+                    bmp.DecodePixelWidth = 320;
+                    bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bmp.EndInit();
+                    bmp.DownloadFailed += (_, _) => frame.Visibility = Visibility.Collapsed;
+                    AdImages[ad.Image!] = bmp;
+                }
+                img.Source = bmp;
+                card.Children.Add(frame);
+            }
+            catch (Exception e) { Log.Write($"ad image: {e.Message}"); }
+        }
         if (ad.Title.Length > 0) card.Children.Add(Ui.Text(ad.Title, 13, Theme.Ink, bold: true, wrap: TextWrapping.Wrap));
         if (ad.Text.Length > 0)
         {
             var body = Ui.Text(ad.Text, 12, Theme.Muted, wrap: TextWrapping.Wrap);
             body.Margin = new Thickness(0, 4, 0, 0);
-            body.MaxHeight = 90;
+            body.MaxHeight = 70;
             body.TextTrimming = TextTrimming.CharacterEllipsis;
             card.Children.Add(body);
         }
-        if (ad.HasLink)
+        if (url is not null)
         {
-            var url = ad.Url!;
-            var open = Ui.Button(L.T("فتح"), "\uE8A7", Theme.PrimaryButton, () => Ui.Open(url));
+            var open = Ui.Button(L.T("فتح"), "\uE8A7", Theme.PrimaryButton, Go);
             open.Margin = new Thickness(0, 8, 0, 0);
             open.FontSize = 12;
             open.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -440,7 +508,31 @@ public sealed class MainWindow : Window
         }
         var box = Ui.Card(card, new Thickness(10, 8, 10, 10));
         box.BorderBrush = Theme.Gold;
+        if (url is not null)
+        {
+            // the picture, the title and the text open the link too
+            box.Cursor = Cursors.Hand;
+            box.ToolTip = url;
+            box.MouseLeftButtonUp += (_, e) =>
+            {
+                if (e.OriginalSource is DependencyObject d && FindButton(d)) return;
+                Go();
+            };
+        }
         _adHost.Content = box;
+        if (animate)
+        {
+            box.Opacity = 0;
+            box.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(350)));
+        }
+    }
+
+    /// <summary>True when the click was on a button inside the card (the close / open buttons handle their own clicks).</summary>
+    private static bool FindButton(DependencyObject d)
+    {
+        for (var x = d; x is not null; x = x is Visual ? VisualTreeHelper.GetParent(x) : LogicalTreeHelper.GetParent(x))
+            if (x is System.Windows.Controls.Primitives.ButtonBase) return true;
+        return false;
     }
 
     private UIElement NavItem(string key, string text, string glyph, Brush color)

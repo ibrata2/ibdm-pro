@@ -22,6 +22,10 @@ public sealed class AppMessage
     /// <summary>"message" (a notice), "ad" (an ad for a program — also kept in the app's side bar) or
     /// "app" (a new program is out — also kept in the side bar).</summary>
     public string? Kind { get; set; } = "message";
+    /// <summary>Optional picture (https link) shown on the ad card in the side bar.</summary>
+    public string? Image { get; set; }
+
+    public bool HasImage => Image is { Length: > 0 } i && i.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
     public bool IsAd => Kind is "ad" or "app";
 
@@ -98,6 +102,15 @@ public static class MessageFeed
         try { closed = File.Exists(DismissedFile) ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(DismissedFile)) ?? [] : []; }
         catch (Exception) { closed = []; }
         return current.Where(m => m.IsAd && !closed.Contains(m.Id)).OrderByDescending(m => m.When).FirstOrDefault();
+    }
+
+    /// <summary>Every ad / new-program message the user has not closed, newest first (the side bar shows them in turn).</summary>
+    public static List<AppMessage> CurrentAds(IEnumerable<AppMessage> current)
+    {
+        HashSet<string> closed;
+        try { closed = File.Exists(DismissedFile) ? JsonSerializer.Deserialize<HashSet<string>>(File.ReadAllText(DismissedFile)) ?? [] : []; }
+        catch (Exception) { closed = []; }
+        return current.Where(m => m.IsAd && !closed.Contains(m.Id)).OrderByDescending(m => m.When).ToList();
     }
 
     public static void CloseAd(string id)

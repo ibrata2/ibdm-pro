@@ -23,6 +23,10 @@ on:
         description: "رابط (اختياري) / Link (optional)"
         required: false
         default: ""
+      image:
+        description: "رابط صورة للإعلان (اختياري، https) — تظهر بمربع الإعلانات / Picture link (optional)"
+        required: false
+        default: ""
       lang:
         description: "لمن تظهر / Who sees it"
         type: choice
@@ -51,6 +55,7 @@ jobs:
           TITLE: ${{ inputs.title }}
           TEXT: ${{ inputs.text }}
           LINK: ${{ inputs.link }}
+          IMAGE: ${{ inputs.image }}
           LANG_FOR: ${{ inputs.lang }}
           DAYS: ${{ inputs.days }}
           ACTION: ${{ inputs.action }}
