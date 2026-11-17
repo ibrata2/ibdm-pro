@@ -12,7 +12,7 @@ public sealed class Tray : IDisposable
 
     public Tray(IbdmApp app)
     {
-        var menu = new WF.ContextMenuStrip { RightToLeft = L.Rtl ? WF.RightToLeft.Yes : WF.RightToLeft.No };
+        var menu = new WF.ContextMenuStrip { RightToLeft = WF.RightToLeft.No };
         menu.Items.Add(L.T("فتح البرنامج"), null, (_, _) => app.ShowMain());
         menu.Items.Add(L.T("إضافة رابط…"), null, (_, _) => { app.ShowMain(); app.Main.AddUrl(); });
         menu.Items.Add(L.T("الرسائل"), null, (_, _) => { app.ShowMain(); MessagesWindow.Show(app.Main); });

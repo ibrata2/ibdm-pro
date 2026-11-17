@@ -172,7 +172,7 @@ public sealed class MainWindow : Window
         }
 
         // Arabic: the menus start on the right, like the rest of the window.
-        var menus = new Menu { Height = 29, Background = Theme.Panel, FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight, Padding = new Thickness(4, 0, 4, 0) };
+        var menus = new Menu { Height = 29, Background = Theme.Panel, FlowDirection = FlowDirection.LeftToRight, Padding = new Thickness(4, 0, 4, 0) };
         var tasks = new MenuItem { Header = L.T("المهام") };
         tasks.Items.Add(Command("تحميل جديد", AddUrl));
         tasks.Items.Add(Command("تحميل فيديو من رابط…", AddVideo));
@@ -223,7 +223,7 @@ public sealed class MainWindow : Window
         menus.Items.Add(registration);
 
         // Like the menus: in Arabic the buttons start on the right ("إضافة رابط" first), in English on the left.
-        var dir = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        var dir = FlowDirection.LeftToRight;
         var tools = new DockPanel { Height = 72, LastChildFill = false, Background = Theme.Panel, FlowDirection = dir };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 8, 0), FlowDirection = dir };
         buttons.Children.Add(Ui.Tool(L.T("إضافة رابط"), "", AddUrl));
@@ -259,7 +259,7 @@ public sealed class MainWindow : Window
 
     private UIElement QueueTools()
     {
-        var menu = new ContextMenu { FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
+        var menu = new ContextMenu { FlowDirection = FlowDirection.LeftToRight };
         var button = Ui.Tool(L.T("قوائم الانتظار"), "", () => { RefreshQueueMenu(menu); menu.IsOpen = true; });
         button.ContextMenu = menu;
         button.ContextMenuOpening += (_, _) => RefreshQueueMenu(menu);
@@ -608,7 +608,7 @@ public sealed class MainWindow : Window
             }
         };
         _list.SelectionChanged += (_, _) => UpdateDetail();
-        var menu = new ContextMenu { FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
+        var menu = new ContextMenu { FlowDirection = FlowDirection.LeftToRight };
         _list.ContextMenu = menu;
         _list.ContextMenuOpening += (_, e) => { if (Selected().Count == 0) e.Handled = true; else FillMenu(menu); };
     }

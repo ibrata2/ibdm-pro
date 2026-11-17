@@ -274,7 +274,7 @@ public static class Theme
         bd.SetBinding(Border.PaddingProperty, TP("Padding"));
         var dock = new FrameworkElementFactory(typeof(DockPanel));
         var arrow = new FrameworkElementFactory(typeof(TextBlock), "Arrow");
-        arrow.SetValue(TextBlock.TextProperty, L.Rtl ? "\uE76B" : "\uE76C");
+        arrow.SetValue(TextBlock.TextProperty, "\uE76C");
         arrow.SetValue(TextBlock.FontFamilyProperty, Icons);
         arrow.SetValue(TextBlock.FontSizeProperty, 9.0);
         arrow.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -694,7 +694,9 @@ public static class Theme
 /// <summary>Small builders so windows read like a description of their layout.</summary>
 public static class Ui
 {
-    public static TextBlock Text(string s, double size = 13, Brush? fg = null, bool bold = false, TextWrapping wrap = TextWrapping.NoWrap) => new()
+    /// <summary>The layout is left to right in both languages (like the English app); Arabic text keeps its own
+    /// direction inside its line (so punctuation lands where it belongs) and still lines up on the left.</summary>
+    public static TextBlock Text(string s, double size = 13, Brush? fg = null, bool bold = false, TextWrapping wrap = TextWrapping.NoWrap) => Directed(new()
     {
         Text = s,
         FontSize = size,
@@ -703,7 +705,19 @@ public static class Ui
         TextWrapping = wrap,
         TextTrimming = wrap == TextWrapping.NoWrap ? TextTrimming.CharacterEllipsis : TextTrimming.None,
         VerticalAlignment = VerticalAlignment.Center,
-    };
+    });
+
+    public static TextBlock Directed(TextBlock t)
+    {
+        if (DirectionOf(t.Text) == FlowDirection.RightToLeft && HasArabic(t.Text))
+        {
+            t.FlowDirection = FlowDirection.RightToLeft;
+            t.TextAlignment = TextAlignment.Right; // right-to-left "end" = the left edge, like every other line
+        }
+        return t;
+    }
+
+    private static bool HasArabic(string? s) => (s ?? "").Any(c => c is >= '\u0600' and <= '\u06FF' or >= '\uFB50' and <= '\uFEFC');
 
     /// <summary>English/number text (sizes, speeds, qualities) shown left-to-right inside the Arabic layout,
     /// so "94.8 MB" never turns into "MB 94.8".</summary>
@@ -723,7 +737,7 @@ public static class Ui
             if (c is >= '\u0590' and <= '\u08FF' or >= '\uFB1D' and <= '\uFEFC') return FlowDirection.RightToLeft;
             if (char.IsLetter(c)) return FlowDirection.LeftToRight;
         }
-        return L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        return FlowDirection.LeftToRight;
     }
 
     public static TextBlock Glyph(string g, double size = 16, Brush? fg = null) => new()
@@ -804,10 +818,10 @@ public static class Ui
         Padding = padding ?? new Thickness(14),
     };
 
-    public static UIElement Label(string text) => new TextBlock
+    public static UIElement Label(string text) => Directed(new TextBlock
     {
         Text = text, FontSize = 12, Foreground = Theme.Muted, Margin = new Thickness(0, 10, 0, 4),
-    };
+    });
 
     public static ImageSource AppIcon(int size = 256)
     {
@@ -831,10 +845,10 @@ public static class Ui
         w.Foreground = Theme.Ink;
         w.FontFamily = Theme.Font;
         w.FontSize = 13;
-        // The window stays left-to-right so Windows keeps minimize / maximize / close on the right in both
-        // languages; its content (set after this) follows the language.
+        // Left to right in both languages, like the English app: minimize / maximize / close on the right,
+        // menus and buttons from the left. Arabic text keeps its own direction inside each line (Ui.Text).
         w.FlowDirection = FlowDirection.LeftToRight;
-        var contentDir = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        var contentDir = FlowDirection.LeftToRight;
         System.ComponentModel.DependencyPropertyDescriptor.FromProperty(ContentControl.ContentProperty, typeof(Window))
             .AddValueChanged(w, (_, _) => { if (w.Content is FrameworkElement fe) fe.FlowDirection = contentDir; });
         w.Icon = AppIcon(32);

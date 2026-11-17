@@ -126,7 +126,7 @@ public sealed class ScheduleWindow : Window
         TimeSpan.TryParse(q.StartTime, System.Globalization.CultureInfo.InvariantCulture, out var at);
         var hour = new ComboBox { Width = 70, ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("00")).ToList(), SelectedIndex = at.Hours };
         var minute = new ComboBox { Width = 70, ItemsSource = Enumerable.Range(0, 12).Select(m => (m * 5).ToString("00")).ToList(), SelectedIndex = Math.Clamp(at.Minutes / 5, 0, 11) };
-        var time = new StackPanel { Orientation = Orientation.Horizontal, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = L.Rtl ? HorizontalAlignment.Right : HorizontalAlignment.Left };
+        var time = new StackPanel { Orientation = Orientation.Horizontal, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = HorizontalAlignment.Left };
         time.Children.Add(hour);
         var colon = Ui.Text(":", 16, Theme.Ink, bold: true);
         colon.Margin = new Thickness(6, 0, 6, 0);

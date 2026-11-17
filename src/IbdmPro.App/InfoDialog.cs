@@ -454,7 +454,7 @@ public sealed class InfoDialog : Window
         var popup = new Popup
         {
             PlacementTarget = picker, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true,
-            PopupAnimation = PopupAnimation.Fade, FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
+            PopupAnimation = PopupAnimation.Fade, FlowDirection = FlowDirection.LeftToRight,
             Child = new Border
             {
                 Background = Theme.Card, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10),
