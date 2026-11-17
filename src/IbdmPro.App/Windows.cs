@@ -248,7 +248,9 @@ public sealed class AboutWindow : Window
         credit.Margin = new Thickness(0, 18, 0, 14);
         root.Children.Add(credit);
 
+        root.Children.Add(Center(Link(L.T("موقع البرامج: ibraprogram.netlify.app"), Updater.Page)));
         root.Children.Add(Center(Link(L.T("قناة البرامج على تيليكرام: t.me/ibraprogram"), "https://t.me/ibraprogram")));
+        root.Children.Add(Center(Link(L.T("تيك توك: ibraprogram"), "https://www.tiktok.com/@ibraprogram")));
         root.Children.Add(Center(Ui.Text(L.T("للطلبات البرمجية: 07818814000"), 13, Theme.Ink)));
         var upd = Ui.Button(L.T("البحث عن أحدث إصدار"), "\uE895", Theme.PrimaryButton, () => Updater.ShowWindow(this));
         upd.HorizontalAlignment = HorizontalAlignment.Center;

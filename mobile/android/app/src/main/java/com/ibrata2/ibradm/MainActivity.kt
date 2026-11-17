@@ -249,13 +249,14 @@ class MainActivity : Activity() {
 
     private fun about() {
         val msg = L.t(
-            "IBRA Download Manager ${BuildConfig.VERSION_NAME}\n\nبرمجة و تطوير ابراهيم الخزرجي\n\nالملفات تُحفظ في: التنزيلات / IBRA Download Manager\n\nتيليجرام: t.me/ibraprogram\nتيك توك: ibraprogram",
-            "IBRA Download Manager ${BuildConfig.VERSION_NAME}\n\nProgrammed and developed by Ibrahim Al-Khazraji\n\nFiles are saved in: Downloads / IBRA Download Manager\n\nTelegram: t.me/ibraprogram\nTikTok: ibraprogram")
+            "IBRA Download Manager ${BuildConfig.VERSION_NAME}\n\nبرمجة و تطوير ابراهيم الخزرجي\n\nالملفات تُحفظ في: التنزيلات / IBRA Download Manager\n\nموقع البرامج: ibraprogram.netlify.app\nتيليجرام: t.me/ibraprogram\nتيك توك: ibraprogram",
+            "IBRA Download Manager ${BuildConfig.VERSION_NAME}\n\nProgrammed and developed by Ibrahim Al-Khazraji\n\nFiles are saved in: Downloads / IBRA Download Manager\n\nApps website: ibraprogram.netlify.app\nTelegram: t.me/ibraprogram\nTikTok: ibraprogram")
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(L.t("حول", "About")).setMessage(msg)
-            .setPositiveButton(L.t("تيليجرام", "Telegram")) { _, _ -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/ibraprogram"))) }
-            .setNeutralButton(L.t("تيك توك", "TikTok")) { _, _ -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.tiktok.com/@ibraprogram"))) }
-            .setNegativeButton(L.t("إغلاق", "Close"), null).show()
+            .setPositiveButton(L.t("موقع البرامج", "Website")) { _, _ -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://ibraprogram.netlify.app/"))) }
+            .setNeutralButton(L.t("تيليجرام", "Telegram")) { _, _ -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/ibraprogram"))) }
+            .setNegativeButton(L.t("تيك توك", "TikTok")) { _, _ -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.tiktok.com/@ibraprogram"))) }
+            .show()
     }
 
     /** A newer version on GitHub: a red bar at the top opens the APK for this phone. */

@@ -12,7 +12,7 @@ public static class Updater
 {
     private const string Api = "https://api.github.com/repos/ibrata2/ibdm-pro/releases/latest";
     /// <summary>Where people get IBDM Pro: the Telegram channel. (Updates themselves still come from GitHub, above.)</summary>
-    public const string Page = "https://t.me/ibraprogram";
+    public const string Page = "https://ibraprogram.netlify.app/";
 
     public sealed record Release(Version Version, string Tag, string SetupUrl, long Size, string Notes);
 
@@ -226,7 +226,7 @@ public sealed class UpdateWindow : Window
         go.IsDefault = true;
         go.Margin = new Thickness(0, 0, 8, 0);
         row.Children.Add(go);
-        var page = Ui.Button(L.T("قناة التليكرام"), "", Theme.Button, () => Ui.Open(Updater.Page));
+        var page = Ui.Button(L.T("موقع البرامج"), "", Theme.Button, () => Ui.Open(Updater.Page));
         page.Margin = new Thickness(0, 0, 8, 0);
         row.Children.Add(page);
         var later = Ui.Button(L.T("لاحقاً"), style: Theme.Button, click: Close);

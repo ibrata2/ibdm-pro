@@ -122,6 +122,7 @@ struct ContentView: View {
             Image("Logo").resizable().frame(width: 84, height: 84).clipShape(RoundedRectangle(cornerRadius: 18))
             Text("IBRA Download Manager \(version)").font(.title3.bold())
             Text(t("برمجة و تطوير ابراهيم الخزرجي", "Programmed and developed by Ibrahim Al-Khazraji"))
+            Link(t("موقع البرامج: ibraprogram.netlify.app", "Apps website: ibraprogram.netlify.app"), destination: URL(string: "https://ibraprogram.netlify.app/")!)
             Link(t("تيليجرام: t.me/ibraprogram", "Telegram: t.me/ibraprogram"), destination: URL(string: "https://t.me/ibraprogram")!)
             Link(t("تيك توك: ibraprogram", "TikTok: ibraprogram"), destination: URL(string: "https://www.tiktok.com/@ibraprogram")!)
             Text(t("الملفات تُحفظ في تطبيق «الملفات» ← على iPhone ← IBRA", "Files are saved in the Files app → On My iPhone → IBRA")).font(.caption).foregroundStyle(.secondary)

@@ -211,7 +211,9 @@ public sealed class MainWindow : Window
         var registration = new MenuItem { Header = L.T("التسجيل") };
         registration.Items.Add(new MenuItem { Header = L.T("البرنامج مجاني وكامل"), IsEnabled = false });
         registration.Items.Add(new Separator());
+        registration.Items.Add(Command("موقع البرامج", () => Ui.Open(Updater.Page)));
         registration.Items.Add(Command("للمزيد من البرامج على تيليغرام", () => Ui.Open("https://t.me/ibraprogram")));
+        registration.Items.Add(Command("تيك توك", () => Ui.Open("https://www.tiktok.com/@ibraprogram")));
         menus.Items.Add(tasks);
         menus.Items.Add(file);
         menus.Items.Add(downloads);
