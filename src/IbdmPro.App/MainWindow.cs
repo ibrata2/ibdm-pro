@@ -342,7 +342,8 @@ public sealed class MainWindow : Window
     private UIElement StatusBar()
     {
         var bar = new DockPanel { Background = Theme.Panel, LastChildFill = false };
-        var credit = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 5, 14, 5) };
+        // one Arabic phrase made of two pieces: read right to left inside its own box
+        var credit = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14, 5, 14, 5), FlowDirection = L.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight };
         credit.Children.Add(Ui.Text(L.T("برمجة و تطوير "), 12, Theme.Muted));
         credit.Children.Add(Ui.Text(L.T("ابراهيم الخزرجي"), 12, Theme.Gold, bold: true));
         DockPanel.SetDock(credit, Dock.Left);
@@ -407,7 +408,7 @@ public sealed class MainWindow : Window
     private readonly ContentControl _adHost = new();
 
     /// <summary>The changing card at the bottom of the side bar: the developer's ads and new programs, one after
-    /// another (every 8 seconds), each with its picture if it has one. A click on the picture, the title or the
+    /// another (every 10 seconds), each with its picture if it has one. A click on the picture, the title or the
     /// text opens its link. With no ads it shows the apps website.</summary>
     private List<AppMessage> _ads = [];
     private int _adIndex;
@@ -423,7 +424,7 @@ public sealed class MainWindow : Window
         ShowAd(animate: false);
         if (_adTimer is null)
         {
-            _adTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+            _adTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
             _adTimer.Tick += (_, _) =>
             {
                 if (_ads.Count < 2 || _adHost.IsMouseOver) return; // stays while the mouse is on it
