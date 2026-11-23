@@ -174,6 +174,7 @@ public sealed class IbdmApp : Application
         WatchWindowsTheme();
         _ = Updater.CheckInBackground();
         _ = MessageCenter.RunInBackground();
+        _ = StoreCenter.RunInBackground();
         Scheduler.Start();
         YtDlp.AutoUpdateOnFailure = settings.AutoUpdateEngine;
         _ = Task.Run(async () =>

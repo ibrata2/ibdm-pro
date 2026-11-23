@@ -321,6 +321,19 @@ Check(MessageFeed.CurrentAd(ads)?.Id == "x2", "ads: the side bar shows the newes
 MessageFeed.CloseAd("x2");
 Check(MessageFeed.CurrentAd(ads)?.Id == "x1", "ads: a closed ad gives way to the next one");
 
+// IBRA STORE slide show: newest first, the first 10, site paths made into links, other shapes of the list read too.
+var store = StoreFeed.Parse("""
+[{"name":"Old","slug":"old","tagline":"x","categories":["برامج"],"icon":"/i/old.png","screenshots":[],"createdAt":"2026-01-01T00:00:00Z"},
+ {"name":"New","slug":"new app","tagline":"y","categories":["ألعاب","x"],"icon":"https://cdn.example.com/i.png","screenshots":["/s/1.jpg","/s/2.jpg"],"createdAt":"2026-11-20T10:00:00Z"},
+ {"name":"","slug":"no-name"},
+ {"name":"Mid","slug":"mid","createdAt":1767500000}]
+""");
+Check(store.Select(a => a.Slug).SequenceEqual(["new app", "mid", "old"]), "store: newest first, nameless left out");
+Check(store[0].Background == "https://ibraprogram.netlify.app/s/1.jpg" && store[0].Category == "ألعاب" && store[2].Background == "https://ibraprogram.netlify.app/i/old.png"
+    && store[0].PageUrl == "https://ibraprogram.netlify.app/app/new%20app" && store[1].Background is null, "store: picture, section and page link");
+var many = "[" + string.Join(",", Enumerable.Range(1, 14).Select(i => $"{{\"name\":\"A{i}\",\"slug\":\"a{i}\",\"createdAt\":\"2026-11-{i:00}\"}}")) + "]";
+Check(StoreFeed.Parse(many).Count == 10 && StoreFeed.Parse(many)[0].Slug == "a14" && StoreFeed.Parse("{\"apps\":" + many + "}").Count == 10, "store: only the newest 10");
+
 manager.Dispose();
 // Suno: song page / sound address → the MP3 file; the name from the page.
 Check(Suno.FileUrl("https://suno.com/song/A616F223-4ad3-4699-a953-a83d9a0e0411?sh=x") == "https://cdn1.suno.ai/a616f223-4ad3-4699-a953-a83d9a0e0411.mp3"

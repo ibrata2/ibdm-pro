@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using IbdmPro.Core;
 
@@ -407,118 +408,211 @@ public sealed class MainWindow : Window
 
     private readonly ContentControl _adHost = new();
 
-    /// <summary>The changing card at the bottom of the side bar: the developer's ads and new programs, one after
-    /// another (every 10 seconds), each with its picture if it has one. A click on the picture, the title or the
-    /// text opens its link. With no ads it shows the apps website.</summary>
-    private List<AppMessage> _ads = [];
+    /// <summary>The slide show at the bottom of the side bar: the newest programs and games from IBRA STORE
+    /// (the last 10, newest first), then the developer's own ads. It moves on every 4 seconds, stops while the
+    /// mouse is on it, and has arrows and dots. Each slide: picture, icon, section, name, short text and a
+    /// "View the program" button that opens its page. Nothing to show (no internet, nothing saved) = hidden.</summary>
+    private sealed record Slide(string Key, string? Picture, string? Icon, string Section, string Title, string Text, string? Url, string ButtonText, string? AdId);
+
+    /// <summary>The slide show's main color. Empty = the app's own color (it follows the chosen theme);
+    /// put a color here (for example "#E0242E") to use that one instead.</summary>
+    private const string ACCENT = "";
+    private static readonly Brush SlideAccent = ACCENT.Length > 0 ? Theme.Br(ACCENT) : Theme.Gold;
+    private static readonly TimeSpan SlideEvery = TimeSpan.FromSeconds(4);
+
+    private List<Slide> _slides = [];
     private int _adIndex;
     private DispatcherTimer? _adTimer;
-    private static readonly Dictionary<string, System.Windows.Media.Imaging.BitmapImage> AdImages = [];
+    private static readonly Dictionary<string, BitmapImage?> SlideImages = [];
 
     public void RefreshAd()
     {
-        _ads = MessageFeed.CurrentAds(MessageCenter.Latest.Count > 0 ? MessageCenter.Latest : MessageFeed.Current(MessageFeed.Cached(), L.Lang, DateTime.UtcNow));
-        if (_ads.Count == 0)
-            _ads = [new AppMessage { Id = "_site", Kind = "site", Title = L.T("موقع البرامج"), Text = L.T("كل برامج ابراهيم الخزرجي بمكان واحد — تحميل مباشر"), Url = Updater.Page }];
-        if (_adIndex >= _ads.Count) _adIndex = 0;
+        var current = _slides.Count > 0 ? _slides[Math.Min(_adIndex, _slides.Count - 1)].Key : null;
+        var slides = StoreCenter.Latest.Select(a => new Slide("app:" + a.Slug, a.Background, a.Icon, a.Category, a.Name, a.Tagline, a.PageUrl,
+            L.T("عرض البرنامج") + (L.Lang == "ar" ? " ←" : " →"), null)).ToList();
+        var ads = MessageFeed.CurrentAds(MessageCenter.Latest.Count > 0 ? MessageCenter.Latest : MessageFeed.Current(MessageFeed.Cached(), L.Lang, DateTime.UtcNow));
+        slides.AddRange(ads.Select(m => new Slide("ad:" + m.Id, m.HasImage ? m.Image : null, null,
+            m.Kind == "app" ? L.T("برنامج جديد") : L.T("إعلان"), m.Title, m.Text, m.HasLink ? m.Url : null, L.T("فتح"), m.Id)));
+        _slides = slides;
+        if (_slides.Count == 0) { _adHost.Content = null; _adHost.Visibility = Visibility.Collapsed; return; }
+        _adHost.Visibility = Visibility.Visible;
+        var keep = _slides.FindIndex(s => s.Key == current);
+        _adIndex = keep >= 0 ? keep : 0;
         ShowAd(animate: false);
         if (_adTimer is null)
         {
-            _adTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            _adTimer = new DispatcherTimer { Interval = SlideEvery };
             _adTimer.Tick += (_, _) =>
             {
-                if (_ads.Count < 2 || _adHost.IsMouseOver) return; // stays while the mouse is on it
-                _adIndex = (_adIndex + 1) % _ads.Count;
-                ShowAd(animate: true);
+                if (_slides.Count < 2 || _adHost.IsMouseOver) return; // stays while the mouse is on it
+                Step(1);
             };
             _adTimer.Start();
         }
     }
 
+    private void Step(int by)
+    {
+        if (_slides.Count == 0) return;
+        _adIndex = ((_adIndex + by) % _slides.Count + _slides.Count) % _slides.Count;
+        ShowAd(animate: true);
+        _adTimer?.Stop(); _adTimer?.Start(); // a full 4 seconds after an arrow / dot click
+    }
+
+    /// <summary>A picture from a link (or a data: picture), loaded once; null when it can't be read.</summary>
+    private static BitmapImage? SlideImage(string? src, int width, Action? loaded)
+    {
+        if (string.IsNullOrEmpty(src)) return null;
+        var key = src + "|" + width;
+        if (SlideImages.TryGetValue(key, out var have)) return have;
+        BitmapImage? bmp = null;
+        try
+        {
+            bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.DecodePixelWidth = width;
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            if (src.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            {
+                var comma = src.IndexOf(',');
+                bmp.StreamSource = new MemoryStream(Convert.FromBase64String(src[(comma + 1)..]));
+            }
+            else bmp.UriSource = new Uri(src);
+            bmp.EndInit();
+            if (bmp.IsDownloading)
+            {
+                bmp.DownloadCompleted += (_, _) => loaded?.Invoke();
+                bmp.DownloadFailed += (_, _) => SlideImages[key] = null;
+            }
+        }
+        catch (Exception e) { Log.Write($"slide image: {e.Message}"); bmp = null; }
+        SlideImages[key] = bmp;
+        return bmp;
+    }
+
     private void ShowAd(bool animate)
     {
-        var ad = _ads[_adIndex];
-        var url = ad.HasLink ? ad.Url! : null;
-        void Go() { if (url is not null) Ui.Open(url); }
+        var s = _slides[_adIndex];
+        void Go() { if (s.Url is not null) Ui.Open(s.Url); }
         var card = new StackPanel();
-        var top = new DockPanel();
-        if (ad.Kind != "site")
+
+        // the picture (first screenshot, or the icon), with the arrows on its sides
+        var pic = new Grid { Height = 92 };
+        var face = new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true,
+            Background = new LinearGradientBrush(((SolidColorBrush)SlideAccent).Color, Color.FromArgb(0xFF, 0x18, 0x18, 0x1C), 35) };
+        var picture = new Border { CornerRadius = new CornerRadius(8) };
+        void Paint(BitmapImage? b) { if (b is not null && !b.IsDownloading) picture.Background = new ImageBrush(b) { Stretch = Stretch.UniformToFill }; }
+        BitmapImage? bg = null;
+        bg = SlideImage(s.Picture, 360, () => Dispatcher.Invoke(() => Paint(bg)));
+        Paint(bg);
+        face.Child = picture;
+        pic.Children.Add(face);
+        if (s.AdId is not null)
         {
-            var close = Ui.Button("", "\uE711", Theme.ToolButton, () => { MessageFeed.CloseAd(ad.Id); RefreshAd(); });
+            var close = Ui.Button("", "", Theme.ToolButton, () => { MessageFeed.CloseAd(s.AdId); RefreshAd(); });
             close.Padding = new Thickness(3);
             close.ToolTip = L.T("إخفاء");
-            DockPanel.SetDock(close, Dock.Right);
-            top.Children.Add(close);
+            close.Background = Theme.Card;
+            close.HorizontalAlignment = HorizontalAlignment.Right;
+            close.VerticalAlignment = VerticalAlignment.Top;
+            close.Margin = new Thickness(0, 4, 4, 0);
+            pic.Children.Add(close);
         }
-        if (_ads.Count > 1)
+        if (_slides.Count > 1)
         {
-            // dots: which one of the ads this is (a click shows that one)
-            var dots = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) };
-            for (var k = 0; k < _ads.Count; k++)
+            Button Arrow(string glyph, int by, HorizontalAlignment side)
             {
-                var n = k;
-                var dot = new Border { Width = k == _adIndex ? 14 : 6, Height = 6, CornerRadius = new CornerRadius(3), Margin = new Thickness(2, 0, 2, 0),
-                    Background = k == _adIndex ? Theme.Gold : Theme.Line, Cursor = Cursors.Hand };
-                dot.MouseLeftButtonUp += (_, e) => { e.Handled = true; _adIndex = n; ShowAd(animate: true); };
-                dots.Children.Add(dot);
+                var b = Ui.Button("", null, Theme.ToolButton, () => Step(by));
+                b.Content = Ui.Glyph(glyph, 12, Theme.Ink);
+                b.Padding = new Thickness(2, 6, 2, 6);
+                b.Background = Theme.Card;
+                b.Opacity = 0.85;
+                b.HorizontalAlignment = side;
+                b.VerticalAlignment = VerticalAlignment.Center;
+                b.Margin = new Thickness(3, 0, 3, 0);
+                b.ToolTip = by < 0 ? L.T("السابق") : L.T("التالي");
+                return b;
             }
-            DockPanel.SetDock(dots, Dock.Right);
-            top.Children.Add(dots);
+            pic.Children.Add(Arrow("", -1, HorizontalAlignment.Left));
+            pic.Children.Add(Arrow("", 1, HorizontalAlignment.Right));
         }
-        top.Children.Add(Ui.Text(ad.Kind switch { "app" => L.T("برنامج جديد"), "site" => L.T("برامجنا"), _ => L.T("إعلان") }, 11, Theme.Gold, bold: true));
-        card.Children.Add(top);
-        if (ad.HasImage)
+        card.Children.Add(pic);
+
+        // icon + section
+        var row = new DockPanel { Margin = new Thickness(0, 8, 0, 0), LastChildFill = false };
+        if (SlideImage(s.Icon, 72, null) is { } iconBmp)
         {
-            var img = new Image { Stretch = Stretch.UniformToFill, MaxHeight = 120 };
-            var frame = new Border { CornerRadius = new CornerRadius(8), ClipToBounds = true, Margin = new Thickness(0, 6, 0, 2), Child = img, Background = Theme.Card };
-            frame.Clip = null;
-            try
-            {
-                if (!AdImages.TryGetValue(ad.Image!, out var bmp))
-                {
-                    bmp = new System.Windows.Media.Imaging.BitmapImage();
-                    bmp.BeginInit();
-                    bmp.UriSource = new Uri(ad.Image!);
-                    bmp.DecodePixelWidth = 320;
-                    bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                    bmp.EndInit();
-                    bmp.DownloadFailed += (_, _) => frame.Visibility = Visibility.Collapsed;
-                    AdImages[ad.Image!] = bmp;
-                }
-                img.Source = bmp;
-                // no empty box while the picture is still coming
-                if (bmp.IsDownloading) { frame.Visibility = Visibility.Collapsed; bmp.DownloadCompleted += (_, _) => frame.Visibility = Visibility.Visible; }
-                card.Children.Add(frame);
-            }
-            catch (Exception e) { Log.Write($"ad image: {e.Message}"); }
+            var icon = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(7), Margin = new Thickness(0, 0, 6, 0),
+                Background = new ImageBrush(iconBmp) { Stretch = Stretch.UniformToFill }, BorderBrush = Theme.Line, BorderThickness = new Thickness(1) };
+            if (iconBmp.IsDownloading) { icon.Visibility = Visibility.Collapsed; iconBmp.DownloadCompleted += (_, _) => icon.Visibility = Visibility.Visible; }
+            row.Children.Add(icon);
         }
-        if (ad.Title.Length > 0) card.Children.Add(Ui.Text(ad.Title, 13, Theme.Ink, bold: true, wrap: TextWrapping.Wrap));
-        if (ad.Text.Length > 0)
+        if (s.Section.Length > 0)
         {
-            var body = Ui.Text(ad.Text, 12, Theme.Muted, wrap: TextWrapping.Wrap);
-            body.Margin = new Thickness(0, 4, 0, 0);
-            body.MaxHeight = 70;
+            var chip = new Border { CornerRadius = new CornerRadius(9), Padding = new Thickness(7, 1, 7, 2), VerticalAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(Color.FromArgb(0x26, ((SolidColorBrush)SlideAccent).Color.R, ((SolidColorBrush)SlideAccent).Color.G, ((SolidColorBrush)SlideAccent).Color.B)),
+                Child = Ui.Text(s.Section, 10.5, SlideAccent, bold: true) };
+            ((TextBlock)chip.Child).TextTrimming = TextTrimming.CharacterEllipsis;
+            chip.MaxWidth = 110;
+            row.Children.Add(chip);
+        }
+        if (row.Children.Count > 0) card.Children.Add(row);
+
+        // name and short text
+        var title = Ui.Text(s.Title, 13, Theme.Ink, bold: true, wrap: TextWrapping.Wrap);
+        title.Margin = new Thickness(0, 6, 0, 0);
+        title.MaxHeight = 38;
+        title.TextTrimming = TextTrimming.CharacterEllipsis;
+        card.Children.Add(title);
+        if (s.Text.Length > 0)
+        {
+            var body = Ui.Text(s.Text, 11.5, Theme.Muted, wrap: TextWrapping.Wrap);
+            body.Margin = new Thickness(0, 3, 0, 0);
+            body.MaxHeight = 32; // two lines
             body.TextTrimming = TextTrimming.CharacterEllipsis;
             card.Children.Add(body);
         }
-        if (url is not null)
+        if (s.Url is not null)
         {
-            var open = Ui.Button(L.T("فتح"), "\uE8A7", Theme.PrimaryButton, Go);
+            var open = Ui.Button("", null, Theme.PrimaryButton, Go);
+            var label = Ui.Text(s.ButtonText, 12, null, bold: true);
+            label.TextAlignment = TextAlignment.Center;
+            label.HorizontalAlignment = HorizontalAlignment.Center;
+            label.SetBinding(TextBlock.ForegroundProperty, new Binding("Foreground") { Source = open });
+            open.Content = label;
+            if (ACCENT.Length > 0) { open.Background = SlideAccent; open.BorderBrush = SlideAccent; }
             open.Margin = new Thickness(0, 8, 0, 0);
             open.FontSize = 12;
             open.HorizontalAlignment = HorizontalAlignment.Stretch;
             card.Children.Add(open);
         }
-        var box = Ui.Card(card, new Thickness(10, 8, 10, 10));
-        box.BorderBrush = Theme.Gold;
-        if (url is not null)
+
+        // dots: which slide this is (a click shows that one)
+        if (_slides.Count > 1)
         {
-            // the picture, the title and the text open the link too
+            var dots = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+            for (var k = 0; k < _slides.Count; k++)
+            {
+                var n = k;
+                var dot = new Border { Width = k == _adIndex ? 12 : 5, Height = 5, CornerRadius = new CornerRadius(2.5), Margin = new Thickness(1.5, 0, 1.5, 0),
+                    Background = k == _adIndex ? SlideAccent : Theme.Line, Cursor = Cursors.Hand, ToolTip = _slides[k].Title };
+                dot.MouseLeftButtonUp += (_, e) => { e.Handled = true; _adIndex = n; Step(0); };
+                dots.Children.Add(dot);
+            }
+            card.Children.Add(dots);
+        }
+
+        var box = Ui.Card(card, new Thickness(8));
+        box.BorderBrush = SlideAccent;
+        if (s.Url is not null)
+        {
+            // the picture, the name and the text open the page too
             box.Cursor = Cursors.Hand;
-            box.ToolTip = url;
+            box.ToolTip = s.Title;
             box.MouseLeftButtonUp += (_, e) =>
             {
                 if (e.OriginalSource is DependencyObject d && FindButton(d)) return;
+                if (e.Handled) return;
                 Go();
             };
         }
@@ -526,7 +620,7 @@ public sealed class MainWindow : Window
         if (animate)
         {
             box.Opacity = 0;
-            box.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(350)));
+            box.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(300)));
         }
     }
 

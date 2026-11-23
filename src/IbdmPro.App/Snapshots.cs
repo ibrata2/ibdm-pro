@@ -45,6 +45,10 @@ public static class Snapshots
             [{"id":"ad1","kind":"app","title":"IBRA LENS","text":"برنامج جديد للبحث عن الصور بالحاسبة بالوصف.","url":"https://ibraprogram.netlify.app/","date":"2026-11-10 09:00","image":"https://raw.githubusercontent.com/ibrata2/ibdm-pro/main/assets/ibdm-512.png"},
              {"id":"ad2","kind":"ad","title":"IBRA PLAYER","text":"مشغل ميديا بستايل زجاجي.","url":"https://ibraprogram.netlify.app/","date":"2026-11-09 09:00"}]
             """));
+        StoreCenter.SetForPreview(StoreFeed.Parse("""
+            [{"name":"IBRA LENS","slug":"ibra-lens","tagline":"ابحث عن صورك بالحاسبة بالوصف أو بصورة.","categories":["برامج"],"icon":"/icons/lens.png","screenshots":[],"createdAt":"2026-11-20T10:00:00Z"},
+             {"name":"IBRA ZOMBIE","slug":"ibra-zombie","tagline":"لعبة نجاة من الزومبي بالعراق.","categories":["ألعاب"],"createdAt":"2026-11-22T10:00:00Z"}]
+            """));
         app.Main.RefreshAd();
         app.Main.Sync();
         Save(app.Main, Path.Combine(dir, "1-main.png"));
