@@ -135,28 +135,54 @@ final class Downloader: NSObject, ObservableObject {
             }
             var referer: URL?
             var candidates: [URL] = []
+            var tried: [URL] = []
             var lookedInPage = false
+            var usedBrowser = false
+            /// The next video link of the page; when the page's own links all failed, play the page in the hidden
+            /// browser once (it gets the site's cookies) and try the links its player uses.
+            func next() async -> Bool {
+                if candidates.isEmpty, lookedInPage, !usedBrowser {
+                    usedBrowser = true
+                    update(job.id) { $0.detail = t("جاري فتح الصفحة وتشغيل الفيديو…", "Opening the page and playing the video…") }
+                    let found = await PageVideo.fromBrowser(URL(string: job.url) ?? source)
+                    candidates = found.videos.filter { !tried.contains($0) } + found.videos.filter { tried.contains($0) }.prefix(2)
+                    if name == nil, let title = found.title { name = Downloader.clean(title); update(job.id) { $0.title = title } }
+                }
+                guard !candidates.isEmpty else { return false }
+                source = candidates.removeFirst()
+                tried.append(source)
+                return true
+            }
             while true {
                 let got: (URL, URLResponse?)
                 do { got = try await download(source, referer: referer) }
                 catch {
                     // one of the page's video links didn't open: try the next one
-                    if !candidates.isEmpty, !(error is CancellationError) { source = candidates.removeFirst(); continue }
+                    if lookedInPage, !(error is CancellationError), await next() { continue }
                     throw error
                 }
                 let (temp, response) = got
                 if jobs.first(where: { $0.id == job.id })?.status == .cancelled { try? FileManager.default.removeItem(at: temp); return finished() }
                 if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
                     try? FileManager.default.removeItem(at: temp)
-                    if !candidates.isEmpty { source = candidates.removeFirst(); continue }
+                    if lookedInPage, await next() { continue }
                     throw Failure(t("الخادم رفض الطلب", "The server refused") + " (\(http.statusCode))")
+                }
+                let size = (try? FileManager.default.attributesOfItem(atPath: temp.path)[.size] as? Int64) ?? 0
+                if size == 0 {
+                    // the site sent nothing (it keeps the file for its own player): never save an empty file
+                    try? FileManager.default.removeItem(at: temp)
+                    if lookedInPage, await next() { continue }
+                    throw Failure(lookedInPage
+                        ? t("الموقع رفض يعطي الفيديو لغير مشغّله — جرّب نسخة الحاسبة أو الأندرويد", "The site only gives the video to its own player — try the Windows or Android app")
+                        : t("الخادم أرسل ملف فارغ", "The server sent an empty file"))
                 }
                 let kind = Downloader.sniff(temp)
                 let isPage = kind == "html" || (response?.mimeType ?? "").lowercased().contains("html")
                 if isPage {
                     try? FileManager.default.removeItem(at: temp)
                     if lookedInPage {
-                        if !candidates.isEmpty { source = candidates.removeFirst(); continue }
+                        if await next() { continue }
                         throw Failure(t("الرابط فتح صفحة مو فيديو", "The link opened a page, not a video"))
                     }
                     // The link is a web page (Instagram, TikTok, Facebook, a site…): find the video inside it.
@@ -164,23 +190,19 @@ final class Downloader: NSObject, ObservableObject {
                     let page = response?.url ?? source
                     update(job.id) { $0.detail = t("جاري البحث عن الفيديو بالصفحة…", "Looking for the video in the page…") }
                     let html = String(decoding: (try? Data(contentsOf: temp)) ?? Data(), as: UTF8.self)
-                    var found = PageVideo.fromHTML(html, base: page)
-                    if found.videos.isEmpty {
-                        update(job.id) { $0.detail = t("جاري فتح الصفحة وتشغيل الفيديو…", "Opening the page and playing the video…") }
-                        found = await PageVideo.fromBrowser(URL(string: job.url) ?? page)
-                    }
-                    if jobs.first(where: { $0.id == job.id })?.status == .cancelled { return finished() }
-                    guard !found.videos.isEmpty else {
-                        throw Failure(t("هذا الرابط صفحة، وما لكيت بيها فيديو يتحمل (يمكن الفيديو يحتاج تسجيل دخول أو الموقع يحميه). جرّب رابط الفيديو نفسه أو نسخة الحاسبة.",
-                                        "This link is a web page and no downloadable video was found in it (it may need a login or the site protects it). Try the video's own link, or the Windows app."))
-                    }
+                    let found = PageVideo.fromHTML(html, base: page)
                     if let title = found.title {
                         update(job.id) { $0.title = title }
                         name = Downloader.clean(title)
                     }
                     candidates = found.videos
                     referer = page
-                    source = candidates.removeFirst()
+                    let any = await next()
+                    if jobs.first(where: { $0.id == job.id })?.status == .cancelled { return finished() }
+                    guard any else {
+                        throw Failure(t("هذا الرابط صفحة، وما لكيت بيها فيديو يتحمل (يمكن الفيديو يحتاج تسجيل دخول أو الموقع يحميه). جرّب رابط الفيديو نفسه أو نسخة الحاسبة.",
+                                        "This link is a web page and no downloadable video was found in it (it may need a login or the site protects it). Try the video's own link, or the Windows app."))
+                    }
                     continue
                 }
                 var fileName = name ?? Downloader.clean(response?.suggestedFilename ?? source.lastPathComponent)
@@ -191,6 +213,8 @@ final class Downloader: NSObject, ObservableObject {
                     if (fileName as NSString).pathExtension.isEmpty { fileName += "." + kind }
                 } else if ext.isEmpty, let fromLink = Downloader.extFrom(response?.mimeType) ?? (source.pathExtension.isEmpty ? nil : source.pathExtension.lowercased()) {
                     fileName += "." + fromLink
+                } else if ext.isEmpty, lookedInPage {
+                    fileName += ".mp4"
                 }
                 let target = Downloader.unique(Downloader.folder.appendingPathComponent(fileName))
                 try FileManager.default.moveItem(at: temp, to: target)
