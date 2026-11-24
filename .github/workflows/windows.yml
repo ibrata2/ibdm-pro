@@ -465,6 +465,13 @@ jobs:
           # real downloads: a direct file, a YouTube video and a YouTube audio
           xcrun simctl terminate "$dev" com.ibrata2.ibradm || true
           xcrun simctl launch "$dev" com.ibrata2.ibradm -download "https://github.com/ibrata2/ibdm-pro/raw/main/assets/ibdm-512.png" -mode video; sleep 20
+          # web pages with a video inside (not a file link): a plain site and a TikTok post
+          xcrun simctl terminate "$dev" com.ibrata2.ibradm || true
+          xcrun simctl launch "$dev" com.ibrata2.ibradm -download "https://www.w3schools.com/html/html5_video.asp" -mode video; sleep 40
+          xcrun simctl io "$dev" screenshot ../../build/ios-shots/4-page-video.png
+          xcrun simctl terminate "$dev" com.ibrata2.ibradm || true
+          xcrun simctl launch "$dev" com.ibrata2.ibradm -download "https://www.tiktok.com/@scout2015/video/6718335390845095173" -mode video; sleep 50
+          xcrun simctl io "$dev" screenshot ../../build/ios-shots/5-tiktok.png
           xcrun simctl terminate "$dev" com.ibrata2.ibradm || true
           xcrun simctl launch "$dev" com.ibrata2.ibradm -download "https://www.youtube.com/watch?v=jNQXAC9IVRw" -mode video; sleep 60
           xcrun simctl io "$dev" screenshot ../../build/ios-shots/2-video.png

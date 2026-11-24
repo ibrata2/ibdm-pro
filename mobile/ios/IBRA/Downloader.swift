@@ -23,8 +23,8 @@ struct Job: Identifiable, Codable, Equatable {
 }
 
 /// Downloads one link at a time into the app's folder (visible in the Files app). On the iPhone the download tools
-/// of the Windows and Android apps can't run, so: any direct file link, and YouTube (videos with sound up to 720p,
-/// or the audio).
+/// of the Windows and Android apps can't run, so: any direct file link, a web page with a video in it (found in the
+/// page, or by playing the page in a hidden browser), and YouTube (up to 1080p, or the audio).
 @MainActor
 final class Downloader: NSObject, ObservableObject {
     static let shared = Downloader()
@@ -133,16 +133,70 @@ final class Downloader: NSObject, ObservableObject {
                     name = Downloader.clean(title) + "." + sound.fileExtension.rawValue
                 }
             }
-            let (temp, response) = try await download(source)
-            if jobs.first(where: { $0.id == job.id })?.status == .cancelled { return finished() }
-            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                throw Failure(t("الخادم رفض الطلب", "The server refused") + " (\(http.statusCode))")
+            var referer: URL?
+            var candidates: [URL] = []
+            var lookedInPage = false
+            while true {
+                let got: (URL, URLResponse?)
+                do { got = try await download(source, referer: referer) }
+                catch {
+                    // one of the page's video links didn't open: try the next one
+                    if !candidates.isEmpty, !(error is CancellationError) { source = candidates.removeFirst(); continue }
+                    throw error
+                }
+                let (temp, response) = got
+                if jobs.first(where: { $0.id == job.id })?.status == .cancelled { try? FileManager.default.removeItem(at: temp); return finished() }
+                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                    try? FileManager.default.removeItem(at: temp)
+                    if !candidates.isEmpty { source = candidates.removeFirst(); continue }
+                    throw Failure(t("الخادم رفض الطلب", "The server refused") + " (\(http.statusCode))")
+                }
+                let kind = Downloader.sniff(temp)
+                let isPage = kind == "html" || (response?.mimeType ?? "").lowercased().contains("html")
+                if isPage {
+                    try? FileManager.default.removeItem(at: temp)
+                    if lookedInPage {
+                        if !candidates.isEmpty { source = candidates.removeFirst(); continue }
+                        throw Failure(t("الرابط فتح صفحة مو فيديو", "The link opened a page, not a video"))
+                    }
+                    // The link is a web page (Instagram, TikTok, Facebook, a site…): find the video inside it.
+                    lookedInPage = true
+                    let page = response?.url ?? source
+                    update(job.id) { $0.detail = t("جاري البحث عن الفيديو بالصفحة…", "Looking for the video in the page…") }
+                    let html = String(decoding: (try? Data(contentsOf: temp)) ?? Data(), as: UTF8.self)
+                    var found = PageVideo.fromHTML(html, base: page)
+                    if found.videos.isEmpty {
+                        update(job.id) { $0.detail = t("جاري فتح الصفحة وتشغيل الفيديو…", "Opening the page and playing the video…") }
+                        found = await PageVideo.fromBrowser(URL(string: job.url) ?? page)
+                    }
+                    if jobs.first(where: { $0.id == job.id })?.status == .cancelled { return finished() }
+                    guard !found.videos.isEmpty else {
+                        throw Failure(t("هذا الرابط صفحة، وما لكيت بيها فيديو يتحمل (يمكن الفيديو يحتاج تسجيل دخول أو الموقع يحميه). جرّب رابط الفيديو نفسه أو نسخة الحاسبة.",
+                                        "This link is a web page and no downloadable video was found in it (it may need a login or the site protects it). Try the video's own link, or the Windows app."))
+                    }
+                    if let title = found.title {
+                        update(job.id) { $0.title = title }
+                        name = Downloader.clean(title)
+                    }
+                    candidates = found.videos
+                    referer = page
+                    source = candidates.removeFirst()
+                    continue
+                }
+                var fileName = name ?? Downloader.clean(response?.suggestedFilename ?? source.lastPathComponent)
+                let ext = (fileName as NSString).pathExtension.lowercased()
+                if let kind, ext != kind, !(kind == "mp4" && ["m4v", "mov", "m4a", "3gp"].contains(ext)), !(kind == "jpg" && ext == "jpeg") {
+                    // the name has no type, or a wrong one ("video", "file.php", "Unknown"): use what the file really is
+                    if !ext.isEmpty, !Downloader.knownExt.contains(ext) || PageVideo.mediaExt.contains(kind) { fileName = (fileName as NSString).deletingPathExtension }
+                    if (fileName as NSString).pathExtension.isEmpty { fileName += "." + kind }
+                } else if ext.isEmpty, let fromLink = Downloader.extFrom(response?.mimeType) ?? (source.pathExtension.isEmpty ? nil : source.pathExtension.lowercased()) {
+                    fileName += "." + fromLink
+                }
+                let target = Downloader.unique(Downloader.folder.appendingPathComponent(fileName))
+                try FileManager.default.moveItem(at: temp, to: target)
+                complete(job, target)
+                break
             }
-            var fileName = name ?? Downloader.clean(response?.suggestedFilename ?? source.lastPathComponent)
-            if (fileName as NSString).pathExtension.isEmpty, let ext = Downloader.sniff(temp) { fileName += "." + ext }
-            let target = Downloader.unique(Downloader.folder.appendingPathComponent(fileName))
-            try FileManager.default.moveItem(at: temp, to: target)
-            complete(job, target)
         } catch {
             if jobs.first(where: { $0.id == job.id })?.status != .cancelled {
                 let message = (error as? Failure)?.message ?? (error as? URLError)?.localizedDescription ?? error.localizedDescription
@@ -194,10 +248,14 @@ final class Downloader: NSObject, ObservableObject {
     }
 
     /// One file with progress: a download task, moved out of the system's temporary place before it is deleted.
-    private func download(_ url: URL) async throws -> (URL, URLResponse?) {
+    static let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
+    private func download(_ url: URL, referer: URL? = nil) async throws -> (URL, URLResponse?) {
         try await withCheckedThrowingContinuation { cont in
             var req = URLRequest(url: url)
-            req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+            req.setValue(Downloader.userAgent, forHTTPHeaderField: "User-Agent")
+            req.setValue("ar,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+            if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
             finish = { location, response, error in
                 if let location {
                     let keep = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -238,18 +296,53 @@ final class Downloader: NSObject, ObservableObject {
         return u
     }
 
-    /// What a file really is, from its first bytes.
+    static let knownExt: Set<String> = ["mp4", "m4v", "mov", "webm", "mkv", "m4a", "mp3", "aac", "wav", "ogg", "opus", "flac", "jpg", "jpeg", "png",
+        "gif", "webp", "heic", "pdf", "zip", "rar", "7z", "exe", "msi", "apk", "ipa", "dmg", "txt", "json", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "3gp"]
+
+    static func extFrom(_ mime: String?) -> String? {
+        switch mime?.lowercased() ?? "" {
+        case "video/mp4": return "mp4"
+        case "video/quicktime": return "mov"
+        case "video/webm": return "webm"
+        case "audio/mp4", "audio/x-m4a": return "m4a"
+        case "audio/mpeg": return "mp3"
+        case "image/jpeg": return "jpg"
+        case "image/png": return "png"
+        case "image/gif": return "gif"
+        case "image/webp": return "webp"
+        case "application/pdf": return "pdf"
+        case "application/zip": return "zip"
+        case "application/vnd.android.package-archive": return "apk"
+        default: return nil
+        }
+    }
+
+    /// What a file really is, from its first bytes ("html" = a web page, not a file).
     static func sniff(_ url: URL) -> String? {
-        guard let h = try? FileHandle(forReadingFrom: url), let d = try? h.read(upToCount: 12) else { return nil }
+        guard let h = try? FileHandle(forReadingFrom: url), let d = try? h.read(upToCount: 512) else { return nil }
         let b = [UInt8](d)
         func at(_ i: Int, _ sig: [UInt8]) -> Bool { b.count >= i + sig.count && Array(b[i..<i + sig.count]) == sig }
-        if at(4, Array("ftyp".utf8)) { return "mp4" }
+        if at(4, Array("ftyp".utf8)) {
+            let brand = b.count >= 12 ? String(decoding: b[8..<12], as: UTF8.self) : ""
+            if brand.hasPrefix("M4A") || brand.hasPrefix("M4B") { return "m4a" }
+            if brand.hasPrefix("qt") { return "mov" }
+            if brand.hasPrefix("3gp") { return "3gp" }
+            return "mp4"
+        }
+        if at(0, [0x1A, 0x45, 0xDF, 0xA3]) { return String(decoding: b, as: UTF8.self).contains("webm") ? "webm" : "mkv" }
         if at(0, [0x50, 0x4B, 3, 4]) { return "zip" }
         if at(0, Array("%PDF".utf8)) { return "pdf" }
-        if at(0, Array("ID3".utf8)) || at(0, [0xFF, 0xFB]) { return "mp3" }
+        if at(0, Array("ID3".utf8)) || at(0, [0xFF, 0xFB]) || at(0, [0xFF, 0xF3]) || at(0, [0xFF, 0xF2]) { return "mp3" }
         if at(0, [0x89, 0x50, 0x4E, 0x47]) { return "png" }
         if at(0, [0xFF, 0xD8, 0xFF]) { return "jpg" }
+        if at(0, Array("GIF8".utf8)) { return "gif" }
+        if at(0, Array("RIFF".utf8)) && at(8, Array("WEBP".utf8)) { return "webp" }
+        if at(0, Array("RIFF".utf8)) && at(8, Array("WAVE".utf8)) { return "wav" }
+        if at(0, Array("OggS".utf8)) { return "ogg" }
+        if at(0, Array("Rar!".utf8)) { return "rar" }
         if at(0, [0x4D, 0x5A]) { return "exe" }
+        let text = String(decoding: b, as: UTF8.self).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.hasPrefix("<!doctype html") || text.hasPrefix("<html") || text.contains("<head") || (text.hasPrefix("<") && text.contains("<script")) { return "html" }
         return nil
     }
 }
