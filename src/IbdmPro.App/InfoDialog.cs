@@ -232,7 +232,7 @@ public sealed class InfoDialog : Window
                 var sources = new[] { _req.PageUrl, _req.Url }.Where(u => !string.IsNullOrEmpty(u) && !u!.StartsWith("blob:")).Distinct().ToList();
                 foreach (var src in sources)
                 {
-                    _headTitle.Text = L.T("جاري البحث عن الجودات المتوفرة…");
+                    _headTitle.Text = L.T("جاري البحث عن الملف…");
                     _headSub.Text = Host(src!);
                     try { _media = await YtDlp.GetInfoAsync(src!, info, ct); break; }
                     catch (InvalidOperationException e) { Log.Write($"media {src}: {e.Message}"); lastError ??= e.Message; }
@@ -246,7 +246,7 @@ public sealed class InfoDialog : Window
                     if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
                 }
                 ShowError(Suno.IsSuno(_req.PageUrl) ? L.T("لم يُعرف أي أغنية تعمل الآن. شغّل الأغنية في سونو ثم اضغط زر التحميل الذي يظهر فوق المشغّل، أو افتح صفحة الأغنية وانسخ رابطها.")
-                    : lastError ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
+                    : lastError ?? L.T("لم يتم العثور على ملف يمكن تحميله في هذا الرابط."));
                 return;
             }
 
@@ -254,7 +254,7 @@ public sealed class InfoDialog : Window
             if (_probe.Error is null && !_probe.LooksLikeWebPage) { ShowFile(); return; }
 
             // A page address (YouTube, Instagram…) pasted as a link: look for a video in it.
-            _headTitle.Text = L.T("جاري البحث عن فيديو في الصفحة…");
+            _headTitle.Text = L.T("جاري البحث عن الملف…");
             string? mediaError = null;
             try
             {
@@ -263,7 +263,7 @@ public sealed class InfoDialog : Window
             }
             catch (InvalidOperationException e) { Log.Write($"media {_req.Url}: {e.Message}"); mediaError = e.Message; }
 
-            if (YtDlp.IsYoutube(_req.Url)) ShowError(mediaError ?? L.T("لم يتم العثور على فيديو يمكن تحميله في هذه الصفحة."));
+            if (YtDlp.IsYoutube(_req.Url)) ShowError(mediaError ?? L.T("لم يتم العثور على ملف يمكن تحميله في هذا الرابط."));
             else if (_probe.Error is null) ShowFile(); // a web page with no video: download the page itself
             else ShowError(mediaError ?? _probe.Error);
         }

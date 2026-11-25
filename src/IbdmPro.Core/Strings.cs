@@ -513,6 +513,8 @@ public static partial class L
         ["عرض البرنامج"] = "View app",
         ["السابق"] = "Previous",
         ["التالي"] = "Next",
+        ["جاري البحث عن الملف…"] = "Looking for the file…",
+        ["لم يتم العثور على ملف يمكن تحميله في هذا الرابط."] = "No downloadable file was found at this link.",
         ["صوتيات"] = "Audio",
         ["مضغوطات"] = "Compressed",
         ["برامج"] = "Programs",
