@@ -247,7 +247,7 @@ public sealed class ProgressWindow : Window
         List<Segment> segs;
         lock (i.Gate) segs = i.Segments.Select(x => new Segment { Start = x.Start, End = x.End, Done = x.Done }).OrderBy(x => x.Start).ToList();
         var active = segs.Count(x => !x.Finished);
-        _conns.Text = i.Kind == DownloadKind.Media ? L.F("{0} (أجزاء الفيديو)", Settings.Current.Connections)
+        _conns.Text = i.Kind == DownloadKind.Media ? L.F("{0} (أجزاء الملف)", Settings.Current.Connections)
             : i.Resumable ? (i.Status == DownloadStatus.Downloading ? L.F("{0} نشط من {1}", active, segs.Count) : $"{segs.Count}") : "1";
 
         _bar.IsIndeterminate = i.Status == DownloadStatus.Processing || (i.Status == DownloadStatus.Downloading && i.TotalBytes <= 0);
@@ -267,7 +267,7 @@ public sealed class ProgressWindow : Window
             }
         }
         else _connRows.Children.Add(ConnRow("1", Fmt.Size(i.Downloaded).TrimStart('‎'),
-            i.Kind == DownloadKind.Media ? (i.Phase ?? L.T("تحميل الفيديو بعدة أجزاء")) : i.Status == DownloadStatus.Downloading ? L.T("يستقبل البيانات…") : i.StatusText));
+            i.Kind == DownloadKind.Media ? (i.Phase ?? L.T("تحميل الملف بعدة أجزاء")) : i.Status == DownloadStatus.Downloading ? L.T("يستقبل البيانات…") : i.StatusText));
 
         _pause.IsEnabled = i.Status != DownloadStatus.Processing;
         SetButton(_pause, i.Status is DownloadStatus.Paused or DownloadStatus.Error ? (L.T("استئناف"), "") : (L.T("إيقاف مؤقت"), ""));

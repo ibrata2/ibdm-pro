@@ -157,13 +157,13 @@ Unknown
 Yes
 Yes ✓
 No (the server doesn't support it)
-{0} (video parts)
+{0} (file parts)
 {0} active of {1}
 Finished
 Receiving data…
 Paused
 Waiting
-Downloading the video in several parts
+Downloading the file in several parts
 ✓ Download complete
 Cancel downloading "{0}" and delete the downloaded part?
 Yes, cancel
@@ -201,7 +201,7 @@ Downloading version {0}…
 Installing… the app will restart automatically
 Couldn't download the update
 Add a download link
-Paste a file link, or a link to a page with a video (YouTube, Instagram, Facebook, TikTok…)
+Paste a link to any file (program, archive, document, picture, audio, video…), or a link to a page with a video (YouTube, Instagram, Facebook, TikTok…)
 Continue
 Install the browser extension
 IBDM Pro browser extension
@@ -225,7 +225,7 @@ Extension folder not found
 Couldn't open the browser
 Open your browser and paste this address (copied):\n{0}
 About IBDM Pro
-Download manager — catches downloads from the browser, splits files over several connections, and downloads videos in the quality you choose
+A download manager for every kind of file — programs, archives, documents, pictures, audio and video. It catches downloads from the browser, splits each file over several connections to go faster and resumes broken downloads — and from video sites it downloads in the quality you choose
 Designed, developed and localized by
 Apps channel on Telegram: t.me/ibraprogram
 For programming requests: 07818814000

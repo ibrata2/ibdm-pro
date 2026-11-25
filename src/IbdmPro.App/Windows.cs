@@ -31,7 +31,7 @@ public static class AddUrlDialog
         root.Children.Add(Ui.Text(video ? L.T("تحميل فيديو من رابط") : L.T("إضافة رابط تحميل"), 16, Theme.Ink, bold: true));
         root.Children.Add(Ui.Text(video
             ? L.T("الصق رابط صفحة فيها فيديو أو رابط ملف — يبحث البرنامج عن الفيديو والجودات المتوفرة داخل الرابط.")
-            : L.T("الصق رابط ملف، أو رابط صفحة فيها فيديو (يوتيوب، انستغرام، فيسبوك، تيك توك…)"), 12, Theme.Muted, wrap: TextWrapping.Wrap));
+            : L.T("الصق رابط أي ملف (برنامج، ملف مضغوط، مستند، صورة، صوت، فيديو…)، أو رابط صفحة فيها فيديو (يوتيوب، انستغرام، فيسبوك، تيك توك…)"), 12, Theme.Muted, wrap: TextWrapping.Wrap));
         input.Margin = new Thickness(0, 14, 0, 16);
         root.Children.Add(input);
         var row = new StackPanel { Orientation = Orientation.Horizontal };
@@ -235,7 +235,7 @@ public sealed class AboutWindow : Window
         name.Children.Add(Ui.Text(" Manager", 24, Theme.Gold, bold: true));
         root.Children.Add(name);
         root.Children.Add(Center(Ui.Text(L.T("الإصدار ") + Program.Version, 13, Theme.Muted)));
-        root.Children.Add(Center(Ui.Text(L.T("مدير التحميل — يلتقط التحميلات من المتصفح، يقسّم الملف على عدة اتصالات، ويحمّل الفيديو بالجودة اللي تختارها"), 13, Theme.Ink, wrap: TextWrapping.Wrap), 14));
+        root.Children.Add(Center(Ui.Text(L.T("مدير تحميل لكل أنواع الملفات — برامج، ملفات مضغوطة، مستندات، صور، صوت وفيديو. يلتقط التحميلات من المتصفح، يقسّم الملف على عدة اتصالات ليحمّل أسرع، ويكمّل التحميل المتقطع — ومن مواقع الفيديو يحمّل بالجودة اللي تختارها"), 13, Theme.Ink, wrap: TextWrapping.Wrap), 14));
 
         var credit = Ui.Card(new StackPanel
         {

@@ -3,7 +3,7 @@
   "name": "IBRA Download Manager",
   "short_name": "IBRA DM",
   "version": "1.0.0",
-  "description": "يلتقط التحميلات والفيديوهات من أي موقع ويرسلها لبرنامج IBRA Download Manager — برمجة و تطوير ابراهيم الخزرجي",
+  "description": "يلتقط كل تحميلاتك من أي موقع (برامج، مضغوطات، مستندات، صور، صوت وفيديو) ويرسلها لبرنامج IBRA Download Manager",
   "permissions": [
     "downloads",
     "contextMenus",

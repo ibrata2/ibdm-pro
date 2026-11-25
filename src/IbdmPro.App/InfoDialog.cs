@@ -239,7 +239,7 @@ public sealed class InfoDialog : Window
                     // On YouTube the page address is the right one; a stream address after it would only hide its error.
                     if (YtDlp.IsYoutube(src!)) break;
                 }
-                if (_media is not null && _media.Options.Count > 0) { AsDirectFile(); ShowMedia(); return; }
+                if (_media is not null && _media.Options.Count > 0) { if (await AsDirectFile(info, ct)) ShowFile(); else ShowMedia(); return; }
                 if (_req.Url.StartsWith("http"))
                 {
                     _probe = await Http.ProbeAsync(_req.Url, info, ct);
@@ -259,7 +259,7 @@ public sealed class InfoDialog : Window
             try
             {
                 _media = await YtDlp.GetInfoAsync(_req.Url, info, ct);
-                if (_media.Options.Count > 0) { AsDirectFile(); ShowMedia(); return; }
+                if (_media.Options.Count > 0) { if (await AsDirectFile(info, ct)) ShowFile(); else ShowMedia(); return; }
             }
             catch (InvalidOperationException e) { Log.Write($"media {_req.Url}: {e.Message}"); mediaError = e.Message; }
 
@@ -362,16 +362,29 @@ public sealed class InfoDialog : Window
     /// <summary>A plain file (a program, a ZIP…) that our own engine could not fetch — the site refuses download
     /// programs (Cloudflare and the like) — but yt-dlp can: it is downloaded through yt-dlp as it is, under its own
     /// name (the browser's name for it), not as an "unknown_video".</summary>
-    private void AsDirectFile()
+    /// <summary>A plain file (a program, an archive, any file) that yt-dlp only "found" as an unknown stream: it is
+    /// downloaded like any file — by the program's own engine, over several connections, resumable — when its
+    /// address answers; true then (show the file box). Otherwise it stays with yt-dlp, but as "the file as it is".</summary>
+    private async Task<bool> AsDirectFile(RequestInfo info, CancellationToken ct)
     {
         var m = _media!;
-        if (!string.Equals(m.Site, "Generic", StringComparison.OrdinalIgnoreCase)) return;
+        if (!string.Equals(m.Site, "Generic", StringComparison.OrdinalIgnoreCase)) return false;
         var video = m.Options.Where(o => !o.AudioOnly).ToList();
         // yt-dlp knows what the file is (a real video stream with its type): leave it as a video.
-        if (video.Count == 0 || !video.All(o => o.Ext is "unknown_video" or "")) return;
+        if (video.Count == 0 || !video.All(o => o.Ext is "unknown_video" or "")) return false;
         // The name the browser was given (from the server's own headers, like IDM shows); else yt-dlp's title.
         var name = !string.IsNullOrWhiteSpace(_req.FileName) ? FileNames.Clean(Path.GetFileName(_req.FileName)) : FileNames.Clean(m.Title, "download");
         if (Path.GetExtension(name).Length == 0 && FileNames.ExtForMime(_req.Mime) is { } mimeExt) name += "." + mimeExt;
+        foreach (var url in new[] { video[0].DirectUrl, _req.Url, m.Url }.Where(u => u is not null && u.StartsWith("http")).Distinct())
+        {
+            var probe = await Http.ProbeAsync(url!, info, ct);
+            if (probe.Error is not null || probe.LooksLikeWebPage) continue;
+            _probe = probe;
+            if (Path.GetExtension(name).Length == 0 && Path.GetExtension(probe.FileName).Length > 0) name += Path.GetExtension(probe.FileName);
+            _req.FileName = name;
+            _media = null;
+            return true;
+        }
         _directFile = name;
         m.Title = name;
         m.Options.Clear();
@@ -381,6 +394,7 @@ public sealed class InfoDialog : Window
             Label = L.T("الملف كما هو") + (ext.Length > 0 ? " — " + ext.ToUpperInvariant() : ""), FormatSpec = "best", Ext = ext,
             Size = _req.Size > 0 ? _req.Size : video[0].Size,
         });
+        return false;
     }
 
     private void ShowMedia()
