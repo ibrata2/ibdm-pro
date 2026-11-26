@@ -313,6 +313,8 @@ jobs:
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Q /DAppVersion=${{ steps.v.outputs.version }} "/DSource=..\build\publish" IbdmPro.iss
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # a copy with the version in its name (the plain name stays for the "latest" links and older updaters)
+          Copy-Item ..\build\installer\IBRA-Download-Manager-Setup.exe "..\build\installer\IBRA-Download-Manager-Setup-${{ steps.v.outputs.version }}.exe"
           Get-ChildItem ..\build\installer | Format-Table Name, Length
 
       - uses: actions/upload-artifact@v4
@@ -328,13 +330,14 @@ jobs:
           name: IBRA Download Manager ${{ steps.v.outputs.version }}
           make_latest: true
           files: |
+            build/installer/IBRA-Download-Manager-Setup-${{ steps.v.outputs.version }}.exe
             build/installer/IBRA-Download-Manager-Setup.exe
             build/installer/IBRA-Download-Manager-Extension.zip
           body: |
             ## IBRA Download Manager ${{ steps.v.outputs.version }}
             مدير تحميل — برمجة و تطوير **ابراهيم الخزرجي**
 
-            **التثبيت:** حمّل **IBRA-Download-Manager-Setup.exe** وشغّله. إذا طلع تحذير Windows: More info ← Run anyway.
+            **التثبيت:** حمّل **IBRA-Download-Manager-Setup-${{ steps.v.outputs.version }}.exe** (أو نفس الملف باسم IBRA-Download-Manager-Setup.exe) وشغّله. إذا طلع تحذير Windows: More info ← Run anyway.
 
             **إضافة المتصفح:** موجودة داخل البرنامج (زر «الإضافة» بالأعلى يشرح الخطوات)، أو حمّل **IBRA-Download-Manager-Extension.zip** وفكّه ثم من `chrome://extensions` فعّل Developer mode ← Load unpacked.
             بعد كل تحديث اضغط ⟳ على بطاقة الإضافة.
