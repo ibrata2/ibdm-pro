@@ -30,7 +30,11 @@ public sealed class Row : INotifyPropertyChanged
     public string Eta => Item.Status == DownloadStatus.Downloading && Item.TotalBytes > 0 ? Fmt.Eta(Item.TotalBytes - Item.Downloaded, Item.Speed) : "";
     public string Status => Item.Status == DownloadStatus.Error ? L.T("خطأ — ") + Item.Error
         : Item.Status == DownloadStatus.Completed ? Item.StatusText
-        : Item.TotalBytes > 0 && Item.Downloaded > 0 ? $"{Item.StatusText} — {Item.Percent:0.#}%" : Item.StatusText;
+        // the percentage first (kept left-to-right, so "61.3%" never turns into "%61.3"), then the state
+        : Item.TotalBytes > 0 && Item.Downloaded > 0 ? $"\u2066{Item.Percent:0.#}%\u2069  {Item.StatusText}" : Item.StatusText;
+    /// <summary>The small bar under the state: shown while a download with a known size is not finished.</summary>
+    public Visibility BarVisible => Item.Status is not (DownloadStatus.Completed or DownloadStatus.Error) && Item.TotalBytes > 0 && Item.Downloaded > 0
+        ? Visibility.Visible : Visibility.Collapsed;
     public string Category => L.T(Item.Category);
     public string Description => Item.Description ?? Item.Quality ?? "";
     public Brush StatusBrush => Item.Status switch
@@ -679,7 +683,20 @@ public sealed class MainWindow : Window
         grid.Columns.Add(Column(L.T("اسم الملف"), 300, name, "name"));
         grid.Columns.Add(Column(L.T("الفئة"), 78, TextCell(nameof(Row.Category), Theme.Muted, 12), "category"));
         grid.Columns.Add(Column(L.T("الحجم"), 88, TextCell(nameof(Row.Size), ltr: true), "size"));
-        grid.Columns.Add(Column(L.T("الحالة"), 110, TextCell(nameof(Row.Status), null, 12, nameof(Row.StatusBrush)), "status"));
+        // state: "61.3%  جاري التحميل" with a thin bar under it
+        var status = new FrameworkElementFactory(typeof(StackPanel));
+        status.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        status.AppendChild(TextCell(nameof(Row.Status), null, 12, nameof(Row.StatusBrush)));
+        var bar = new FrameworkElementFactory(typeof(ProgressBar));
+        bar.SetValue(FrameworkElement.StyleProperty, Theme.Progress);
+        bar.SetValue(FrameworkElement.HeightProperty, 4.0);
+        bar.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 3, 6, 0));
+        bar.SetValue(System.Windows.Controls.Primitives.RangeBase.MaximumProperty, 100.0);
+        bar.SetBinding(System.Windows.Controls.Primitives.RangeBase.ValueProperty, new Binding(nameof(Row.Percent)) { Mode = BindingMode.OneWay });
+        bar.SetBinding(Control.ForegroundProperty, new Binding(nameof(Row.BarBrush)));
+        bar.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(Row.BarVisible)));
+        status.AppendChild(bar);
+        grid.Columns.Add(Column(L.T("الحالة"), 150, status, "status"));
         grid.Columns.Add(Column(L.T("الوقت المتبقي"), 110, TextCell(nameof(Row.Eta), ltr: true), "eta"));
         grid.Columns.Add(Column(L.T("معدل النقل"), 94, TextCell(nameof(Row.Speed), Theme.Gold, ltr: true), "speed"));
         // buttons on each row: pause / resume, open folder (finished), delete
