@@ -94,6 +94,39 @@ public static class Updater
     public static async Task<string> DownloadAsync(Release r, Action<long, long, double> progress, CancellationToken ct)
     {
         var file = Path.Combine(Path.GetTempPath(), $"IBRA-Download-Manager-Setup-{r.Version}.exe");
+        // The update is fetched like any download in the app: in pieces over 8 connections at once (one connection
+        // to GitHub can be slow from some countries), with the plain one-connection way kept as the fallback.
+        try
+        {
+            var info = new RequestInfo { UserAgent = "IBRA-Download-Manager/" + Program.Version };
+            var probe = await Http.ProbeAsync(r.SetupUrl, info, ct);
+            if (probe.Error is null && probe.Resumable && probe.Size > 0)
+            {
+                var item = new DownloadItem
+                {
+                    Url = probe.FinalUrl, Request = info, Folder = Path.GetTempPath(), FileName = Path.GetFileName(file),
+                    TotalBytes = probe.Size, Resumable = true,
+                };
+                var sw = Stopwatch.StartNew();
+                var run = HttpDownloader.RunAsync(item, 8, new SpeedLimiter(), ct);
+                long lastBytes = 0; var lastTime = 0.0; double speed = 0;
+                while (!run.IsCompleted)
+                {
+                    await Task.WhenAny(run, Task.Delay(400, CancellationToken.None));
+                    var now = sw.Elapsed.TotalSeconds;
+                    var done = item.Downloaded;
+                    if (now - lastTime >= 0.4) { speed = speed == 0 ? (done - lastBytes) / (now - lastTime) : speed * 0.6 + (done - lastBytes) / (now - lastTime) * 0.4; lastBytes = done; lastTime = now; }
+                    progress(done, probe.Size, speed);
+                }
+                await run;
+                File.Move(item.PartPath, file, true);
+                progress(probe.Size, probe.Size, speed);
+                return file;
+            }
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception e) { Log.Write($"update in pieces: {e.Message} — trying one connection"); }
+
         using var req = new HttpRequestMessage(HttpMethod.Get, r.SetupUrl);
         req.Headers.TryAddWithoutValidation("User-Agent", "IBRA-Download-Manager/" + Program.Version);
         using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
