@@ -476,6 +476,9 @@ jobs:
           xcrun simctl launch "$dev" com.ibrata2.ibradm -download "https://www.tiktok.com/@scout2015/video/6718335390845095173" -mode video; sleep 50
           xcrun simctl io "$dev" screenshot ../../build/ios-shots/5-tiktok.png
           xcrun simctl terminate "$dev" com.ibrata2.ibradm || true
+          xcrun simctl launch "$dev" com.ibrata2.ibradm -download "https://www.instagram.com/p/aye83DjauH/" -mode video; sleep 50
+          xcrun simctl io "$dev" screenshot ../../build/ios-shots/6-instagram.png
+          xcrun simctl terminate "$dev" com.ibrata2.ibradm || true
           xcrun simctl launch "$dev" com.ibrata2.ibradm -download "https://www.youtube.com/watch?v=jNQXAC9IVRw" -mode video; sleep 60
           xcrun simctl io "$dev" screenshot ../../build/ios-shots/2-video.png
           xcrun simctl terminate "$dev" com.ibrata2.ibradm || true
@@ -483,6 +486,7 @@ jobs:
           xcrun simctl io "$dev" screenshot ../../build/ios-shots/3-audio.png
           data=$(xcrun simctl get_app_container "$dev" com.ibrata2.ibradm data)
           echo "== files the app saved:"; ls -la "$data/Documents" | tee ../../build/ios-shots/files.txt
+          (cd "$data/Documents" && file -- * | tee -a "$GITHUB_WORKSPACE/build/ios-shots/files.txt") || true
           cat "$data/Documents/.downloads.json" | tee ../../build/ios-shots/downloads.json || true
       - uses: actions/upload-artifact@v4
         with:

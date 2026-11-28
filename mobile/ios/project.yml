@@ -26,6 +26,7 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         UIFileSharingEnabled: true
         UIUserInterfaceStyle: Dark
+        UIBackgroundModes: [audio]
         CFBundleURLTypes:
           - CFBundleURLName: com.ibrata2.ibradm
             CFBundleURLSchemes: [ibradm]

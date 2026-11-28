@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 import Photos
+import UIKit
 import YouTubeKit
 
 /// Texts: Arabic, or English when the phone is not in Arabic.
@@ -20,6 +21,8 @@ struct Job: Identifiable, Codable, Equatable {
     var file: String?           // the name of the file in the app's folder (Files → On My iPhone → IBRA)
     var error: String?
     var isVideo: Bool { ["mp4", "mov", "m4v"].contains((file as NSString?)?.pathExtension.lowercased() ?? "") }
+    /// Plays in the app's player (picture and/or sound).
+    var isPlayable: Bool { ["mp4", "mov", "m4v", "m4a", "mp3", "aac", "wav", "3gp"].contains((file as NSString?)?.pathExtension.lowercased() ?? "") }
 }
 
 /// Downloads one link at a time into the app's folder (visible in the Files app). On the iPhone the download tools
@@ -86,7 +89,17 @@ final class Downloader: NSObject, ObservableObject {
         guard running == nil, let next = jobs.last(where: { $0.status == .waiting }) else { return }
         running = next.id
         update(next.id) { $0.status = .running; $0.progress = 0; $0.detail = t("جاري البحث عن الملف…", "Looking for the file…") }
-        Task { await run(next) }
+        // Leaving the app doesn't stop the download at once (iOS gives it time; while something plays in the app's
+        // player the app stays awake, so downloads go on to the end).
+        var bg = UIBackgroundTaskIdentifier.invalid
+        bg = UIApplication.shared.beginBackgroundTask(withName: "IBRA download") {
+            UIApplication.shared.endBackgroundTask(bg)
+            bg = .invalid
+        }
+        Task {
+            await run(next)
+            if bg != .invalid { UIApplication.shared.endBackgroundTask(bg) }
+        }
     }
 
     private func run(_ job: Job) async {
@@ -137,6 +150,15 @@ final class Downloader: NSObject, ObservableObject {
             var candidates: [URL] = []
             var tried: [URL] = []
             var lookedInPage = false
+            if !Downloader.isYouTube(job.url), Instagram.shortcode(job.url) != nil {
+                update(job.id) { $0.detail = t("جاري قراءة منشور انستغرام…", "Reading the Instagram post…") }
+                if let m = await Instagram.fetch(job.url) {
+                    source = m.video
+                    referer = URL(string: "https://www.instagram.com/")
+                    lookedInPage = true // if this file fails, the page is searched the other ways
+                    if let title = m.title { name = Downloader.clean(title); update(job.id) { $0.title = title } }
+                }
+            }
             var usedBrowser = false
             /// The next video link of the page; when the page's own links all failed, play the page in the hidden
             /// browser once (it gets the site's cookies) and try the links its player uses.
@@ -204,6 +226,13 @@ final class Downloader: NSObject, ObservableObject {
                                         "This link is a web page and no downloadable video was found in it (it may need a login or the site protects it). Try the video's own link, or the Windows app."))
                     }
                     continue
+                }
+                if lookedInPage, !(kind.map { Downloader.mediaKinds.contains($0) } ?? false) {
+                    // From a page only a whole picture-and-sound file counts (not a preview, a piece of a stream, or a page)
+                    try? FileManager.default.removeItem(at: temp)
+                    if await next() { continue }
+                    throw Failure(t("ما لكيت فيديو كامل يتحمل بهذا الرابط — الموقع يعطي الفيديو بقطع لمشغّله بس. جرّب نسخة الحاسبة أو الأندرويد.",
+                                    "No whole video file was found at this link — the site only gives it in pieces to its own player. Try the Windows or Android app."))
                 }
                 var fileName = name ?? Downloader.clean(response?.suggestedFilename ?? source.lastPathComponent)
                 let ext = (fileName as NSString).pathExtension.lowercased()
@@ -320,6 +349,9 @@ final class Downloader: NSObject, ObservableObject {
         return u
     }
 
+    /// Files with picture and/or sound (what a video link from a page must give).
+    static let mediaKinds: Set<String> = ["mp4", "mov", "m4a", "mp3", "webm", "mkv", "3gp", "ogg", "wav"]
+
     static let knownExt: Set<String> = ["mp4", "m4v", "mov", "webm", "mkv", "m4a", "mp3", "aac", "wav", "ogg", "opus", "flac", "jpg", "jpeg", "png",
         "gif", "webp", "heic", "pdf", "zip", "rar", "7z", "exe", "msi", "apk", "ipa", "dmg", "txt", "json", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "3gp"]
 
@@ -346,6 +378,8 @@ final class Downloader: NSObject, ObservableObject {
         guard let h = try? FileHandle(forReadingFrom: url), let d = try? h.read(upToCount: 512) else { return nil }
         let b = [UInt8](d)
         func at(_ i: Int, _ sig: [UInt8]) -> Bool { b.count >= i + sig.count && Array(b[i..<i + sig.count]) == sig }
+        // a piece of a streamed video (not a file that plays on its own)
+        if at(4, Array("styp".utf8)) || at(4, Array("moof".utf8)) || at(4, Array("sidx".utf8)) { return "part" }
         if at(4, Array("ftyp".utf8)) {
             let brand = b.count >= 12 ? String(decoding: b[8..<12], as: UTF8.self) : ""
             if brand.hasPrefix("M4A") || brand.hasPrefix("M4B") { return "m4a" }
@@ -395,5 +429,46 @@ extension Downloader: URLSessionDownloadDelegate {
         MainActor.assumeIsolated {
             if let finish { finish(nil, task.response, error); self.finish = nil }
         }
+    }
+}
+
+extension Downloader {
+    /// For "play without downloading": the address the player opens, its title and the headers it needs.
+    func playable(_ link: String, audio: Bool) async throws -> (URL, String, [String: String]) {
+        guard let url = URL(string: link) else { throw Failure(t("الصق رابطاً صحيحاً", "Paste a valid link")) }
+        let ua = ["User-Agent": Downloader.userAgent]
+        if Downloader.isYouTube(link) {
+            let yt = YouTube(url: url, methods: [.local, .remote])
+            let streams = try await yt.streams
+            let title = (try? await yt.metadata)?.title ?? yt.videoID
+            let pick = audio
+                ? streams.filterAudioOnly().filter { $0.fileExtension == .m4a }.highestAudioBitrateStream()
+                : streams.filterVideoAndAudio().filter { $0.isNativelyPlayable }.highestResolutionStream()
+            guard let s = pick ?? streams.filterVideoAndAudio().highestResolutionStream() else {
+                throw Failure(t("يوتيوب ما أعطى أي جودة لهذا الفيديو — جرّب بعد قليل أو من شبكة ثانية", "YouTube gave no qualities for this video — try again later or on another network"))
+            }
+            return (s.url, title, [:])
+        }
+        if Instagram.shortcode(link) != nil, let m = await Instagram.fetch(link) {
+            return (m.video, m.title ?? "Instagram", ua.merging(["Referer": "https://www.instagram.com/"]) { a, _ in a })
+        }
+        // A file plays as it is; a page: find the video in it (its text, or the hidden browser).
+        var req = URLRequest(url: url)
+        req.setValue(Downloader.userAgent, forHTTPHeaderField: "User-Agent")
+        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+        let mime = resp.mimeType?.lowercased() ?? ""
+        if mime.contains("html") || mime.isEmpty {
+            var data = Data()
+            for try await b in bytes { data.append(b); if data.count > 3_000_000 { break } }
+            let page = resp.url ?? url
+            var found = PageVideo.fromHTML(String(decoding: data, as: UTF8.self), base: page)
+            if found.videos.isEmpty { found = await PageVideo.fromBrowser(url) }
+            guard let v = found.videos.first else {
+                throw Failure(t("ما لكيت فيديو يشتغل بهذا الرابط", "No playable video was found at this link"))
+            }
+            return (v, found.title ?? page.host ?? "", ua.merging(["Referer": page.absoluteString]) { a, _ in a })
+        }
+        bytes.task.cancel()
+        return (resp.url ?? url, url.deletingPathExtension().lastPathComponent, ua)
     }
 }

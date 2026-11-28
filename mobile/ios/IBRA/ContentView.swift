@@ -1,3 +1,4 @@
+import QuickLook
 import SwiftUI
 import UIKit
 
@@ -13,6 +14,9 @@ struct ContentView: View {
     @State private var showAbout = false
     @State private var share: URL?
     @State private var toast: String?
+    @State private var preview: URL?
+    @State private var opening = false
+    @ObservedObject private var player = Player.shared
 
     var body: some View {
         ScrollView {
@@ -38,6 +42,8 @@ struct ContentView: View {
         .onChange(of: incoming) { _, v in if let v { link = v; incoming = nil } }
         .sheet(isPresented: $showAbout) { about }
         .sheet(item: $share) { url in ShareSheet(items: [url]) }
+        .fullScreenCover(item: $player.item) { _ in PlayerScreen() }
+        .quickLookPreview($preview)
         .overlay(alignment: .bottom) {
             if let toast { Text(toast).padding(10).background(.black.opacity(0.85)).clipShape(Capsule()).padding(.bottom, 30) }
         }
@@ -74,8 +80,12 @@ struct ContentView: View {
             Button(action: download) {
                 Label(t("تحميل", "Download"), systemImage: "arrow.down.circle.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
             }.buttonStyle(.borderedProminent).tint(red)
-            Text(t("على الآيفون: يوتيوب (فيديو مع الصوت حتى 1080p أو الصوت فقط) وأي رابط ملف مباشر. الملفات في تطبيق «الملفات» ← على iPhone ← IBRA.",
-                   "On iPhone: YouTube (video with sound up to 1080p, or audio only) and any direct file link. Files are in the Files app → On My iPhone → IBRA."))
+            Button(action: playLink) {
+                Label(opening ? t("جاري الفتح…", "Opening…") : t("تشغيل بدون تحميل", "Play without downloading"), systemImage: "play.circle.fill")
+                    .frame(maxWidth: .infinity).padding(.vertical, 4)
+            }.buttonStyle(.bordered).tint(.white).disabled(opening)
+            Text(t("يحمّل أي رابط ملف، ويوتيوب (لحد 1080p أو صوت فقط)، وانستغرام وتيك توك وفيديو صفحات المواقع. التشغيل يكمل بالخلفية لو طلعت من التطبيق. الملفات في تطبيق «الملفات» ← على iPhone ← IBRA.",
+                   "Downloads any file link, YouTube (up to 1080p or audio only), Instagram, TikTok and videos on web pages. Playback goes on in the background when you leave the app. Files are in the Files app → On My iPhone → IBRA."))
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(14).background(card).clipShape(RoundedRectangle(cornerRadius: 16))
@@ -99,6 +109,11 @@ struct ContentView: View {
                 switch j.status {
                 case .done:
                     if let url = dl.path(j) {
+                        if j.isPlayable {
+                            Button { player.play(url, title: j.title.isEmpty ? url.deletingPathExtension().lastPathComponent : j.title) } label: { Label(t("تشغيل", "Play"), systemImage: "play.fill") }
+                        } else {
+                            Button(t("معاينة", "Preview")) { preview = url }
+                        }
                         Button(t("مشاركة / حفظ", "Share / Save")) { share = url }
                         if j.isVideo { Button(t("حفظ بالصور", "Save to Photos")) { dl.saveToPhotos(j) { ok in flash(ok ? t("تم الحفظ بالصور", "Saved to Photos") : t("لم يتم السماح بالحفظ", "Not allowed")) } } }
                     }
@@ -141,6 +156,22 @@ struct ContentView: View {
         dl.add(String(link[r]), mode: mode)
         link = ""
         flash(t("بدأ التحميل", "Download started"))
+    }
+
+    /// Plays the link straight away (YouTube, Instagram, a page's video or a file) without saving it.
+    private func playLink() {
+        guard let r = link.range(of: "https?://\\S+", options: .regularExpression) else { flash(t("الصق رابطاً صحيحاً", "Paste a valid link")); return }
+        let url = String(link[r])
+        opening = true
+        Task {
+            do {
+                let (u, title, headers) = try await dl.playable(url, audio: mode == "audio")
+                player.play(u, title: title, headers: headers)
+            } catch {
+                flash((error as? Downloader.Failure)?.message ?? error.localizedDescription)
+            }
+            opening = false
+        }
     }
 
     private func flash(_ s: String) {
