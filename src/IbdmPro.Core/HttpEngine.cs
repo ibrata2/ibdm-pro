@@ -189,19 +189,25 @@ public static class HttpDownloader
         item.Downloaded = 0;
         for (var attempt = 1; ; attempt++)
         {
+            using var stall = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            stall.CancelAfter(StallTimeout);
             try
             {
                 using var req = Http.Request(item.Url, item.Request);
-                using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, stall.Token);
+                if (IsExpired(resp.StatusCode) && await RefreshUrlAsync(item, ct)) { attempt--; continue; }
                 resp.EnsureSuccessStatusCode();
                 if (resp.Content.Headers.ContentLength is long len) item.TotalBytes = len;
-                await using var src = await resp.Content.ReadAsStreamAsync(ct);
+                await using var src = await resp.Content.ReadAsStreamAsync(stall.Token);
                 await using var dst = new FileStream(item.PartPath, FileMode.Create, FileAccess.Write, FileShare.Read, Buffer, true);
                 item.Downloaded = 0;
                 var buf = new byte[Buffer];
                 int n;
-                while ((n = await src.ReadAsync(buf, ct)) > 0)
+                while (true)
                 {
+                    stall.CancelAfter(StallTimeout);
+                    if ((n = await src.ReadAsync(buf, stall.Token)) <= 0) break;
+                    stall.CancelAfter(Timeout.Infinite); // a speed limit's wait below is not a stuck connection
                     await limiter.WaitAsync(n, ct);
                     await dst.WriteAsync(buf.AsMemory(0, n), ct);
                     item.AddDownloaded(n);
@@ -209,6 +215,10 @@ public static class HttpDownloader
                 if (item.TotalBytes > 0 && item.Downloaded < item.TotalBytes) throw new IOException(L.T("انقطع الاتصال قبل اكتمال الملف"));
                 if (item.TotalBytes <= 0) item.TotalBytes = item.Downloaded;
                 return;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && attempt < Retries)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(10, attempt * 1.5)), ct);
             }
             catch (Exception e) when (IsTransient(e) && attempt < Retries && !ct.IsCancellationRequested)
             {
@@ -306,22 +316,28 @@ public static class HttpDownloader
                 from = seg.Position;
                 to = seg.End;
             }
+            // A connection that stops sending (no byte for a while) is dropped and opened again, instead of hanging.
+            using var stall = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            stall.CancelAfter(StallTimeout);
             try
             {
                 using var req = Http.Request(item.Url, item.Request, from, to);
-                using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, stall.Token);
+                if (IsExpired(resp.StatusCode) && await RefreshUrlAsync(item, ct)) { attempt--; continue; }
                 if (resp.StatusCode == HttpStatusCode.OK) throw new NotResumableException();
                 if ((int)resp.StatusCode is 429 or >= 500) throw new HttpRequestException($"HTTP {(int)resp.StatusCode}");
                 if (resp.StatusCode != HttpStatusCode.PartialContent)
                     throw new HttpRequestException(L.F("الخادم رفض الطلب ({0} {1})", (int)resp.StatusCode, resp.ReasonPhrase), null, resp.StatusCode);
                 if (resp.Content.Headers.ContentRange?.From is long realFrom && realFrom != from) throw new NotResumableException();
 
-                await using var src = await resp.Content.ReadAsStreamAsync(ct);
+                await using var src = await resp.Content.ReadAsStreamAsync(stall.Token);
                 await using var dst = new FileStream(item.PartPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite, Buffer, true);
                 dst.Position = from;
                 while (true)
                 {
-                    var n = await src.ReadAsync(buf, ct);
+                    stall.CancelAfter(StallTimeout);
+                    var n = await src.ReadAsync(buf, stall.Token);
+                    stall.CancelAfter(Timeout.Infinite); // a speed limit's wait below is not a stuck connection
                     if (n == 0) break;
                     int take;
                     lock (item.Gate)
@@ -342,11 +358,55 @@ public static class HttpDownloader
                 lock (item.Gate) if (seg.Finished) return;
                 throw new IOException(L.T("انقطع الاتصال"));
             }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && attempt < Retries)
+            {
+                // the connection went quiet (or the network blinked): open it again — never treat it as a pause
+                await Task.Delay(TimeSpan.FromSeconds(Math.Min(10, 0.5 + attempt)), ct);
+            }
             catch (Exception e) when (IsTransient(e) && attempt < Retries && !ct.IsCancellationRequested)
             {
                 await Task.Delay(TimeSpan.FromSeconds(Math.Min(10, 0.5 + attempt * 1.5)), ct);
             }
         }
+    }
+
+    /// <summary>No byte for this long on a connection = it is stuck: drop it and connect again.</summary>
+    private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>The answers a server gives for an address that has run out (signed links of GitHub, S3, drives…).</summary>
+    private static bool IsExpired(HttpStatusCode c) => c is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized or HttpStatusCode.Gone or HttpStatusCode.NotFound;
+
+    private static readonly SemaphoreSlim RefreshGate = new(1, 1);
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long At, int Count)> Refreshed = new();
+
+    /// <summary>The file's address stopped working: ask the original link again for a fresh one (same size).
+    /// One connection does it, the others use its result. True when there is a new address to try.</summary>
+    public static async Task<bool> RefreshUrlAsync(DownloadItem item, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(item.SourceUrl)) return false;
+        var before = item.Url;
+        await RefreshGate.WaitAsync(ct);
+        try
+        {
+            if (item.Url != before) return true; // another connection already got a fresh one
+            var now = Environment.TickCount64;
+            var last = Refreshed.GetValueOrDefault(item.Id);
+            if (now - last.At < 60_000 && last.Count >= 3) return false; // the fresh ones fail too: a real refusal
+            Refreshed[item.Id] = (now, now - last.At < 60_000 ? last.Count + 1 : 1);
+            using var req = Http.Request(item.SourceUrl!, item.Request, 0, 0);
+            using var resp = await Http.Client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            var fresh = resp.RequestMessage?.RequestUri?.ToString();
+            if (resp.StatusCode != HttpStatusCode.PartialContent || fresh is null) return false;
+            if (item.TotalBytes > 0 && resp.Content.Headers.ContentRange?.Length is long total && total != item.TotalBytes) return false;
+            Log.Write($"{item.FileName}: the download address had run out — got a fresh one");
+            item.Url = fresh;
+            return true;
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            return false;
+        }
+        finally { RefreshGate.Release(); }
     }
 
     private static bool IsTransient(Exception e) => e switch

@@ -255,7 +255,7 @@ public sealed class BatchWindow : Window
         var folder = s.FolderFor(cat);
         return new DownloadItem
         {
-            Kind = DownloadKind.File, Url = probe.FinalUrl, PageUrl = url, FileName = UniqueName(folder, name, used), Folder = folder, Category = cat.Name,
+            Kind = DownloadKind.File, Url = probe.FinalUrl, SourceUrl = url != probe.FinalUrl ? url : null, PageUrl = url, FileName = UniqueName(folder, name, used), Folder = folder, Category = cat.Name,
             QueueName = queue, TotalBytes = probe.Size, Resumable = probe.Resumable,
         };
     }

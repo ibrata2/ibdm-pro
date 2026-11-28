@@ -33,6 +33,9 @@ public sealed class DownloadItem
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public DownloadKind Kind { get; set; }
     public string Url { get; set; } = "";
+    /// <summary>The link as given, before the server sent it on to the real file. Many sites (GitHub, cloud drives)
+    /// send on to an address that works only for some minutes; a long download asks this link again for a fresh one.</summary>
+    public string? SourceUrl { get; set; }
     public string? PageUrl { get; set; }
     public RequestInfo Request { get; set; } = new();
 

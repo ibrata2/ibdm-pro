@@ -266,7 +266,7 @@ public sealed class DownloadManager : IDisposable
         {
             item.Speed = 0;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             item.Status = _closing && _settings().ResumeOnStart ? DownloadStatus.Queued : DownloadStatus.Paused;
             item.Speed = 0;
@@ -325,6 +325,8 @@ public sealed class DownloadManager : IDisposable
 
     private static bool IsRetryable(Exception e) => e switch
     {
+        // a timeout or a dropped connection that nobody asked for: carry on by itself, never "paused"
+        OperationCanceledException => true,
         HttpRequestException h => h.StatusCode is null or System.Net.HttpStatusCode.RequestTimeout
             or System.Net.HttpStatusCode.TooManyRequests or >= System.Net.HttpStatusCode.InternalServerError,
         IOException or TimeoutException => true,

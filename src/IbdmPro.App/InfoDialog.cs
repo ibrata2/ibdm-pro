@@ -714,7 +714,7 @@ public sealed class InfoDialog : Window
         {
             item = new DownloadItem
             {
-                Kind = DownloadKind.File, Url = _probe.FinalUrl, PageUrl = _megaLink ?? _req.PageUrl, Request = _megaKey is null ? _req.ToRequestInfo() : new RequestInfo(),
+                Kind = DownloadKind.File, Url = _probe.FinalUrl, SourceUrl = _megaKey is null && _req.Url != _probe.FinalUrl && _req.Url.StartsWith("http") ? _req.Url : null, PageUrl = _megaLink ?? _req.PageUrl, Request = _megaKey is null ? _req.ToRequestInfo() : new RequestInfo(),
                 FileName = name, Folder = folder, Category = _category.Name, QueueName = queueName,
                 TotalBytes = _probe.Size, Resumable = _probe.Resumable, MegaKey = _megaKey,
             };
