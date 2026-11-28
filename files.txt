@@ -1,0 +1,12 @@
+total 10096
+drwxr-xr-x  7 runner  staff      224 Nov 28 16:07 .
+drwxr-xr-x@ 7 runner  staff      224 Nov 28 16:04 ..
+-rw-r--r--  1 runner  staff     1778 Nov 28 16:10 .downloads.json
+-rw-------  1 runner  staff  1017460 Nov 28 16:07 B E A U T Y  F O R  A S H E S on Instagram   If Abel was a booger, Luke would definitely pick him. S.mp4
+-rw-------  1 runner  staff   788493 Nov 28 16:06 HTML Video.mp4
+-rw-------  1 runner  staff   401215 Nov 28 16:05 ibdm-512.png
+-rw-------  1 runner  staff  2953029 Nov 28 16:07 TikTok - Make Your Day.mp4
+B E A U T Y  F O R  A S H E S on Instagram   If Abel was a booger, Luke would definitely pick him. S.mp4: ISO Media, MP4 Base Media v1 [ISO 14496-12:2003]
+HTML Video.mp4:                                                                                           ISO Media, MP4 v2 [ISO 14496-14]
+ibdm-512.png:                                                                                             PNG image data, 512 x 512, 8-bit/color RGBA, non-interlaced
+TikTok - Make Your Day.mp4:                                                                               ISO Media, MP4 Base Media v1 [ISO 14496-12:2003]
